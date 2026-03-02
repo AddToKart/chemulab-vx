@@ -1,0 +1,287 @@
+/* Reaction Quiz Game Styles */
+
+.container {
+  padding: 20px;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-main);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 16px;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.backLink:hover {
+  opacity: 1;
+}
+
+.gameArea {
+  max-width: 650px;
+  margin: 0 auto;
+  background: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+.title {
+  font-size: 1.8em;
+  font-weight: 800;
+  margin: 0 0 15px;
+}
+
+.subtitle {
+  font-size: 1.1em;
+  margin-bottom: 20px;
+  color: #555;
+}
+
+.startScreen {
+  padding: 40px 20px;
+}
+
+.startBtn {
+  padding: 15px 30px;
+  font-size: 1.2em;
+  background: #000;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.startBtn:hover {
+  background: #333;
+  transform: scale(1.02);
+}
+
+.startBtn:active {
+  transform: scale(0.98);
+}
+
+.scoreBoard {
+  font-size: 1.2em;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  font-weight: 600;
+}
+
+.questionBox {
+  font-size: 1.5em;
+  margin: 30px 0;
+  padding: 20px;
+  background: #fff3e0;
+  border-radius: 8px;
+  font-weight: 700;
+}
+
+.reactionEquation {
+  font-size: 1.8em;
+  color: #e65100;
+  margin: 10px 0 0;
+}
+
+.optionsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.optionBtn {
+  padding: 15px;
+  font-size: 1.1em;
+  cursor: pointer;
+  background: #ffcc80;
+  border: 2px solid #000;
+  border-radius: 8px;
+  transition: transform 0.1s, background-color 0.2s;
+  font-weight: 600;
+}
+
+.optionBtn:hover:not(:disabled) {
+  transform: scale(1.02);
+  background: #ffa726;
+  color: #fff;
+}
+
+.optionBtn:disabled {
+  cursor: default;
+}
+
+.optionBtnCorrect {
+  background: #4caf50 !important;
+  color: #fff !important;
+}
+
+.optionBtnWrong {
+  background: #f44336 !important;
+  color: #fff !important;
+}
+
+.feedback {
+  height: 30px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  font-size: 1.1em;
+}
+
+.nextBtn {
+  padding: 10px 20px;
+  font-size: 1em;
+  background: #000;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.nextBtn:hover {
+  background: #333;
+  transform: scale(1.02);
+}
+
+.gameOverScreen {
+  padding: 40px 20px;
+}
+
+.gameOverTitle {
+  font-size: 2em;
+  font-weight: 800;
+  color: #f44336;
+  margin-bottom: 10px;
+}
+
+.finalScore {
+  font-size: 2em;
+  font-weight: 800;
+  color: #333;
+  margin: 10px 0 20px;
+}
+
+.playAgainBtn {
+  padding: 15px 30px;
+  font-size: 1.2em;
+  background: #4caf50;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.playAgainBtn:hover {
+  background: #43a047;
+  transform: scale(1.02);
+}
+
+.playAgainBtn:active {
+  transform: scale(0.98);
+}
+
+/* Dark mode */
+:global([data-theme='dark']) .gameArea {
+  background: var(--bg-card);
+  color: var(--text-main);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+:global([data-theme='dark']) .subtitle {
+  color: var(--text-muted, #aaa);
+}
+
+:global([data-theme='dark']) .questionBox {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-main);
+}
+
+:global([data-theme='dark']) .reactionEquation {
+  color: #ffb74d;
+}
+
+:global([data-theme='dark']) .optionBtn {
+  background: var(--bg-sidebar);
+  color: var(--text-main);
+  border-color: var(--border-color);
+}
+
+:global([data-theme='dark']) .optionBtn:hover:not(:disabled) {
+  background: var(--bg-card-hover);
+  color: var(--text-main);
+}
+
+:global([data-theme='dark']) .optionBtnCorrect {
+  background: #4caf50 !important;
+  color: #fff !important;
+}
+
+:global([data-theme='dark']) .optionBtnWrong {
+  background: #f44336 !important;
+  color: #fff !important;
+}
+
+:global([data-theme='dark']) .startBtn,
+:global([data-theme='dark']) .nextBtn {
+  background: #e0e0e0;
+  color: #000;
+}
+
+:global([data-theme='dark']) .startBtn:hover,
+:global([data-theme='dark']) .nextBtn:hover {
+  background: #fff;
+}
+
+:global([data-theme='dark']) .finalScore {
+  color: var(--text-main);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .gameArea {
+    padding: 15px;
+    max-width: 100%;
+  }
+
+  .questionBox {
+    font-size: 1.2em;
+    padding: 15px;
+    margin: 20px 0;
+  }
+
+  .reactionEquation {
+    font-size: 1.4em;
+  }
+
+  .optionBtn {
+    padding: 12px;
+    font-size: 1em;
+  }
+
+  .scoreBoard {
+    font-size: 1em;
+  }
+
+  .title {
+    font-size: 1.4em;
+  }
+}
+
+@media (max-width: 480px) {
+  .optionsGrid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}

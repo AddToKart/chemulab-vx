@@ -1,0 +1,220 @@
+/* Element Match Game Styles */
+
+.container {
+  max-width: 650px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.backLink {
+  display: block;
+  margin-bottom: 16px;
+  color: #818cf8;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.95em;
+  transition: opacity 0.2s;
+}
+
+.backLink:hover {
+  opacity: 0.8;
+}
+
+.gameArea {
+  max-width: 600px;
+  margin: 0 auto;
+  background: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  text-align: center;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Start Screen */
+.startScreen {
+  padding: 40px 20px;
+}
+
+.title {
+  font-size: 2.2em;
+  margin-bottom: 12px;
+}
+
+.subtitle {
+  font-size: 1.1em;
+  color: #666;
+  margin-bottom: 30px;
+}
+
+.startBtn {
+  padding: 14px 36px;
+  font-size: 1.15em;
+  background: #818cf8;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.startBtn:hover {
+  background: #6366f1;
+  transform: scale(1.03);
+}
+
+/* Score Board */
+.scoreBoard {
+  font-size: 1.2em;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  font-weight: 500;
+}
+
+/* Question Box */
+.questionBox {
+  font-size: 2em;
+  margin: 30px 0;
+  padding: 20px;
+  background: #e0f7fa;
+  border-radius: 8px;
+  font-weight: bold;
+}
+
+.highlight {
+  color: #818cf8;
+}
+
+/* Options Grid */
+.optionsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.optionBtn {
+  padding: 15px;
+  font-size: 1.2em;
+  cursor: pointer;
+  background: #87ceeb;
+  border: 2px solid #000;
+  border-radius: 8px;
+  transition: transform 0.1s, background 0.15s;
+  font-weight: 500;
+}
+
+.optionBtn:hover:not(:disabled) {
+  transform: scale(1.02);
+  background: #5f9ea0;
+  color: #fff;
+}
+
+.optionBtn:disabled {
+  cursor: default;
+}
+
+.optionBtnCorrect {
+  background: #4caf50 !important;
+  color: #fff !important;
+  border-color: #4caf50 !important;
+}
+
+.optionBtnWrong {
+  background: #f44336 !important;
+  color: #fff !important;
+  border-color: #f44336 !important;
+}
+
+/* Feedback */
+.feedback {
+  height: 30px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  font-size: 1.05em;
+}
+
+/* Next Button */
+.nextBtn {
+  padding: 10px 20px;
+  font-size: 1em;
+  background: #000;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.nextBtn:hover {
+  background: #333;
+}
+
+/* Game Over Screen */
+.gameOverScreen {
+  padding: 40px 20px;
+}
+
+.gameOverTitle {
+  font-size: 2em;
+  margin-bottom: 16px;
+  color: #f44336;
+}
+
+.finalScore {
+  font-size: 1.5em;
+  margin-bottom: 30px;
+  font-weight: 600;
+}
+
+/* ===================== Dark Mode ===================== */
+:global([data-theme="dark"]) .gameArea {
+  background: var(--bg-card);
+  color: var(--text-main);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+:global([data-theme="dark"]) .subtitle {
+  color: var(--text-muted, #aaa);
+}
+
+:global([data-theme="dark"]) .questionBox {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-main);
+}
+
+:global([data-theme="dark"]) .optionBtn {
+  background: var(--bg-sidebar);
+  color: var(--text-main);
+  border-color: var(--border-color);
+}
+
+:global([data-theme="dark"]) .optionBtn:hover:not(:disabled) {
+  background: var(--bg-card-hover);
+}
+
+:global([data-theme="dark"]) .optionBtnCorrect {
+  background: #4caf50 !important;
+  color: #fff !important;
+  border-color: #4caf50 !important;
+}
+
+:global([data-theme="dark"]) .optionBtnWrong {
+  background: #f44336 !important;
+  color: #fff !important;
+  border-color: #f44336 !important;
+}
+
+:global([data-theme="dark"]) .nextBtn {
+  background: #e2e8f0;
+  color: #000;
+}
+
+:global([data-theme="dark"]) .nextBtn:hover {
+  background: #cbd5e1;
+}
+
+:global([data-theme="dark"]) .gameOverTitle {
+  color: #ef5350;
+}

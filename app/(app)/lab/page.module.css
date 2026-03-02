@@ -1,0 +1,608 @@
+/* Lab / ChemistryCraft Page Styles */
+
+/* ===== Lab Interface Grid ===== */
+.labInterface {
+  display: grid;
+  grid-template-columns: 300px 1fr 250px;
+  gap: 20px;
+  padding: 20px;
+  height: calc(100vh - 100px);
+  position: relative;
+}
+
+@media (max-width: 1024px) {
+  .labInterface {
+    grid-template-columns: 250px 1fr 200px;
+    gap: 10px;
+    padding: 10px;
+  }
+}
+
+@media (max-width: 900px) {
+  .labInterface {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    padding-bottom: 80px;
+  }
+
+  .elementsPanel,
+  .discoveriesPanel {
+    height: 300px;
+    min-height: 200px;
+  }
+
+  .discoveryName {
+    max-width: 120px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .craftingArea {
+    order: -1;
+    margin-bottom: 10px;
+  }
+}
+
+/* ===== Panels ===== */
+.elementsPanel,
+.discoveriesPanel {
+  background: var(--bg-card);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  padding: 1.5rem;
+  overflow-y: hidden;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-md);
+  position: relative;
+}
+
+.elementsPanel::before,
+.discoveriesPanel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+}
+
+.elementsPanel h3,
+.discoveriesPanel h3 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: var(--text-main);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 700;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ===== Search Bar ===== */
+.searchBar {
+  margin-bottom: 15px;
+  width: 100%;
+}
+
+.searchBar input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  color: var(--text-main);
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.searchBar input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+  background: var(--bg-card-hover);
+}
+
+.searchBar input::placeholder {
+  color: var(--text-light);
+  opacity: 0.6;
+}
+
+/* ===== Element Grid ===== */
+.elementGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: var(--radius-md);
+  flex-grow: 1;
+  overflow-y: auto;
+  max-height: calc(100vh - 280px);
+}
+
+/* ===== Element Card ===== */
+.element {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 0.75rem;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  height: 48px;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-sm);
+  color: #0f172a !important;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.element::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.4) 0%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.element:hover {
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: var(--shadow-md), var(--glow-accent);
+  border-color: var(--accent-color);
+  filter: brightness(1.1);
+  z-index: 10;
+}
+
+.element:hover::after {
+  opacity: 1;
+}
+
+.element:active {
+  cursor: grabbing;
+}
+
+.element.selected {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3), var(--shadow-md);
+  transform: scale(1.02);
+}
+
+.elementSymbol {
+  font-weight: 800;
+  font-size: 1.125rem;
+  margin-right: 10px;
+  letter-spacing: -0.02em;
+  min-width: 30px;
+  text-align: center;
+  color: inherit;
+}
+
+.elementName {
+  font-weight: 700;
+  font-size: 0.875rem;
+  color: inherit;
+  letter-spacing: -0.01em;
+}
+
+/* ===== Crafting Area ===== */
+.craftingArea {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  padding: 3rem;
+  background: var(--bg-card);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  position: relative;
+}
+
+.craftingArea::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(16, 185, 129, 0.05) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.craftingSlots {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+@media (max-width: 480px) {
+  .craftingSlots {
+    gap: 10px;
+  }
+
+  .craftingSlot {
+    width: 80px !important;
+    height: 80px !important;
+  }
+
+  .slotLabel {
+    font-size: 0.75em;
+    padding: 5px;
+  }
+}
+
+.craftingSlot {
+  width: 120px;
+  height: 120px;
+  background: rgba(0, 0, 0, 0.1);
+  border: 2px dashed rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  position: relative;
+}
+
+.craftingSlot:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+:global([data-theme="light"]) .craftingSlot {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+:global([data-theme="light"]) .craftingSlot:hover {
+  border-color: rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.craftingSlot.dragOver {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: var(--accent-color);
+  border-style: solid;
+  transform: scale(1.1);
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.3), inset 0 0 15px rgba(16, 185, 129, 0.2);
+}
+
+.plusSign {
+  font-size: 2.5em;
+  color: var(--text-light);
+  font-weight: bold;
+}
+
+.slotLabel {
+  color: var(--text-main);
+  opacity: 0.8;
+  font-size: 0.95em;
+  font-weight: 700;
+  text-align: center;
+  padding: 10px;
+}
+
+/* Element placed inside a crafting/result slot */
+.slotElement {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: calc(100% - 10px);
+  height: calc(100% - 10px);
+  padding: 5px;
+  box-sizing: border-box;
+  text-align: center;
+  border-radius: var(--radius-md);
+  color: #0f172a;
+}
+
+.slotSymbol {
+  font-weight: 800;
+  font-size: 1.4em;
+  margin-bottom: 2px;
+}
+
+.slotName {
+  font-size: 0.7rem;
+  line-height: 1.1;
+  font-weight: 700;
+  white-space: normal;
+  text-align: center;
+}
+
+/* ===== Combine Button ===== */
+.combineBtn {
+  padding: 1rem 3rem;
+  background: var(--accent-gradient);
+  border: none;
+  border-radius: var(--radius-full);
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: var(--shadow-md), var(--glow-accent);
+  width: 100%;
+  max-width: 300px;
+  margin: 10px 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.combineBtn::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  bottom: 0;
+  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.4), transparent);
+  transform: skewX(-20deg);
+  animation: shimmerSweep 3s infinite;
+}
+
+.combineBtn:hover:not(:disabled) {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: var(--shadow-lg), var(--glow-accent-strong);
+  filter: brightness(1.15);
+}
+
+.combineBtn:disabled {
+  background: var(--bg-item-active);
+  color: var(--text-light);
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: none;
+}
+
+.combineBtn:disabled::after {
+  display: none;
+}
+
+/* ===== Result Area ===== */
+.resultArea {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.resultSlot {
+  width: 100px;
+  height: 100px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+@media (max-width: 480px) {
+  .resultSlot {
+    width: 80px;
+    height: 80px;
+  }
+}
+
+/* ===== Discoveries List ===== */
+.discoveriesList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding-bottom: 10px;
+}
+
+.discoveryItem {
+  background: var(--bg-card);
+  padding: 10px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.discoveryItem:hover {
+  border-color: var(--accent-color);
+  transform: translateX(2px);
+}
+
+.discoverySymbol {
+  font-size: 1.2em;
+  font-weight: bold;
+  color: var(--text-main);
+  min-width: 36px;
+  text-align: center;
+}
+
+.discoveryName {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--text-main);
+}
+
+/* ===== Loading / Empty States ===== */
+.loadingText,
+.emptyText {
+  color: var(--text-light);
+  text-align: center;
+  padding: 2rem 1rem;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+/* ===== Saving Indicator ===== */
+.savingIndicator {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--accent-color);
+  opacity: 0.8;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
+
+/* ===== Export / Import Controls ===== */
+.discoveriesControls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  margin-top: 12px;
+  padding: 8px 10px;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: var(--radius-md);
+}
+
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-main);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+
+.iconBtn svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  color: var(--text-main);
+}
+
+.iconBtn:hover {
+  transform: translateY(-3px);
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.28);
+}
+
+.iconBtn:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.06), 0 6px 12px rgba(0, 0, 0, 0.28);
+}
+
+.importInput {
+  display: none;
+}
+
+/* ===== Toast ===== */
+.toastContainer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.toast {
+  background: rgba(0, 0, 0, 0.9);
+  color: white;
+  padding: 15px 30px;
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  min-width: 200px;
+  backdrop-filter: blur(5px);
+  font-size: 1.1em;
+  pointer-events: auto;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  animation: toastIn 0.3s ease forwards;
+}
+
+.toastError {
+  background: rgba(220, 20, 20, 0.9);
+}
+
+@keyframes toastIn {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ===== Light Mode Overrides ===== */
+:global([data-theme="light"]) .slotLabel,
+:global([data-theme="light"]) .discoveryName,
+:global([data-theme="light"]) .discoverySymbol,
+:global([data-theme="light"]) .elementsPanel h3,
+:global([data-theme="light"]) .discoveriesPanel h3,
+:global([data-theme="light"]) .iconBtn,
+:global([data-theme="light"]) .iconBtn svg {
+  color: #1e1b4b !important;
+}
+
+:global([data-theme="light"]) .iconBtn {
+  background: rgba(0, 0, 0, 0.05) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+:global([data-theme="light"]) .discoveryItem {
+  background: rgba(0, 0, 0, 0.03) !important;
+  border: 1px solid rgba(0, 0, 0, 0.05) !important;
+}
+
+:global([data-theme="light"]) .discoveriesControls {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+:global([data-theme="light"]) .plusSign {
+  color: #1e1b4b;
+}

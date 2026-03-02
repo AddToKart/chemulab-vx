@@ -1,0 +1,608 @@
+/* pH Color Challenge – Styles */
+
+/* ===================== Layout ===================== */
+
+.container {
+  max-width: 1000px;
+  width: 95%;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.backLink {
+  display: inline-block;
+  margin-bottom: 16px;
+  color: #8b5cf6;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.95em;
+  transition: opacity 0.2s;
+}
+
+.backLink:hover {
+  opacity: 0.8;
+}
+
+/* ===================== Game Area ===================== */
+
+.gameArea {
+  max-width: 95%;
+  width: 1000px;
+  margin: 20px auto;
+  background: #ffffff;
+  padding: 40px;
+  border-radius: 24px;
+  text-align: center;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+}
+
+/* ===================== Screens ===================== */
+
+.screen {
+  animation: screenIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes screenIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* ===================== Typography ===================== */
+
+.title {
+  font-size: 2.4em;
+  font-weight: 800;
+  margin-bottom: 12px;
+  color: #1e1b4b;
+}
+
+.subtitle {
+  font-size: 1.15em;
+  color: #64748b;
+  margin-bottom: 30px;
+}
+
+/* ===================== Lobby ===================== */
+
+.lobbyOptions {
+  display: flex;
+  gap: 30px;
+  max-width: 800px;
+  margin: 50px auto;
+}
+
+.lobbyCard {
+  flex: 1;
+  padding: 30px;
+  border-radius: 20px;
+  border: 1px solid #e2e8f0;
+  background: #faf5ff;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.lobbyCard:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 12px 30px rgba(139, 92, 246, 0.15);
+}
+
+.lobbyCardTitle {
+  font-size: 1.4em;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: #4c1d95;
+}
+
+.lobbyCardDesc {
+  font-size: 0.95em;
+  color: #64748b;
+  margin-bottom: 20px;
+}
+
+.inputGroup {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+}
+
+.codeInput {
+  padding: 15px;
+  border-radius: 12px;
+  border: 2px solid #e2e8f0;
+  text-transform: uppercase;
+  font-size: 1.4em;
+  font-weight: 800;
+  letter-spacing: 4px;
+  text-align: center;
+  width: 160px;
+  outline: none;
+  transition: border-color 0.2s;
+  color: #1e1b4b;
+  background: #fff;
+}
+
+.codeInput:focus {
+  border-color: #8b5cf6;
+}
+
+.error {
+  color: #ef4444;
+  font-size: 0.9em;
+  margin-top: 10px;
+  font-weight: 600;
+}
+
+/* ===================== Buttons ===================== */
+
+.btn {
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 1em;
+  border: none;
+  cursor: pointer;
+  background: #8b5cf6;
+  color: #ffffff;
+  transition: background 0.2s, transform 0.15s;
+}
+
+.btn:hover {
+  background: #7c3aed;
+  transform: scale(1.03);
+}
+
+.btnSecondary {
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 1em;
+  border: 2px solid #e2e8f0;
+  cursor: pointer;
+  background: transparent;
+  color: #64748b;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.btnSecondary:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+/* ===================== Waiting ===================== */
+
+.roomCodeTag {
+  font-size: 3.5em;
+  font-weight: 800;
+  color: #8b5cf6;
+  background: #f5f3ff;
+  padding: 20px 40px;
+  border-radius: 20px;
+  letter-spacing: 8px;
+  display: inline-block;
+  margin: 30px 0;
+  user-select: all;
+}
+
+.waitingDots {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin: 30px 0;
+}
+
+.dot {
+  width: 12px;
+  height: 12px;
+  background: #a78bfa;
+  border-radius: 50%;
+  animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes bounce {
+  0%, 80%, 100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
+}
+
+/* ===================== Game – Turn Indicator ===================== */
+
+.turnIndicator {
+  font-size: 1.6em;
+  font-weight: 700;
+  margin-bottom: 20px;
+  color: #4c1d95;
+}
+
+/* ===================== Target ===================== */
+
+.targetSection {
+  margin-bottom: 20px;
+}
+
+.targetLabel {
+  font-size: 1em;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.targetBox {
+  width: 80px;
+  height: 80px;
+  border: 4px solid #333;
+  margin: 0 auto 10px;
+  border-radius: 12px;
+  transition: background 0.6s ease;
+}
+
+.targetPHText {
+  font-size: 1.1em;
+  font-weight: 700;
+  color: #4c1d95;
+}
+
+/* ===================== Beakers ===================== */
+
+.beakerContainer {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end;
+  height: 300px;
+  margin: 40px 0;
+}
+
+.beakerWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.beakerLabel {
+  font-weight: 700;
+  font-size: 1em;
+  color: #4c1d95;
+}
+
+.beaker {
+  width: 140px;
+  height: 200px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 4px solid #444;
+  border-top: none;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+  position: relative;
+  overflow: hidden;
+}
+
+.liquid {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 80%;
+  background: #eee;
+  transition: background 1s ease;
+  border-bottom-left-radius: 15px;
+  border-bottom-right-radius: 15px;
+}
+
+.phValue {
+  font-size: 1.2em;
+  font-weight: 800;
+  color: #1e1b4b;
+}
+
+/* ===================== Ingredient Grid ===================== */
+
+.ingredientGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.ingCard {
+  padding: 15px;
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 1.5rem;
+  background: #fff;
+  transition: transform 0.15s, box-shadow 0.2s, border-color 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.ingCard:hover:not(:disabled) {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+}
+
+.ingCardDisabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.pickedP1 {
+  border-color: #ef4444 !important;
+  border-width: 3px;
+  opacity: 0.7;
+}
+
+.pickedP2 {
+  border-color: #3b82f6 !important;
+  border-width: 3px;
+  opacity: 0.7;
+}
+
+.ingEmoji {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.ingName {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+/* ===================== Victory ===================== */
+
+.victoryTitle {
+  font-size: 2.6em;
+  font-weight: 800;
+  margin-bottom: 16px;
+  color: #4c1d95;
+}
+
+.winnerText {
+  font-size: 1.5em;
+  font-weight: 700;
+  margin-bottom: 30px;
+  color: #1e1b4b;
+}
+
+.resultRow {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+
+.resultCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.resultName {
+  font-weight: 700;
+  font-size: 1.1em;
+  color: #4c1d95;
+}
+
+.resultSwatch {
+  width: 60px;
+  height: 60px;
+  border-radius: 10px;
+  border: 3px solid #333;
+}
+
+.resultPH {
+  font-weight: 800;
+  font-size: 1.2em;
+  color: #1e1b4b;
+}
+
+.resultVs {
+  font-size: 1.2em;
+  font-weight: 800;
+  color: #94a3b8;
+}
+
+.targetReminder {
+  font-size: 1em;
+  color: #64748b;
+  margin-bottom: 30px;
+}
+
+.victoryButtons {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
+
+/* ===================== Responsive ===================== */
+
+@media (max-width: 768px) {
+  .gameArea {
+    padding: 20px;
+    margin: 20px auto;
+    width: 100%;
+  }
+
+  .lobbyOptions {
+    flex-direction: column;
+    margin: 30px auto;
+  }
+
+  .lobbyCard:hover {
+    transform: none;
+  }
+
+  .beakerContainer {
+    gap: 20px;
+    height: auto;
+    padding: 20px 0;
+  }
+
+  .beaker {
+    width: 100px;
+    height: 150px;
+  }
+
+  .ingredientGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .ingCard {
+    padding: 12px;
+    font-size: 1.2rem;
+  }
+
+  .title {
+    font-size: 1.8em;
+  }
+
+  .roomCodeTag {
+    font-size: 2.4em;
+    padding: 14px 24px;
+    letter-spacing: 5px;
+  }
+
+  .victoryButtons {
+    flex-direction: column;
+  }
+}
+
+/* ===================== Dark Mode ===================== */
+
+:global([data-theme="dark"]) .gameArea {
+  background: #4c1d95;
+  color: #f5f3ff;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+}
+
+:global([data-theme="dark"]) .title {
+  color: #f5f3ff;
+}
+
+:global([data-theme="dark"]) .subtitle {
+  color: #c4b5fd;
+}
+
+:global([data-theme="dark"]) .lobbyCard {
+  background: #3b0f80;
+  border-color: #6d28d9;
+}
+
+:global([data-theme="dark"]) .lobbyCardTitle {
+  color: #e9d5ff;
+}
+
+:global([data-theme="dark"]) .lobbyCardDesc {
+  color: #a78bfa;
+}
+
+:global([data-theme="dark"]) .codeInput {
+  background: #2e1065;
+  border-color: #6d28d9;
+  color: #f5f3ff;
+}
+
+:global([data-theme="dark"]) .codeInput::placeholder {
+  color: #7c3aed;
+}
+
+:global([data-theme="dark"]) .btnSecondary {
+  border-color: #6d28d9;
+  color: #c4b5fd;
+}
+
+:global([data-theme="dark"]) .btnSecondary:hover {
+  background: #3b0f80;
+  border-color: #8b5cf6;
+}
+
+:global([data-theme="dark"]) .roomCodeTag {
+  background: #2e1065;
+  color: #a78bfa;
+}
+
+:global([data-theme="dark"]) .turnIndicator {
+  color: #e9d5ff;
+}
+
+:global([data-theme="dark"]) .targetLabel {
+  color: #c4b5fd;
+}
+
+:global([data-theme="dark"]) .targetPHText {
+  color: #e9d5ff;
+}
+
+:global([data-theme="dark"]) .beakerLabel {
+  color: #e9d5ff;
+}
+
+:global([data-theme="dark"]) .beaker {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: #a78bfa;
+}
+
+:global([data-theme="dark"]) .phValue {
+  color: #f5f3ff;
+}
+
+:global([data-theme="dark"]) .ingCard {
+  background: #3b0f80;
+  border-color: #6d28d9;
+  color: #f5f3ff;
+}
+
+:global([data-theme="dark"]) .ingCard:hover:not(:disabled) {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+:global([data-theme="dark"]) .ingName {
+  color: #c4b5fd;
+}
+
+:global([data-theme="dark"]) .victoryTitle {
+  color: #f5f3ff;
+}
+
+:global([data-theme="dark"]) .winnerText {
+  color: #e9d5ff;
+}
+
+:global([data-theme="dark"]) .resultName {
+  color: #e9d5ff;
+}
+
+:global([data-theme="dark"]) .resultPH {
+  color: #f5f3ff;
+}
+
+:global([data-theme="dark"]) .resultVs {
+  color: #7c3aed;
+}
+
+:global([data-theme="dark"]) .targetReminder {
+  color: #c4b5fd;
+}

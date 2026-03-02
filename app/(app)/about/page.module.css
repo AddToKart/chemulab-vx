@@ -1,0 +1,298 @@
+.pageTitle {
+  font-size: 3rem;
+  font-weight: 800;
+  margin-bottom: 2rem;
+  color: transparent;
+  background: var(--accent-gradient);
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: shimmer 4s linear infinite;
+  text-align: center;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.aboutSection {
+  background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-item-active) 100%);
+  padding: 3rem;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border-color);
+  margin: 2rem 0;
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Decorations */
+.decoration {
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.flask {
+  top: -20px;
+  right: -20px;
+  font-size: 150px;
+  opacity: 0.1;
+  transform: rotate(15deg);
+  color: var(--accent-color);
+}
+
+.atom {
+  bottom: -40px;
+  left: -40px;
+  font-size: 200px;
+  opacity: 0.08;
+  color: #8b5cf6;
+}
+
+/* Headings */
+.aboutSection h2 {
+  color: var(--text-main);
+  margin-bottom: 1rem;
+  font-size: 2.5rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  position: relative;
+  z-index: 1;
+}
+
+.aboutSection h3 {
+  color: var(--text-main);
+  margin-top: 3rem;
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  position: relative;
+  z-index: 1;
+}
+
+.aboutSection p {
+  margin-bottom: 1.5rem;
+  line-height: 1.8;
+  color: var(--text-light);
+  font-size: 1.125rem;
+  max-width: 800px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Feature grid */
+.aboutGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 2rem;
+  margin-top: 2.5rem;
+  position: relative;
+  z-index: 1;
+}
+
+.featureCard {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border-color);
+  padding: 2rem;
+  border-radius: var(--radius-lg);
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.featureCard:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-lg), var(--glow-accent);
+}
+
+.featureIcon {
+  font-size: 2.5rem;
+  background: var(--bg-item-active);
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  margin-bottom: 0.5rem;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.featureCard:hover .featureIcon {
+  transform: scale(1.1) rotate(5deg);
+}
+
+.cardInteractive {
+  border-top: 4px solid var(--color-neon-green);
+}
+
+.cardDatabase {
+  border-top: 4px solid var(--color-flask-blue);
+}
+
+.cardGamified {
+  border-top: 4px solid var(--color-reaction-orange);
+}
+
+.cardSocial {
+  border-top: 4px solid var(--accent-color);
+}
+
+.featureCard h4 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.featureCard p {
+  margin: 0;
+  line-height: 1.6;
+  color: var(--text-light);
+  font-size: 0.95rem;
+}
+
+/* Mission Block */
+.missionBlock {
+  background: var(--bg-card);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  padding: 2.5rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--glass-border);
+  border-left: 6px solid var(--accent-color);
+  margin: 3rem 0;
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+}
+
+.missionBlock p {
+  font-size: 1.25rem;
+  font-style: italic;
+  color: var(--text-main);
+  opacity: 0.9;
+  line-height: 1.8;
+  margin: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.missionBlock::after {
+  content: '“';
+  position: absolute;
+  top: -20px;
+  left: 20px;
+  font-size: 10rem;
+  color: var(--accent-color);
+  opacity: 0.08;
+  font-family: Georgia, serif;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* Team Section */
+.teamSection {
+  margin-top: 4rem;
+  position: relative;
+  z-index: 1;
+}
+
+.teamGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.teamCard {
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  padding: 2rem 1.5rem;
+  text-align: center;
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  transition: all 0.3s ease;
+}
+
+.teamCard:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-md), var(--glow-accent);
+  border-color: var(--accent-color);
+}
+
+.teamAvatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  margin: 0 auto 1.5rem;
+  background: var(--bg-item-active);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.teamCard:hover .teamAvatar {
+  transform: scale(1.1);
+  border-color: var(--accent-color);
+}
+
+.teamName {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-bottom: 0.25rem;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.teamRole {
+  font-size: 0.85rem;
+  color: var(--accent-color);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+}
+
+/* Dark mode */
+:global([data-theme="dark"]) .featureCard,
+:global([data-theme="dark"]) .missionBlock,
+:global([data-theme="dark"]) .teamCard {
+  background: rgba(15, 23, 42, 0.6);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+:global([data-theme="dark"]) .aboutSection {
+  background: linear-gradient(135deg, #020617 0%, #0f172a 100%);
+}
+
+:global([data-theme="dark"]) .featureCard h4,
+:global([data-theme="dark"]) .teamName {
+  color: #f8fafc;
+}
+
+:global([data-theme="dark"]) .featureCard p {
+  color: #e2e8f0;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .aboutSection {
+    padding: 1.5rem;
+  }
+
+  .aboutSection h2 {
+    font-size: 1.75rem;
+  }
+
+  .aboutGrid {
+    grid-template-columns: 1fr;
+  }
+}

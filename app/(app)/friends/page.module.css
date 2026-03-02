@@ -1,0 +1,436 @@
+/* Main layout */
+.friendsPage {
+  display: flex;
+  gap: 2rem;
+  height: calc(100vh - var(--header-height) - 4rem);
+  align-items: stretch;
+}
+
+/* Panels */
+.friendsPanel,
+.chatPanel {
+  background: var(--bg-card);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.friendsPanel::before,
+.chatPanel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+}
+
+.friendsPanel {
+  flex: 0 0 350px;
+  padding: 1.5rem;
+}
+
+.chatPanel {
+  flex: 1;
+}
+
+/* Friends list */
+.friendsList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-y: auto;
+  padding-right: 5px;
+  margin-bottom: 1.5rem;
+  flex: 1;
+}
+
+/* Friend item */
+.friend {
+  background: var(--bg-sidebar);
+  border: 1px solid transparent;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: var(--shadow-sm);
+}
+
+.friend:hover {
+  background: var(--bg-card-hover);
+  transform: translateX(6px);
+  border-color: var(--glass-border);
+  box-shadow: var(--shadow-md);
+}
+
+.friendActive {
+  background: linear-gradient(to right, rgba(16, 185, 129, 0.1), transparent);
+  border: 1px solid var(--accent-color);
+  box-shadow: var(--glow-accent);
+}
+
+/* Friend icon/avatar */
+.friendIcon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 2px solid var(--glass-border);
+}
+
+.friendIcon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Friend info */
+.friendInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.friendInfo strong {
+  display: block;
+  color: var(--text-main);
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.muted {
+  font-size: 0.8rem;
+  color: var(--text-light);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Pending requests */
+.pendingRequest {
+  border-style: dashed;
+  cursor: default;
+}
+
+.friendActions {
+  display: flex;
+  gap: 5px;
+}
+
+/* Buttons */
+.acceptBtn {
+  background: var(--accent-gradient);
+  color: white;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+
+.declineBtn,
+.cancelBtn {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.viewBtn {
+  background: var(--bg-card);
+  border: 1px solid var(--glass-border);
+  padding: 5px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 11px;
+  margin-left: auto;
+  color: var(--text-main);
+}
+
+/* Add friend */
+.addFriend {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 1rem;
+}
+
+.addFriend input {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--glass-border);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  color: var(--text-main);
+  font-size: 0.9rem;
+}
+
+.addFriend button {
+  background: var(--bg-card-hover);
+  color: var(--text-main);
+  border: 1px solid var(--glass-border);
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Status message */
+.statusMsg {
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-light);
+}
+
+/* Chat */
+.chatHeader {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--glass-border);
+  font-weight: 800;
+  font-size: 1.2rem;
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.02);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.chatMessages {
+  flex: 1;
+  padding: 1.5rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.chatMessage {
+  max-width: 75%;
+  padding: 0.85rem 1.25rem;
+  border-radius: 20px;
+  animation: messageSlide 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+}
+
+.me {
+  align-self: flex-end;
+  background: var(--accent-gradient);
+  color: white;
+  border-bottom-right-radius: 4px;
+  box-shadow: var(--glow-accent);
+}
+
+.them {
+  align-self: flex-start;
+  background: var(--bg-sidebar);
+  color: var(--text-main);
+  border: 1px solid var(--glass-border);
+  border-bottom-left-radius: 4px;
+}
+
+.chatMessageText {
+  font-size: 0.95rem;
+  margin-bottom: 4px;
+}
+
+.chatMessageMeta {
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
+.chatInput {
+  padding: 1.25rem 1.5rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-top: 1px solid var(--glass-border);
+  display: flex;
+  gap: 12px;
+}
+
+.chatInput input {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--glass-border);
+  padding: 10px 16px;
+  border-radius: var(--radius-full);
+  color: var(--text-main);
+  outline: none;
+}
+
+.chatInput input:focus {
+  background: rgba(0, 0, 0, 0.15);
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+.chatInput button {
+  background: var(--accent-gradient);
+  color: white;
+  border: none;
+  border-radius: var(--radius-full);
+  padding: 0 24px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: var(--shadow-sm), var(--glow-accent);
+}
+
+.chatInput button:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md), var(--glow-accent-strong);
+}
+
+/* Chat placeholder */
+.chatPlaceholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-light);
+  font-size: 0.95rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+/* Modal */
+.modal {
+  position: fixed;
+  z-index: 2000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(2, 6, 23, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modalContent {
+  background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-sidebar) 100%);
+  padding: 2.5rem;
+  border: 1px solid var(--glass-border);
+  width: 100%;
+  max-width: 450px;
+  border-radius: var(--radius-xl);
+  position: relative;
+  box-shadow: var(--shadow-lg);
+  text-align: center;
+}
+
+.closeBtn {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
+  width: 32px;
+  height: 32px;
+  background: var(--bg-sidebar);
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-main);
+  font-size: 18px;
+}
+
+.profileIcon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  margin: 0 auto 15px;
+  overflow: hidden;
+}
+
+.profileIcon img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.unfriendBtn {
+  background-color: #ff4d4d;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.statsBox {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 15px;
+  border-radius: 8px;
+  margin: 15px 0;
+  text-align: center;
+}
+
+:global([data-theme="dark"]) .statsBox {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Requests section */
+.requestsSection h4 {
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 1.5rem 0 0.75rem;
+  opacity: 0.7;
+  color: var(--text-main);
+}
+
+/* Panel title */
+.panelTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 1rem;
+}
+
+/* Animation */
+@keyframes messageSlide {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .friendsPage {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .friendsPanel {
+    flex: none;
+  }
+}
