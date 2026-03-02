@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuthStore } from '@/store/auth-store';
 import { cn } from '@/lib/utils';
 import {
@@ -154,7 +155,16 @@ export default function LabPage() {
       return;
     }
 
-    const combinedResult = attemptCombination(slot1, slot2);
+    const result = attemptCombination(slot1, slot2);
+    if (result.kind === 'invalid') {
+      showToast(result.reason, true);
+      return;
+    }
+    if (result.kind === 'none') {
+      showToast('No reaction between these elements.', true);
+      return;
+    }
+    const combinedResult = result.product;
     setResult(combinedResult);
     setSlot1(null);
     setSlot2(null);
@@ -455,16 +465,17 @@ export default function LabPage() {
         </div>
       </div>
 
-      {/* ---- Toast ---- */}
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] animate-in slide-in-from-bottom-5 fade-in">
+      {/* ---- Toast (portalled to body to escape overflow-x-hidden stacking context) ---- */}
+      {toast && createPortal(
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] animate-in slide-in-from-bottom-5 fade-in w-max max-w-[calc(100vw-2rem)]">
           <div className={cn(
-            "bg-foreground text-background rounded-md px-5 py-3 font-medium shadow-lg transition-all",
+            "bg-foreground text-background rounded-md px-5 py-3 font-medium shadow-lg text-center text-sm leading-snug",
             toast.error && "bg-destructive text-destructive-foreground"
           )}>
             {toast.message}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

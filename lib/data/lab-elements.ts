@@ -139,119 +139,83 @@ export const initialElements: LabElement[] = [
   { symbol: 'Og', name: 'Oganesson', color: '#FF99CC', type: 'noble-gas' },
 ];
 
-/** Hardcoded combinations lookup table (alphabetically sorted keys) */
+// ─── Result type for attemptCombination ─────────────────────────────────────
+export type CombinationResult =
+  | { kind: 'success';  product: LabElement }
+  | { kind: 'invalid';  reason: string }
+  | { kind: 'none' };
+
+// ─── Invalid combinations (sorted element symbol keys) ───────────────────────
+// These are explicitly known non-reactions shown with an educational message.
+export const invalidCombinations: Record<string, string> = {
+  // ── Noble gases — full outer shell, won't bond ──
+  'H+He':  "Helium is a noble gas — it refuses to bond with anything!",
+  'He+N':  "Helium is chemically inert — no reaction possible here.",
+  'He+O':  "Helium has a full outer shell and won't react with oxygen.",
+  'He+Ne': "Two noble gases? Neither of them reacts with each other!",
+  'Ar+H':  "Argon is a noble gas — it's completely unreactive.",
+  'Ar+O':  "Argon won't form oxides — it's too stable and inert.",
+  'H+Kr':  "Krypton barely reacts under normal lab conditions.",
+  'Ne+O':  "Neon is an inert noble gas — no reaction with oxygen.",
+  // ── Same element — no new compound ──
+  'H+H':   "You need two different elements to form a compound!",
+  'O+O':   "Oxygen + Oxygen just gives you more oxygen — no new compound.",
+  'N+N':   "Two nitrogen atoms won't create a new compound here.",
+  'C+C':   "Carbon + Carbon doesn't form a new compound in this lab.",
+  // ── Noble/unreactive metals ──
+  'Au+H':  "Gold is highly unreactive — it won't combine with hydrogen.",
+  'Au+N':  "Gold doesn't react with nitrogen under normal conditions.",
+  'Au+O':  "Gold resists oxidation — that's why it stays shiny forever!",
+  'H+Pt':  "Platinum is a noble metal and won't react this way.",
+  'Ag+H':  "Silver won't react with hydrogen under normal lab conditions.",
+};
+
+// ─── Allowed combinations (sorted element symbol keys) ───────────────────────
+// 🧪 Hydrogen Compounds (Hydrides / Acids)
+// 🌬️ Oxides (Element + Oxygen)
+// 🔩 Sulfides (Element + Sulfur)
 export const combinations: Record<string, LabElement> = {
-  'H+O': { symbol: 'H2O', name: 'Water', color: '#B3E0FF', type: 'compound' },
-  'H2O+O': { symbol: 'H2O2', name: 'Hydrogen Peroxide', color: '#E6F3FF', type: 'compound' },
-  'C+O': { symbol: 'CO', name: 'Carbon Monoxide', color: '#8A8A8A', type: 'compound' },
-  'CO+O': { symbol: 'CO2', name: 'Carbon Dioxide', color: '#A9A9A9', type: 'compound' },
-  'H+N': { symbol: 'NH3', name: 'Ammonia', color: '#CC99FF', type: 'compound' },
-  'N+O': { symbol: 'NO', name: 'Nitric Oxide', color: '#E6B3B3', type: 'compound' },
-  'NO+O': { symbol: 'NO2', name: 'Nitrogen Dioxide', color: '#FF9999', type: 'compound' },
-  'H+S': { symbol: 'H2S', name: 'Hydrogen Sulfide', color: '#FFFF99', type: 'compound' },
-  'O+S': { symbol: 'SO2', name: 'Sulfur Dioxide', color: '#FFDB4D', type: 'compound' },
-  'O+SO2': { symbol: 'SO3', name: 'Sulfur Trioxide', color: '#FFE480', type: 'compound' },
-  'O+P': { symbol: 'P2O5', name: 'Phosphorus Pentoxide', color: '#FFB366', type: 'compound' },
-  'F+H': { symbol: 'HF', name: 'Hydrofluoric Acid', color: '#CCFF99', type: 'compound' },
-  'Cl+H': { symbol: 'HCl', name: 'Hydrochloric Acid', color: '#90EE90', type: 'compound' },
-  'Br+H': { symbol: 'HBr', name: 'Hydrobromic Acid', color: '#BC8F8F', type: 'compound' },
-  'H+I': { symbol: 'HI', name: 'Hydroiodic Acid', color: '#9370DB', type: 'compound' },
-  'Na+O': { symbol: 'Na2O', name: 'Sodium Oxide', color: '#FFB366', type: 'compound' },
-  'K+O': { symbol: 'K2O', name: 'Potassium Oxide', color: '#FF99CC', type: 'compound' },
-  'O+Si': { symbol: 'SiO2', name: 'Silicon Dioxide', color: '#F5C242', type: 'compound' },
-  'Al+O': { symbol: 'Al2O3', name: 'Aluminum Oxide', color: '#BFC7C9', type: 'compound' },
-  'Ca+O': { symbol: 'CaO', name: 'Calcium Oxide', color: '#A0A0A0', type: 'compound' },
-  'Mg+O': { symbol: 'MgO', name: 'Magnesium Oxide', color: '#B8B8B8', type: 'compound' },
-  'Fe+O': { symbol: 'Fe2O3', name: 'Iron(III) Oxide', color: '#CD853F', type: 'compound' },
-  'Fe+S': { symbol: 'FeS', name: 'Iron(II) Sulfide', color: '#4B3621', type: 'compound' },
-  'S+Zn': { symbol: 'ZnS', name: 'Zinc Sulfide', color: '#E0E0E0', type: 'compound' },
-  'Cu+S': { symbol: 'CuS', name: 'Copper(II) Sulfide', color: '#3A3F44', type: 'compound' },
-  'Pb+S': { symbol: 'PbS', name: 'Lead(II) Sulfide', color: '#2F4F4F', type: 'compound' },
-  'H2O+Na': { symbol: 'NaOH', name: 'Sodium Hydroxide', color: '#FFB366', type: 'compound' },
-  'H2O+K': { symbol: 'KOH', name: 'Potassium Hydroxide', color: '#FF99CC', type: 'compound' },
-  'Cl+Na': { symbol: 'NaCl', name: 'Sodium Chloride', color: '#FFFFFF', type: 'compound' },
-  'C+H': { symbol: 'CH4', name: 'Methane', color: '#D3D3D3', type: 'compound' },
+  // ── Hydrogen Compounds ──
+  'H+O':   { symbol: 'H₂O',  name: 'Water',              color: '#B3E0FF', type: 'compound' },
+  'H₂O+O': { symbol: 'H₂O₂', name: 'Hydrogen Peroxide',  color: '#E6F3FF', type: 'compound' },
+  'H+N':   { symbol: 'NH₃',  name: 'Ammonia',             color: '#CC99FF', type: 'compound' },
+  'C+H':   { symbol: 'CH₄',  name: 'Methane',             color: '#D3D3D3', type: 'compound' },
+  'Cl+H':  { symbol: 'HCl',  name: 'Hydrogen Chloride',   color: '#90EE90', type: 'compound' },
+  'F+H':   { symbol: 'HF',   name: 'Hydrogen Fluoride',   color: '#CCFF99', type: 'compound' },
+  'Br+H':  { symbol: 'HBr',  name: 'Hydrogen Bromide',    color: '#BC8F8F', type: 'compound' },
+  'H+I':   { symbol: 'HI',   name: 'Hydrogen Iodide',     color: '#9370DB', type: 'compound' },
+  'H+S':   { symbol: 'H₂S',  name: 'Hydrogen Sulfide',    color: '#FFFF99', type: 'compound' },
+  // ── Oxides ──
+  'C+O':   { symbol: 'CO₂',  name: 'Carbon Dioxide',      color: '#A9A9A9', type: 'compound' },
+  'CO+O':  { symbol: 'CO',   name: 'Carbon Monoxide',      color: '#8A8A8A', type: 'compound' },
+  'O+S':   { symbol: 'SO₂',  name: 'Sulfur Dioxide',       color: '#FFDB4D', type: 'compound' },
+  'O+SO₂': { symbol: 'SO₃',  name: 'Sulfur Trioxide',      color: '#FFE480', type: 'compound' },
+  'N+O':   { symbol: 'NO',   name: 'Nitric Oxide',         color: '#E6B3B3', type: 'compound' },
+  'NO+O':  { symbol: 'NO₂',  name: 'Nitrogen Dioxide',     color: '#FF9999', type: 'compound' },
+  'Ca+O':  { symbol: 'CaO',  name: 'Calcium Oxide',        color: '#A0A0A0', type: 'compound' },
+  'Mg+O':  { symbol: 'MgO',  name: 'Magnesium Oxide',      color: '#B8B8B8', type: 'compound' },
+  'Fe+O':  { symbol: 'Fe₂O₃', name: 'Iron(III) Oxide',    color: '#CD853F', type: 'compound' },
+  'Al+O':  { symbol: 'Al₂O₃', name: 'Aluminum Oxide',     color: '#BFC7C9', type: 'compound' },
+  'O+Si':  { symbol: 'SiO₂', name: 'Silicon Dioxide',      color: '#F5C242', type: 'compound' },
+  // ── Sulfides ──
+  'Fe+S':  { symbol: 'FeS',  name: 'Iron(II) Sulfide',     color: '#4B3621', type: 'compound' },
+  'S+Zn':  { symbol: 'ZnS',  name: 'Zinc Sulfide',         color: '#E0E0E0', type: 'compound' },
+  'Cu+S':  { symbol: 'CuS',  name: 'Copper(II) Sulfide',   color: '#3A3F44', type: 'compound' },
+  'Pb+S':  { symbol: 'PbS',  name: 'Lead(II) Sulfide',     color: '#2F4F4F', type: 'compound' },
 };
-
-/** Chemical category map for dynamic combination generation */
-const chemicalCategories: Record<string, string> = {
-  H: 'nonmetal', He: 'noble-gas', Li: 'alkali-metal', Be: 'alkaline-earth',
-  B: 'metalloid', C: 'nonmetal', N: 'nonmetal', O: 'nonmetal', F: 'halogen',
-  Ne: 'noble-gas', Na: 'alkali-metal', Mg: 'alkaline-earth', Al: 'post-transition',
-  Si: 'metalloid', P: 'nonmetal', S: 'nonmetal', Cl: 'halogen', Ar: 'noble-gas',
-  K: 'alkali-metal', Ca: 'alkaline-earth', Sc: 'transition', Ti: 'transition',
-  V: 'transition', Cr: 'transition', Mn: 'transition', Fe: 'transition',
-  Co: 'transition', Ni: 'transition', Cu: 'transition', Zn: 'transition',
-  Ga: 'post-transition', Ge: 'metalloid', As: 'metalloid', Se: 'nonmetal',
-  Br: 'halogen', Kr: 'noble-gas', Ag: 'transition', Au: 'transition',
-  Pt: 'transition', Hg: 'transition', Pb: 'post-transition', Sn: 'post-transition',
-};
-
-/** Blend two hex colors by averaging their channels */
-function blendColors(c1: string, c2: string): string {
-  const parseHex = (c: string) => parseInt(c?.startsWith('#') ? c.slice(1) : 'cccccc', 16);
-  const r = (c: string) => (parseHex(c) >> 16) & 0xff;
-  const g = (c: string) => (parseHex(c) >> 8) & 0xff;
-  const b = (c: string) => parseHex(c) & 0xff;
-  const mix = (v1: number, v2: number) => Math.round((v1 + v2) / 2).toString(16).padStart(2, '0');
-  return `#${mix(r(c1), r(c2))}${mix(g(c1), g(c2))}${mix(b(c1), b(c2))}`;
-}
-
-/** Generate a dynamic combination for any two elements that don't have a hardcoded entry */
-export function generateDynamicCombination(el1: LabElement, el2: LabElement): LabElement {
-  const cat1 = chemicalCategories[el1.symbol] || el1.type || 'unknown';
-  const cat2 = chemicalCategories[el2.symbol] || el2.type || 'unknown';
-
-  const isMetal = (cat: string) =>
-    (cat.includes('metal') && cat !== 'nonmetal') ||
-    cat.includes('transition') ||
-    cat.includes('lanthanide') ||
-    cat.includes('actinide') ||
-    cat.includes('earth');
-
-  const metal1 = isMetal(cat1);
-  const metal2 = isMetal(cat2);
-  const color = blendColors(el1.color, el2.color);
-
-  let name: string;
-  let symbol: string;
-  let type: string;
-
-  if (cat1 === 'noble-gas' || cat2 === 'noble-gas') {
-    name = `${el1.name}-${el2.name} Mixture`;
-    symbol = `${el1.symbol}${el2.symbol}`;
-    type = 'mixture';
-  } else if (metal1 && metal2) {
-    name = `${el1.name}-${el2.name} Alloy`;
-    symbol = `${el1.symbol}${el2.symbol}`;
-    type = 'alloy';
-  } else if ((metal1 && !metal2) || (metal2 && !metal1)) {
-    const metal = metal1 ? el1 : el2;
-    const nonMetal = metal1 ? el2 : el1;
-    const suffixMap: Record<string, string> = {
-      Oxygen: 'Oxide', Chlorine: 'Chloride', Fluorine: 'Fluoride', Bromine: 'Bromide',
-      Iodine: 'Iodide', Sulfur: 'Sulfide', Nitrogen: 'Nitride', Carbon: 'Carbide',
-      Phosphorus: 'Phosphide', Hydrogen: 'Hydride',
-    };
-    const suffix = suffixMap[nonMetal.name] || nonMetal.name + 'ide';
-    name = `${metal.name} ${suffix}`;
-    symbol = `${metal.symbol}${nonMetal.symbol}`;
-    type = 'compound';
-  } else {
-    name = `${el1.name} ${el2.name} Compound`;
-    symbol = `${el1.symbol}${el2.symbol}`;
-    type = 'compound';
-  }
-
-  return { symbol, name, color, type };
-}
 
 /**
  * Attempt a combination of two elements.
- * First tries the hardcoded lookup table, then falls back to dynamic generation.
+ * Returns one of three outcomes:
+ *  - 'success'  → a valid compound was created
+ *  - 'invalid'  → the pair is a known non-reaction (with an educational reason)
+ *  - 'none'     → no data for this pair at all
  */
-export function attemptCombination(el1: LabElement, el2: LabElement): LabElement {
-  const symbols = [el1.symbol, el2.symbol].sort();
-  const key = symbols.join('+');
-  return combinations[key] ?? generateDynamicCombination(el1, el2);
+export function attemptCombination(el1: LabElement, el2: LabElement): CombinationResult {
+  const key = [el1.symbol, el2.symbol].sort().join('+');
+  const reason = invalidCombinations[key];
+  if (reason) return { kind: 'invalid', reason };
+  const product = combinations[key];
+  if (product) return { kind: 'success', product };
+  return { kind: 'none' };
 }
