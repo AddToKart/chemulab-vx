@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { db } from '@/lib/firebase/config';
 import {
   doc,
   getDoc,
   setDoc,
-  updateDoc,
   deleteDoc,
   collection,
   query,
@@ -18,6 +17,7 @@ import {
   orderBy,
   writeBatch,
   serverTimestamp,
+  limit,
 } from 'firebase/firestore';
 import { useAuthStore } from '@/store/auth-store';
 
@@ -102,6 +102,14 @@ export default function FriendsPage() {
   const [friendEmail, setFriendEmail] = useState('');
   const [messageText, setMessageText] = useState('');
   const [statusMsg, setStatusMsg] = useState('');
+  const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const setStatus = (msg: string) => {
+    setStatusMsg(msg);
+    if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
+    if (msg) statusTimerRef.current = setTimeout(() => setStatusMsg(''), 6000);
+  };
+
   const [modalVisible, setModalVisible] = useState(false);
   const [modalData, setModalData] = useState<ModalData | null>(null);
   const [incomingRequests, setIncomingRequests] = useState<FriendRequest[]>([]);
@@ -115,178 +123,89 @@ export default function FriendsPage() {
   const uid = user?.uid;
 
   /* ---------------------------------------------------------------- */
-  /*  Load friends list                                                */
+  /*  Real-time friends list                                           */
   /* ---------------------------------------------------------------- */
 
-  const loadFriends = useCallback(async () => {
+  useEffect(() => {
     if (!uid) return;
-    const snap = await getDocs(collection(db, 'users', uid, 'friends'));
-    const list: FriendData[] = [];
-    for (const friendDoc of snap.docs) {
-      const data = friendDoc.data() as FriendData;
-      // Fetch latest profile info
-      try {
-        const profileSnap = await getDoc(doc(db, 'users', data.uid));
-        if (profileSnap.exists()) {
-          const p = profileSnap.data();
-          data.username = p.username ?? data.username;
-          data.photoURL = p.photoURL ?? data.photoURL;
-        }
-      } catch {
-        // keep existing data
+    const unsub = onSnapshot(collection(db, 'users', uid, 'friends'), async (snap) => {
+      const list: FriendData[] = [];
+      for (const d of snap.docs) {
+        const data = d.data() as FriendData;
+        try {
+          const profileSnap = await getDoc(doc(db, 'users', data.uid));
+          if (profileSnap.exists()) {
+            const p = profileSnap.data();
+            data.username = p.username ?? data.username;
+            data.photoURL = p.photoURL ?? data.photoURL;
+          }
+        } catch { /* keep existing data */ }
+        list.push(data);
       }
-      list.push(data);
-    }
-    setFriends(list);
+      setFriends(list);
+    }, (err) => console.error('[Friends] list listener error:', err));
+    return () => unsub();
   }, [uid]);
 
   /* ---------------------------------------------------------------- */
-  /*  Real-time listeners for friend requests                          */
+  /*  Real-time friend requests (pending only)                        */
   /* ---------------------------------------------------------------- */
 
   useEffect(() => {
     if (!uid) return;
 
-    loadFriends();
-
-    // Incoming requests
-    const inQ = query(
-      collection(db, 'friendRequests'),
-      where('toUid', '==', uid),
-    );
+    const inQ = query(collection(db, 'friendRequests'), where('toUid', '==', uid));
     const unsubIn = onSnapshot(inQ, (snap) => {
-      const reqs: FriendRequest[] = [];
-      snap.forEach((d) => {
-        reqs.push({ id: d.id, ...d.data() } as FriendRequest);
-      });
+      const reqs = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() } as FriendRequest))
+        .filter((r) => !r.acceptedAt);
       setIncomingRequests(reqs);
-    });
+    }, (err) => console.error('[Friends] incoming requests error:', err));
 
-    // Outgoing requests
-    const outQ = query(
-      collection(db, 'friendRequests'),
-      where('fromUid', '==', uid),
-    );
+    const outQ = query(collection(db, 'friendRequests'), where('fromUid', '==', uid));
     const unsubOut = onSnapshot(outQ, (snap) => {
-      const reqs: FriendRequest[] = [];
-      snap.forEach((d) => {
-        const req = { id: d.id, ...d.data() } as FriendRequest;
-        reqs.push(req);
-      });
+      const reqs = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() } as FriendRequest))
+        .filter((r) => !r.acceptedAt);
       setOutgoingRequests(reqs);
+    }, (err) => console.error('[Friends] outgoing requests error:', err));
 
-      // Process accepted requests
-      reqs.forEach(async (req) => {
-        if (req.acceptedAt && uid && profile) {
-          try {
-            // Add recipient to sender's friend list
-            const recipientSnap = await getDoc(doc(db, 'users', req.toUid));
-            const recipientData = recipientSnap.exists() ? recipientSnap.data() : {};
-            await setDoc(doc(db, 'users', uid, 'friends', req.toUid), {
-              uid: req.toUid,
-              email: req.toEmail,
-              username: recipientData.username ?? req.toEmail,
-              photoURL: recipientData.photoURL ?? '',
-              chatId: req.chatId,
-              createdAt: serverTimestamp(),
-            });
-            // Delete the request
-            await deleteDoc(doc(db, 'friendRequests', req.id));
-            loadFriends();
-          } catch {
-            // best-effort
-          }
-        }
-      });
-    });
-
-    return () => {
-      unsubIn();
-      unsubOut();
-    };
-  }, [uid, profile, loadFriends]);
+    return () => { unsubIn(); unsubOut(); };
+  }, [uid]);
 
   /* ---------------------------------------------------------------- */
   /*  Chat message listener                                            */
   /* ---------------------------------------------------------------- */
 
   useEffect(() => {
-    // Cleanup previous listener
-    if (messagesUnsubRef.current) {
-      messagesUnsubRef.current();
-      messagesUnsubRef.current = undefined;
-    }
+    messagesUnsubRef.current?.();
+    messagesUnsubRef.current = undefined;
 
     if (!activeChat || !uid) {
       setMessages([]);
       return;
     }
 
-    const { chatId, friendUid } = activeChat;
-
-    // Primary: chats/{chatId}/messages
-    const messagesQ = query(
-      collection(db, 'chats', chatId, 'messages'),
+    const q = query(
+      collection(db, 'chats', activeChat.chatId, 'messages'),
       orderBy('createdAt', 'asc'),
     );
 
-    const unsub = onSnapshot(
-      messagesQ,
-      (snap) => {
-        const msgs: ChatMessage[] = [];
-        snap.forEach((d) => {
-          msgs.push({ id: d.id, ...d.data() } as ChatMessage);
-        });
-        setMessages(msgs);
-        // Scroll to bottom
-        setTimeout(() => {
-          if (chatMessagesRef.current) {
-            chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
-          }
-        }, 50);
-      },
-      () => {
-        // Fallback: users/{uid}/friends/{friendUid}/messages
-        const fallbackQ = query(
-          collection(db, 'users', uid, 'friends', friendUid, 'messages'),
-          orderBy('createdAt', 'asc'),
-        );
-        const fallbackUnsub = onSnapshot(fallbackQ, (snap) => {
-          const msgs: ChatMessage[] = [];
-          snap.forEach((d) => {
-            msgs.push({ id: d.id, ...d.data() } as ChatMessage);
-          });
-          setMessages(msgs);
-          setTimeout(() => {
-            if (chatMessagesRef.current) {
-              chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
-            }
-          }, 50);
-        });
-        messagesUnsubRef.current = fallbackUnsub;
-      },
-    );
+    const unsub = onSnapshot(q, (snap) => {
+      setMessages(snap.docs.map((d) => ({ id: d.id, ...d.data() } as ChatMessage)));
+      setTimeout(() => {
+        if (chatMessagesRef.current) {
+          chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
+        }
+      }, 50);
+    }, (err) => console.error('[Chat] messages listener error:', err));
 
     messagesUnsubRef.current = unsub;
-
-    return () => {
-      if (messagesUnsubRef.current) {
-        messagesUnsubRef.current();
-        messagesUnsubRef.current = undefined;
-      }
-    };
+    return () => { messagesUnsubRef.current?.(); messagesUnsubRef.current = undefined; };
   }, [activeChat, uid]);
 
-  /* ---------------------------------------------------------------- */
-  /*  Cleanup on unmount                                               */
-  /* ---------------------------------------------------------------- */
-
   useEffect(() => {
-    return () => {
-      if (messagesUnsubRef.current) {
-        messagesUnsubRef.current();
-      }
-    };
+    return () => { messagesUnsubRef.current?.(); };
   }, []);
 
   /* ---------------------------------------------------------------- */
@@ -298,59 +217,72 @@ export default function FriendsPage() {
 
     const email = friendEmail.trim().toLowerCase();
     if (!email) {
-      setStatusMsg('Please enter an email address.');
+      setStatus('Please enter an email address.');
       return;
     }
     if (!validateEmail(email)) {
-      setStatusMsg('Please enter a valid email address.');
+      setStatus('Please enter a valid email address.');
       return;
     }
     if (email === profile.email?.toLowerCase()) {
-      setStatusMsg("You can't add yourself as a friend.");
+      setStatus("You can't add yourself as a friend.");
       return;
     }
 
-    setStatusMsg('Searching...');
+    setStatus('Searching...');
 
     try {
-      // Try indexed query first
       let targetUid: string | null = null;
       let targetUsername = '';
       let targetEmail = email;
 
-      const usernamesQ = query(
-        collection(db, 'usernames'),
-        where('email', '==', email),
-      );
-      const usernamesSnap = await getDocs(usernamesQ);
+      // 1️⃣ Query usernames collection by email
+      try {
+        const usernamesQ = query(
+          collection(db, 'usernames'),
+          where('email', '==', email),
+          limit(1),
+        );
+        const usernamesSnap = await getDocs(usernamesQ);
+        if (!usernamesSnap.empty) {
+          const d = usernamesSnap.docs[0].data();
+          targetUid = d.uid;
+          targetUsername = usernamesSnap.docs[0].id || d.username || email;
+          targetEmail = d.email || email;
+        }
+      } catch (e) {
+        console.error('[AddFriend] usernames query failed:', e);
+      }
 
-      if (!usernamesSnap.empty) {
-        const d = usernamesSnap.docs[0].data();
-        targetUid = d.uid;
-        targetUsername = usernamesSnap.docs[0].id || d.username || email;
-        targetEmail = d.email || email;
-      } else {
-        // Fallback: scan all usernames docs
-        const allSnap = await getDocs(collection(db, 'usernames'));
-        allSnap.forEach((d) => {
-          const data = d.data();
-          if (data.email?.toLowerCase() === email) {
-            targetUid = data.uid;
-            targetUsername = d.id || data.username || email;
-            targetEmail = data.email || email;
+      // 2️⃣ Fallback: query users collection directly by email
+      if (!targetUid) {
+        try {
+          const usersQ = query(
+            collection(db, 'users'),
+            where('email', '==', email),
+            limit(1),
+          );
+          const usersSnap = await getDocs(usersQ);
+          if (!usersSnap.empty) {
+            const userData = usersSnap.docs[0].data();
+            targetUid = userData.uid ?? usersSnap.docs[0].id;
+            targetUsername = userData.username || email;
+            targetEmail = userData.email || email;
           }
-        });
+        } catch (e) {
+          console.error('[AddFriend] users collection query failed:', e);
+        }
       }
 
       if (!targetUid) {
-        setStatusMsg('User not found. Make sure the email is correct.');
+        setStatus('User not found. Make sure the email is correct.');
         return;
       }
 
       // Check if already friends
       const existingFriend = friends.find((f) => f.uid === targetUid);
       if (existingFriend) {
-        setStatusMsg('You are already friends with this user.');
+        setStatus('You are already friends with this user.');
         return;
       }
 
@@ -359,7 +291,7 @@ export default function FriendsPage() {
         (r) => r.toUid === targetUid,
       );
       if (existingOutgoing) {
-        setStatusMsg('You already have a pending request to this user.');
+        setStatus('You already have a pending request to this user.');
         return;
       }
 
@@ -375,25 +307,28 @@ export default function FriendsPage() {
         createdAt: serverTimestamp(),
       });
 
-      setStatusMsg(`Friend request sent to ${targetUsername}!`);
+      setStatus(`Friend request sent to ${targetUsername}!`);
       setFriendEmail('');
-    } catch {
-      setStatusMsg('Failed to send request. Please try again.');
+    } catch (e) {
+      console.error('[AddFriend] Failed to send request:', e);
+      setStatus('Failed to send request. Please try again.');
     }
   };
 
   /* ---------------------------------------------------------------- */
-  /*  Accept / Decline / Cancel requests                               */
+  /*  Accept — batch both sides + chat doc + delete request           */
   /* ---------------------------------------------------------------- */
 
   const handleAccept = async (req: FriendRequest) => {
     if (!uid || !profile) return;
     try {
-      // Add sender to my friends
       const senderSnap = await getDoc(doc(db, 'users', req.fromUid));
       const senderData = senderSnap.exists() ? senderSnap.data() : {};
 
-      await setDoc(doc(db, 'users', uid, 'friends', req.fromUid), {
+      const batch = writeBatch(db);
+
+      // Add sender → acceptor's friends list
+      batch.set(doc(db, 'users', uid, 'friends', req.fromUid), {
         uid: req.fromUid,
         email: req.fromEmail,
         username: senderData.username ?? req.fromUsername ?? req.fromEmail,
@@ -402,37 +337,45 @@ export default function FriendsPage() {
         createdAt: serverTimestamp(),
       });
 
-      // Create chat doc
-      await setDoc(
+      // Add acceptor → sender's friends list (rule: friendId can write)
+      batch.set(doc(db, 'users', req.fromUid, 'friends', uid), {
+        uid,
+        email: profile.email || '',
+        username: profile.username || '',
+        photoURL: '',
+        chatId: req.chatId,
+        createdAt: serverTimestamp(),
+      });
+
+      // Create chat document
+      batch.set(
         doc(db, 'chats', req.chatId),
-        { createdAt: serverTimestamp() },
+        { participants: [uid, req.fromUid], createdAt: serverTimestamp() },
         { merge: true },
       );
 
-      // Mark as accepted
-      await updateDoc(doc(db, 'friendRequests', req.id), {
-        acceptedAt: serverTimestamp(),
-      });
+      // Delete the friend request — no more acceptedAt needed
+      batch.delete(doc(db, 'friendRequests', req.id));
 
-      loadFriends();
-    } catch {
-      // best-effort
+      await batch.commit();
+    } catch (e) {
+      console.error('[Accept] Failed to accept friend request:', e);
     }
   };
 
   const handleDecline = async (req: FriendRequest) => {
     try {
       await deleteDoc(doc(db, 'friendRequests', req.id));
-    } catch {
-      // best-effort
+    } catch (e) {
+      console.error('[Decline] Failed to decline request:', e);
     }
   };
 
   const handleCancel = async (req: FriendRequest) => {
     try {
       await deleteDoc(doc(db, 'friendRequests', req.id));
-    } catch {
-      // best-effort
+    } catch (e) {
+      console.error('[Cancel] Failed to cancel request:', e);
     }
   };
 
@@ -457,43 +400,17 @@ export default function FriendsPage() {
     const text = messageText.trim();
     if (!text) return;
 
-    const { chatId, friendUid } = activeChat;
-
-    const payload = {
-      text,
-      fromUid: uid,
-      fromEmail: profile.email || '',
-      fromUsername: profile.username || '',
-      createdAt: serverTimestamp(),
-    };
-
     setMessageText('');
-
     try {
-      // Write to chats/{chatId}/messages
-      await addDoc(collection(db, 'chats', chatId, 'messages'), payload);
-
-      // Local copy: users/{myUid}/friends/{friendUid}/messages
-      try {
-        await addDoc(
-          collection(db, 'users', uid, 'friends', friendUid, 'messages'),
-          payload,
-        );
-      } catch {
-        // best-effort
-      }
-
-      // Mirror: users/{friendUid}/friends/{myUid}/messages
-      try {
-        await addDoc(
-          collection(db, 'users', friendUid, 'friends', uid, 'messages'),
-          payload,
-        );
-      } catch {
-        // best-effort
-      }
-    } catch {
-      // Restore message on failure
+      await addDoc(collection(db, 'chats', activeChat.chatId, 'messages'), {
+        text,
+        fromUid: uid,
+        fromEmail: profile.email || '',
+        fromUsername: profile.username || '',
+        createdAt: serverTimestamp(),
+      });
+    } catch (e) {
+      console.error('[SendMessage] Failed:', e);
       setMessageText(text);
     }
   };
@@ -559,15 +476,12 @@ export default function FriendsPage() {
 
     try {
       const batch = writeBatch(db);
-      // Delete my friend doc
+      // Delete from my friends list
       batch.delete(doc(db, 'users', uid, 'friends', modalData.uid));
-      // Delete their friend doc
+      // Delete from their friends list (rule: friendId can write)
       batch.delete(doc(db, 'users', modalData.uid, 'friends', uid));
-      // Delete chat doc
-      batch.delete(doc(db, 'chats', modalData.chatId));
       await batch.commit();
 
-      // Clear active chat if we were chatting with this friend
       if (activeChat?.friendUid === modalData.uid) {
         setActiveChat(null);
         setMessages([]);
@@ -575,9 +489,8 @@ export default function FriendsPage() {
 
       setModalVisible(false);
       setModalData(null);
-      loadFriends();
-    } catch {
-      // best-effort
+    } catch (e) {
+      console.error('[Unfriend] Failed:', e);
     }
   };
 

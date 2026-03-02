@@ -25,9 +25,9 @@ export default function ElementsPage() {
         Click any element here, and I will provide all the information you need to know!
       </p>
 
-      <div className="bg-[var(--bg-sidebar)] p-5 rounded-[20px] text-center overflow-x-auto max-[900px]:p-[10px]">
+      <div className="bg-card border border-border p-5 rounded-2xl text-center overflow-x-auto shadow-sm max-[900px]:p-3">
         {/* Main 18-column grid */}
-        <div className="grid grid-cols-[repeat(18,1fr)] gap-1 text-[12px] max-[900px]:text-[9px] max-[900px]:gap-[2px] max-[600px]:text-[7px] max-[600px]:gap-px">
+        <div className="grid grid-cols-[repeat(18,1fr)] gap-1 text-[12px] min-w-[800px] max-[900px]:gap-[2px]">
           {mainElements.map((el) => {
             const pos = mainGridPositions[el.atomic_number];
             return (
@@ -46,11 +46,11 @@ export default function ElementsPage() {
         </div>
 
         {/* F-block */}
-        <div className="mt-4 flex flex-col gap-1 max-[900px]:gap-[2px]">
+        <div className="mt-4 flex flex-col gap-1 min-w-[800px] max-[900px]:gap-[2px]">
           {[lanthanides, actinides].map((group, gi) => (
             <div
               key={gi}
-              className="grid grid-cols-[repeat(14,1fr)] gap-1 max-[900px]:gap-[2px] max-[600px]:gap-px"
+              className="grid grid-cols-[repeat(14,1fr)] gap-1 max-[900px]:gap-[2px]"
               style={{ marginLeft: 'calc(2 * (100% / 18) + 4px)' }}
             >
               {group.map((el) => (
@@ -72,26 +72,26 @@ export default function ElementsPage() {
       {/* Element Info Modal */}
       {selectedElement && (
         <div
-          className="fixed inset-0 z-[2000] flex items-center justify-center p-5 bg-[rgba(2,6,23,0.85)] backdrop-blur-[8px]"
+          className="fixed inset-0 z-[2000] flex items-center justify-center p-5 bg-background/80 backdrop-blur-sm"
           onClick={closeModal}
         >
           <div
-            className="relative w-full max-w-[450px] bg-gradient-to-br from-[var(--bg-card)] to-[var(--bg-sidebar)] p-10 border border-[var(--glass-border)] rounded-[32px] shadow-[var(--shadow-lg),var(--glow-accent)] animate-[fadeInScale_0.3s_ease]"
+            className="relative w-full max-w-[450px] bg-card p-10 border border-border rounded-3xl shadow-xl animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={closeModal}
               aria-label="Close modal"
-              className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center bg-[var(--bg-sidebar)] border border-[var(--border-color)] rounded-full text-[var(--text-light)] text-xl cursor-pointer hover:bg-red-500 hover:text-white hover:border-red-500 hover:rotate-90 transition-all duration-200"
+              className="absolute top-5 right-5 w-8 h-8 flex items-center justify-center bg-muted border border-border rounded-full text-muted-foreground text-xl cursor-pointer hover:bg-destructive hover:text-destructive-foreground hover:border-destructive hover:rotate-90 transition-all duration-200"
             >
               ×
             </button>
 
             <div className="flex items-center gap-6 mb-8">
-              <div className="w-[70px] h-[70px] bg-[var(--bg-item-active)] flex items-center justify-center text-[2rem] font-extrabold rounded-[20px] shadow-[var(--shadow-md),var(--glow-accent)] border border-white/10 text-[var(--text-main)]">
+              <div className="w-[70px] h-[70px] bg-muted flex items-center justify-center text-[2rem] font-extrabold rounded-2xl shadow-sm border border-border text-foreground">
                 {selectedElement.symbol}
               </div>
-              <h2 className="m-0 text-[2rem] font-extrabold text-[var(--text-main)] tracking-[-0.02em]">
+              <h2 className="m-0 text-[2rem] font-extrabold text-foreground tracking-[-0.02em]">
                 {selectedElement.name}
               </h2>
             </div>
@@ -103,9 +103,9 @@ export default function ElementsPage() {
                   { label: 'Symbol', value: selectedElement.symbol },
                   { label: 'Atomic Mass', value: selectedElement.atomic_mass.toFixed(3) },
                 ].map((item) => (
-                  <div key={item.label} className="flex flex-col gap-1 pb-3 border-b border-[var(--border-color)] last:border-0">
-                    <span className="text-[0.75rem] uppercase tracking-[0.05em] text-[var(--text-light)] font-semibold">{item.label}</span>
-                    <span className="text-[1.25rem] text-[var(--text-main)] font-bold">{item.value}</span>
+                  <div key={item.label} className="flex flex-col gap-1 pb-3 border-b border-border last:border-0">
+                    <span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">{item.label}</span>
+                    <span className="text-xl text-foreground font-bold">{item.value}</span>
                   </div>
                 ))}
               </div>
