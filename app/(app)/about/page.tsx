@@ -1,85 +1,44 @@
-import styles from "./page.module.css";
-
 export default function AboutPage() {
+  const featureCards = [
+    { icon: '⚗️', title: 'Interactive Lab', desc: 'Begin experimenting with high-fidelity chemical reactions in your personal workspace. Discover hundreds of unique combinations.', accent: 'rgba(16,185,129,0.15)', border: 'rgba(16,185,129,0.3)' },
+    { icon: '📖', title: 'Element Database', desc: 'Explore a comprehensive, high-detail periodic table. Learn about atomic properties, history, and usage of every element.', accent: 'rgba(14,165,233,0.15)', border: 'rgba(14,165,233,0.3)' },
+    { icon: '🎮', title: 'Gamified Learning', desc: 'Master your chemistry knowledge through addictive mini-games. Compete for the highest scores on global leaderboards.', accent: 'rgba(139,92,246,0.15)', border: 'rgba(139,92,246,0.3)' },
+    { icon: '🤝', title: 'Social Science', desc: 'Team up with friends, compare chemical discoveries, and enjoy a shared learning journey in our growing community.', accent: 'rgba(249,115,22,0.15)', border: 'rgba(249,115,22,0.3)' },
+  ];
+
   return (
-    <div className="mainContent">
-      <h1 className={styles.pageTitle}>About CheMuLab</h1>
+    <div>
+      <h1 className="text-[2rem] font-extrabold text-[var(--text-main)] mb-6 tracking-tight">About CheMuLab</h1>
 
-      <section className={styles.aboutSection}>
-        <span className={`${styles.decoration} ${styles.flask}`}>🧪</span>
-        <span className={`${styles.decoration} ${styles.atom}`}>⚛️</span>
+      <section className="bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[28px] p-10 relative overflow-hidden shadow-[var(--shadow-md)]">
+        <span className="absolute top-5 right-10 text-[3rem] opacity-20 pointer-events-none select-none animate-bounce">🧪</span>
+        <span className="absolute top-[4.5rem] right-[3.5rem] text-[2rem] opacity-15 pointer-events-none select-none">⚛️</span>
 
-        <h2>Welcome to CheMuLab!</h2>
-        <p>
-          CheMuLab remains the ultimate interactive chemistry learning platform
-          that bridges the gap between complex science and engaging education.
-          Whether you&apos;re a student, a teacher, or a lifelong learner, this
-          is your reactive playground.
+        <h2 className="text-[1.5rem] font-bold text-[var(--text-main)] mb-3">Welcome to CheMuLab!</h2>
+        <p className="text-[var(--text-light)] leading-relaxed mb-8 max-w-2xl">
+          CheMuLab remains the ultimate interactive chemistry learning platform that bridges the gap between complex science and engaging education. Whether you&apos;re a student, a teacher, or a lifelong learner, this is your reactive playground.
         </p>
 
-        <div className={styles.aboutGrid}>
-          <div className={`${styles.featureCard} ${styles.cardInteractive}`}>
-            <div className={styles.featureIcon}>⚗️</div>
-            <h4>Interactive Lab</h4>
-            <p>
-              Begin experimenting with high-fidelity chemical reactions in your
-              personal workspace. Discover hundreds of unique combinations.
-            </p>
-          </div>
-
-          <div className={`${styles.featureCard} ${styles.cardDatabase}`}>
-            <div className={styles.featureIcon}>📖</div>
-            <h4>Element Database</h4>
-            <p>
-              Explore a comprehensive, high-detail periodic table. Learn about
-              atomic properties, history, and usage of every element.
-            </p>
-          </div>
-
-          <div className={`${styles.featureCard} ${styles.cardGamified}`}>
-            <div className={styles.featureIcon}>🎮</div>
-            <h4>Gamified Learning</h4>
-            <p>
-              Master your chemistry knowledge through addictive mini-games.
-              Compete for the highest scores on global leaderboards.
-            </p>
-          </div>
-
-          <div className={`${styles.featureCard} ${styles.cardSocial}`}>
-            <div className={styles.featureIcon}>🤝</div>
-            <h4>Social Science</h4>
-            <p>
-              Team up with friends, compare chemical discoveries, and enjoy a
-              shared learning journey in our growing community.
-            </p>
-          </div>
+        <div className="grid grid-cols-2 gap-5 mb-8 max-[700px]:grid-cols-1">
+          {featureCards.map((card) => (
+            <div
+              key={card.title}
+              className="p-6 rounded-[20px] border transition-all duration-300 hover:translate-y-[-4px] hover:shadow-[var(--shadow-lg)]"
+              style={{ background: card.accent, borderColor: card.border }}
+            >
+              <div className="text-[2.5rem] mb-3">{card.icon}</div>
+              <h4 className="font-bold text-[var(--text-main)] text-lg mb-2">{card.title}</h4>
+              <p className="text-[var(--text-light)] text-sm leading-relaxed">{card.desc}</p>
+            </div>
+          ))}
         </div>
 
-        <div className={styles.missionBlock}>
-          <h3>Our Mission</h3>
-          <p>
-            To provide a state-of-the-art educational environment that transforms
-            the way people perceive science through a fusion of premium design, agentic
-            technology, and scientific rigor.
+        <div className="bg-gradient-to-r from-[rgba(16,185,129,0.1)] to-[rgba(14,165,233,0.1)] border border-[rgba(16,185,129,0.2)] rounded-[20px] p-8 mb-8">
+          <h3 className="font-bold text-[var(--text-main)] text-xl mb-3">Our Mission</h3>
+          <p className="text-[var(--text-light)] leading-relaxed">
+            To provide a state-of-the-art educational environment that transforms the way people perceive science through a fusion of premium design, agentic technology, and scientific rigor.
           </p>
         </div>
-
-        <section className={styles.teamSection}>
-          <h2>Meet the Team</h2>
-          <p>The curious minds behind CheMuLab.</p>
-          <div className={styles.teamGrid}>
-            <div className={styles.teamCard}>
-              <div className={styles.teamAvatar}>🧑‍🔬</div>
-              <div className={styles.teamName}>Hans</div>
-              <div className={styles.teamRole}>Founder & Alchemist</div>
-            </div>
-            <div className={styles.teamCard}>
-              <div className={styles.teamAvatar}>🤖</div>
-              <div className={styles.teamName}>Popoy AI</div>
-              <div className={styles.teamRole}>Lab Assistant</div>
-            </div>
-          </div>
-        </section>
       </section>
     </div>
   );

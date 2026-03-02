@@ -10,7 +10,6 @@ import {
   type ProgressData,
   type UserProgressDoc,
 } from '@/lib/firebase/discoveries';
-import styles from './page.module.css';
 
 const TOTAL_ELEMENTS = 118;
 
@@ -37,9 +36,7 @@ export default function ProgressPage() {
   const { user, loading: authLoading } = useAuthStore();
 
   const [discoveries, setDiscoveries] = useState<Discovery[]>([]);
-  const [progress, setProgress] = useState<ProgressData>(() =>
-    computeProgress([]),
-  );
+  const [progress, setProgress] = useState<ProgressData>(() => computeProgress([]));
   const [syncStatus, setSyncStatus] = useState<SyncState>('idle');
 
   const unsubRef = useRef<(() => void) | undefined>(undefined);
@@ -49,11 +46,9 @@ export default function ProgressPage() {
     setProgress(computeProgress(discs));
   }, []);
 
-  // Real-time Firestore listener + initial fallback load
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
-      // Signed out — reset
       updateProgress([]);
       setSyncStatus('idle');
       return;
@@ -62,7 +57,6 @@ export default function ProgressPage() {
     const uid = user.uid;
     setSyncStatus('syncing');
 
-    // 1. Set up real-time listener on progress/{uid}
     const unsub = onSnapshot(
       doc(db, 'progress', uid),
       (snap) => {
@@ -81,26 +75,20 @@ export default function ProgressPage() {
     );
     unsubRef.current = unsub;
 
-    // 2. Also do a one-time load as fallback (handles discoveries collection + localStorage)
     loadDiscoveries(uid)
       .then((discs) => {
-        // Only apply fallback if we haven't received snapshot data yet
         setDiscoveries((prev) => (prev.length === 0 ? discs : prev));
         setProgress((prev) =>
           prev.completedDiscoveries === 0 ? computeProgress(discs) : prev,
         );
       })
-      .catch((err) => {
-        console.warn('[progress] Fallback load failed:', err);
-      });
+      .catch((err) => console.warn('[progress] Fallback load failed:', err));
 
     return () => {
       unsub();
       unsubRef.current = undefined;
     };
   }, [user, authLoading, updateProgress]);
-
-  // ---------- Render helpers ----------
 
   const milestoneLabels: { key: keyof ProgressData['milestones']; label: string }[] = [
     { key: 'beginner', label: 'Beginner (10%)' },
@@ -112,94 +100,99 @@ export default function ProgressPage() {
   const syncLabel: Record<SyncState, string> = {
     idle: '',
     syncing: 'Syncing…',
-    synced: 'Synced',
+    synced: 'Synced ✓',
     error: 'Sync error — showing cached data',
   };
 
   if (authLoading) {
     return (
-      <div className={styles.container}>
-        <h1 className={styles.pageTitle}>Progress Tracker</h1>
-        <p className={styles.emptyState}>Loading…</p>
+      <div className="flex items-center justify-center p-16 text-[var(--text-light)]">
+        <p>Loading…</p>
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className={styles.container}>
-        <h1 className={styles.pageTitle}>Progress Tracker</h1>
-        <p className={styles.emptyState}>Sign in to track your progress.</p>
+      <div className="flex items-center justify-center p-16 text-[var(--text-light)]">
+        <p>Sign in to track your progress.</p>
       </div>
     );
   }
 
   return (
-    <div className={styles.container}>
-      <h1 className={styles.pageTitle}>Progress Tracker</h1>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-[2rem] font-extrabold text-[var(--text-main)] tracking-tight">Progress Tracker</h1>
+        {syncLabel[syncStatus] && (
+          <span className="text-xs text-[var(--text-light)] italic">{syncLabel[syncStatus]}</span>
+        )}
+      </div>
 
-      {syncLabel[syncStatus] && (
-        <p className={styles.syncStatus}>{syncLabel[syncStatus]}</p>
-      )}
-
-      {/* ---- Progress Section ---- */}
-      <section className={styles.progressSection}>
-        <h2>Overall Progress</h2>
+      {/* Progress Section */}
+      <section className="bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[28px] p-8 space-y-5">
+        <h2 className="text-lg font-bold text-[var(--text-main)]">Overall Progress</h2>
 
         {/* Progress bar */}
-        <div className={styles.progressBarContainer}>
+        <div className="relative h-4 bg-[var(--bg-sidebar)] rounded-full overflow-hidden border border-[var(--border-color)]">
           <div
-            className={styles.progressBar}
+            className="absolute inset-y-0 left-0 bg-gradient-to-r from-[var(--accent-color)] to-[#0ea5e9] rounded-full transition-[width] duration-700"
             style={{ width: `${Math.min(progress.progressPercentage, 100)}%` }}
           />
-          <span className={styles.progressText}>
+          <span className="absolute inset-0 flex items-center justify-center text-[0.65rem] font-bold text-white mix-blend-plus-lighter">
             {Math.round(progress.progressPercentage)}%
           </span>
         </div>
 
-        {/* Stats grid */}
-        <div className={styles.progressStats}>
-          <div className={styles.statItem}>
-            <h3>Discovered</h3>
-            <div className={styles.statValue}>
-              {progress.completedDiscoveries} / {TOTAL_ELEMENTS}
+        {/* Stats */}
+        <div className="grid grid-cols-2 gap-4 max-[600px]:grid-cols-1">
+          <div className="bg-[var(--bg-sidebar)] rounded-[16px] p-5 border border-[var(--border-color)]">
+            <h3 className="text-xs font-semibold text-[var(--text-light)] uppercase tracking-wide mb-2">Discovered</h3>
+            <div className="text-3xl font-extrabold text-[var(--text-main)]">
+              {progress.completedDiscoveries} <span className="text-lg text-[var(--text-light)]">/ {TOTAL_ELEMENTS}</span>
             </div>
           </div>
 
-          <div className={styles.statItem}>
-            <h3>Milestones</h3>
-            <div className={styles.milestones}>
+          <div className="bg-[var(--bg-sidebar)] rounded-[16px] p-5 border border-[var(--border-color)]">
+            <h3 className="text-xs font-semibold text-[var(--text-light)] uppercase tracking-wide mb-3">Milestones</h3>
+            <div className="flex flex-wrap gap-2">
               {milestoneLabels.map(({ key, label }) => (
-                <div
+                <span
                   key={key}
-                  className={`${styles.milestone}${
-                    progress.milestones[key] ? ` ${styles.milestoneAchieved}` : ''
+                  className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all ${
+                    progress.milestones[key]
+                      ? 'bg-[rgba(16,185,129,0.15)] text-emerald-400 border-[rgba(16,185,129,0.3)]'
+                      : 'bg-[var(--bg-card)] text-[var(--text-light)] border-[var(--border-color)] opacity-50'
                   }`}
                 >
-                  {label}
-                </div>
+                  {progress.milestones[key] ? '✓ ' : ''}{label}
+                </span>
               ))}
             </div>
           </div>
         </div>
       </section>
 
-      {/* ---- Discoveries Section ---- */}
-      <section className={styles.discoveriesSection}>
-        <h2>Discovered Elements</h2>
+      {/* Discoveries Section */}
+      <section className="bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[28px] p-8 space-y-4">
+        <h2 className="text-lg font-bold text-[var(--text-main)]">Discovered Elements</h2>
 
         {discoveries.length === 0 ? (
-          <p className={styles.emptyState}>
+          <p className="text-[var(--text-light)] text-sm text-center py-10">
             No discoveries yet. Head to the lab and start experimenting!
           </p>
         ) : (
-          <div className={styles.discoveriesList}>
+          <div className="grid grid-cols-2 gap-2 max-[600px]:grid-cols-1">
             {discoveries.map((d) => (
-              <div key={d.symbol} className={styles.discoveryItem}>
-                <div className={styles.discoverySymbol}>{d.symbol}</div>
-                <div className={styles.discoveryName}>{d.name}</div>
-                <div className={styles.discoveryDate}>
-                  {new Date(d.dateDiscovered).toLocaleDateString()}
+              <div key={d.symbol} className="flex items-center gap-3 p-3 bg-[var(--bg-sidebar)] rounded-[12px] border border-[var(--border-color)] hover:border-[var(--accent-color)] transition-colors">
+                <div className="w-10 h-10 flex items-center justify-center bg-[var(--bg-item-active)] rounded-[8px] font-bold text-[var(--text-main)] text-sm flex-shrink-0">
+                  {d.symbol}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-[var(--text-main)] text-sm truncate">{d.name}</div>
+                  <div className="text-[var(--text-light)] text-xs">
+                    {new Date(d.dateDiscovered).toLocaleDateString()}
+                  </div>
                 </div>
               </div>
             ))}

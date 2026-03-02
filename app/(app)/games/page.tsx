@@ -1,168 +1,91 @@
 import Link from 'next/link';
-import styles from './page.module.css';
 
 const singlePlayerGames = [
-  {
-    href: '/games/element-match',
-    emoji: '\uD83E\uDDEA',
-    title: 'Element Match',
-    description: 'Match symbols to element names',
-    cta: 'Play Now',
-    color: '#0ea5e9',
-  },
-  {
-    href: '/games/reaction-quiz',
-    emoji: '\u2697\uFE0F',
-    title: 'Reaction Quiz',
-    description: 'Predict the products of reactions',
-    cta: 'Start Quiz',
-    color: '#8b5cf6',
-  },
-  {
-    href: '/games/whack-a-mole',
-    emoji: '\u2696\uFE0F',
-    title: 'Whack-a-Mole',
-    description: 'Catch the heavy metals!',
-    cta: 'Enter Arena',
-    color: '#22c55e',
-  },
-  {
-    href: '/games/periodic-puzzle',
-    emoji: '\uD83E\uDDE9',
-    title: 'Periodic Puzzle',
-    description: 'Assemble the table',
-    cta: 'Solve Puzzle',
-    color: '#f59e0b',
-  },
+  { href: '/games/element-match', emoji: '🧪', title: 'Element Match', description: 'Match symbols to element names', cta: 'Play Now', color: '#0ea5e9' },
+  { href: '/games/reaction-quiz', emoji: '⚗️', title: 'Reaction Quiz', description: 'Predict the products of reactions', cta: 'Start Quiz', color: '#8b5cf6' },
+  { href: '/games/whack-a-mole', emoji: '⚖️', title: 'Whack-a-Mole', description: 'Catch the heavy metals!', cta: 'Enter Arena', color: '#22c55e' },
+  { href: '/games/periodic-puzzle', emoji: '🧩', title: 'Periodic Puzzle', description: 'Assemble the table', cta: 'Solve Puzzle', color: '#f59e0b' },
 ];
 
 const multiplayerGames = [
-  {
-    href: '/games/volcano',
-    emoji: '\uD83C\uDF0B',
-    title: 'Volcano Race',
-    description: '2-player ingredient race!',
-    cta: 'Duel Start',
-    color: '#ef4444',
-  },
-  {
-    href: '/games/foam-race',
-    emoji: '\uD83D\uDC18',
-    title: 'Elephant Toothpaste',
-    description: 'Fast-paced foam race!',
-    cta: 'Race Now',
-    color: '#10b981',
-  },
-  {
-    href: '/games/balloon-race',
-    emoji: '\uD83C\uDF88',
-    title: 'Balloon Race',
-    description: 'Inflate balloons with CO\u2082!',
-    cta: 'Inflate',
-    color: '#f59e0b',
-  },
-  {
-    href: '/games/ph-challenge',
-    emoji: '\uD83C\uDF08',
-    title: 'pH Challenge',
-    description: 'Color-changing reaction!',
-    cta: 'Challenge',
-    color: '#6366f1',
-  },
+  { href: '/games/volcano', emoji: '🌋', title: 'Volcano Race', description: '2-player ingredient race!', cta: 'Duel Start', color: '#ef4444' },
+  { href: '/games/foam-race', emoji: '🐘', title: 'Elephant Toothpaste', description: 'Fast-paced foam race!', cta: 'Race Now', color: '#10b981' },
+  { href: '/games/balloon-race', emoji: '🎈', title: 'Balloon Race', description: 'Inflate balloons with CO₂!', cta: 'Inflate', color: '#f59e0b' },
+  { href: '/games/ph-challenge', emoji: '🌈', title: 'pH Challenge', description: 'Color-changing reaction!', cta: 'Challenge', color: '#6366f1' },
 ];
+
+function GamesGrid({ games }: { games: typeof singlePlayerGames }) {
+  return (
+    <div className="grid grid-cols-4 gap-4 max-[1100px]:grid-cols-2 max-[600px]:grid-cols-1">
+      {games.map((game) => (
+        <Link
+          key={game.href}
+          href={game.href}
+          className="flex flex-col gap-2 p-6 rounded-[20px] border-l-4 bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] hover:translate-y-[-4px] hover:shadow-[var(--shadow-lg)] transition-all duration-300 group"
+          style={{
+            background: `linear-gradient(135deg, ${game.color}15 0%, var(--bg-card) 100%)`,
+            borderLeftColor: game.color,
+          }}
+        >
+          <div className="text-[2.5rem] leading-none">{game.emoji}</div>
+          <strong className="text-[var(--text-main)] font-bold text-base">{game.title}</strong>
+          <div className="text-[var(--text-light)] text-sm leading-snug flex-1">{game.description}</div>
+          <span className="text-sm font-semibold mt-2 group-hover:translate-x-1 transition-transform inline-block" style={{ color: game.color }}>
+            {game.cta} →
+          </span>
+        </Link>
+      ))}
+    </div>
+  );
+}
 
 export default function GamesPage() {
   return (
-    <div className={styles.gamesPage}>
-      {/* Background shapes */}
-      <div className={styles.bgShapeRight} />
-      <div className={styles.bgShapeLeft} />
+    <div className="space-y-8 relative">
+      {/* Background blobs */}
+      <div className="absolute top-0 right-0 w-[350px] h-[350px] rounded-full pointer-events-none opacity-20 blur-[80px]" style={{ background: 'radial-gradient(circle, var(--accent-color), transparent)' }} />
+      <div className="absolute bottom-0 left-0 w-[300px] h-[300px] rounded-full pointer-events-none opacity-15 blur-[80px]" style={{ background: 'radial-gradient(circle, #0ea5e9, transparent)' }} />
 
-      {/* Hero Banner */}
-      <section className={styles.hero}>
-        <div className={styles.heroDecor1} />
-        <div className={styles.heroDecor2} />
+      {/* Hero */}
+      <section className="relative bg-gradient-to-br from-[var(--bg-card)] to-[var(--bg-sidebar)] border border-[var(--glass-border)] rounded-[28px] p-10 overflow-hidden shadow-[var(--shadow-md)]">
+        <div className="absolute top-[-30px] left-[-30px] w-[200px] h-[200px] rounded-full opacity-20 blur-[40px]" style={{ background: 'var(--accent-color)' }} />
+        <div className="absolute bottom-[-20px] right-[20%] w-[150px] h-[150px] rounded-full opacity-15 blur-[30px]" style={{ background: '#0ea5e9' }} />
 
-        <div className={styles.heroContent}>
-          <div className={styles.heroBadge}>
-            <span>\uD83C\uDFAE Interactive Learning</span>
-          </div>
-          <h2>Games Arena</h2>
-          <p>
-            Challenge yourself with chemistry puzzles and quizzes to sharpen
-            your skills and unlock new achievements!
+        <div className="relative z-10 max-w-lg">
+          <span className="inline-flex items-center gap-2 bg-[rgba(16,185,129,0.15)] border border-[rgba(16,185,129,0.3)] text-emerald-400 text-sm font-semibold px-4 py-1.5 rounded-full mb-4">
+            🎮 Interactive Learning
+          </span>
+          <h2 className="text-[2.5rem] font-extrabold text-[var(--text-main)] tracking-tight leading-tight mb-3">Games Arena</h2>
+          <p className="text-[var(--text-light)] text-base leading-relaxed">
+            Challenge yourself with chemistry puzzles and quizzes to sharpen your skills and unlock new achievements!
           </p>
         </div>
 
-        <div className={styles.heroEmojis}>
-          <div className={styles.floatingEmoji} style={{ top: '15%', left: '75%' }}>
-            <span style={{ animationDuration: '3s' }}>\uD83E\uDDEA</span>
-          </div>
-          <div className={styles.floatingEmoji} style={{ top: '50%', left: '85%' }}>
-            <span style={{ animationDuration: '4s', animationDirection: 'reverse', animationDelay: '1s' }}>\uD83E\uDDE9</span>
-          </div>
-          <div className={styles.floatingEmoji} style={{ top: '30%', left: '65%' }}>
-            <span style={{ animationDuration: '5s', animationDelay: '0.5s' }}>\u2697\uFE0F</span>
-          </div>
-          <div className={styles.floatingEmoji} style={{ top: '65%', left: '72%' }}>
-            <span style={{ animationDuration: '6s', animationDirection: 'reverse', animationDelay: '1.5s' }}>\u269B\uFE0F</span>
-          </div>
-        </div>
+        {/* Floating emojis */}
+        <div className="absolute top-[15%] right-[25%] text-3xl animate-[authFloat_3s_ease-in-out_infinite]">🧪</div>
+        <div className="absolute top-[50%] right-[15%] text-2xl animate-[authFloat_4s_ease-in-out_infinite_reverse_1s]">🧩</div>
+        <div className="absolute top-[30%] right-[35%] text-2xl animate-[authFloat_5s_ease-in-out_infinite_0.5s]">⚗️</div>
+        <div className="absolute top-[65%] right-[28%] text-xl animate-[authFloat_6s_ease-in-out_infinite_reverse_1.5s]">⚛️</div>
       </section>
 
-      {/* Single Player Section */}
-      <div className={styles.sectionHeader}>
-        <h2>Single Player</h2>
-        <div className={styles.badge}>4 Modules Active</div>
+      {/* Single Player */}
+      <div>
+        <div className="flex items-center gap-3 mb-4">
+          <h2 className="text-xl font-bold text-[var(--text-main)]">Single Player</h2>
+          <span className="bg-[rgba(16,185,129,0.15)] text-emerald-400 border border-[rgba(16,185,129,0.3)] text-xs font-semibold px-3 py-1 rounded-full">4 Modules Active</span>
+        </div>
+        <GamesGrid games={singlePlayerGames} />
       </div>
 
-      <div className={styles.gamesGrid}>
-        {singlePlayerGames.map((game) => (
-          <Link
-            key={game.href}
-            href={game.href}
-            className={styles.gameCard}
-            style={{
-              background: `linear-gradient(135deg, ${game.color}15 0%, var(--bg-card) 100%)`,
-              borderLeft: `4px solid ${game.color}`,
-            }}
-          >
-            <div className={styles.gameEmoji}>{game.emoji}</div>
-            <strong>{game.title}</strong>
-            <div className={styles.gameDesc}>{game.description}</div>
-            <span className={styles.gameCta} style={{ color: game.color }}>
-              {game.cta} &rarr;
-            </span>
-          </Link>
-        ))}
-      </div>
-
-      {/* Multiplayer Section */}
-      <div className={styles.sectionHeader} style={{ marginTop: '3rem' }}>
-        <h2>Multiplayer</h2>
-        <div className={`${styles.badge} ${styles.badgeMultiplayer}`}>4 Modules Active</div>
-      </div>
-
-      <div className={styles.gamesGrid}>
-        {multiplayerGames.map((game) => (
-          <Link
-            key={game.href}
-            href={game.href}
-            className={styles.gameCard}
-            style={{
-              background: `linear-gradient(135deg, ${game.color}15 0%, var(--bg-card) 100%)`,
-              borderLeft: `4px solid ${game.color}`,
-            }}
-          >
-            <div className={styles.gameEmoji}>{game.emoji}</div>
-            <strong>{game.title}</strong>
-            <div className={styles.gameDesc}>{game.description}</div>
-            <span className={styles.gameCta} style={{ color: game.color }}>
-              {game.cta} &rarr;
-            </span>
-          </Link>
-        ))}
+      {/* Multiplayer */}
+      <div>
+        <div className="flex items-center gap-3 mb-4">
+          <h2 className="text-xl font-bold text-[var(--text-main)]">Multiplayer</h2>
+          <span className="bg-[rgba(14,165,233,0.15)] text-sky-400 border border-[rgba(14,165,233,0.3)] text-xs font-semibold px-3 py-1 rounded-full">4 Modules Active</span>
+        </div>
+        <GamesGrid games={multiplayerGames} />
       </div>
     </div>
   );
 }
+

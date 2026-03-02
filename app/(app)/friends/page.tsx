@@ -20,7 +20,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { useAuthStore } from '@/store/auth-store';
-import styles from './page.module.css';
+
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -587,9 +587,9 @@ export default function FriendsPage() {
 
   if (!user) {
     return (
-      <div className={styles.friendsPage}>
-        <div className={styles.friendsPanel}>
-          <p className={styles.muted}>Please sign in to use Friends &amp; Chat.</p>
+      <div className="flex gap-4 h-[calc(100vh-130px)] max-[900px]:flex-col max-[900px]:h-auto">
+        <div className="w-[300px] max-[900px]:w-full flex flex-col gap-3 bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[20px] p-5 overflow-hidden">
+          <p className="text-[var(--text-light)] text-sm text-center py-4">Please sign in to use Friends &amp; Chat.</p>
         </div>
       </div>
     );
@@ -600,13 +600,13 @@ export default function FriendsPage() {
   /* ---------------------------------------------------------------- */
 
   return (
-    <div className={styles.friendsPage}>
+    <div className="flex gap-4 h-[calc(100vh-130px)] max-[900px]:flex-col max-[900px]:h-auto">
       {/* ==================== LEFT PANEL ==================== */}
-      <div className={styles.friendsPanel}>
-        <h3 className={styles.panelTitle}>Friends</h3>
+      <div className="w-[300px] max-[900px]:w-full flex flex-col gap-3 bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[20px] p-5 overflow-hidden">
+        <h3 className="font-bold text-[var(--text-main)] text-base">Friends</h3>
 
         {/* Add friend */}
-        <div className={styles.addFriend}>
+        <div className="flex gap-2">
           <input
             type="email"
             placeholder="Friend's email"
@@ -615,30 +615,37 @@ export default function FriendsPage() {
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleAddFriend();
             }}
+            className="flex-1 min-w-0 bg-[var(--bg-sidebar)] border border-[var(--border-color)] rounded-[12px] px-4 py-2 text-[var(--text-main)] placeholder:text-[var(--text-light)] focus:outline-none focus:border-[var(--accent-color)] transition-colors text-sm"
           />
-          <button type="button" onClick={handleAddFriend}>
+          <button
+            type="button"
+            onClick={handleAddFriend}
+            className="bg-[var(--accent-color)] text-white font-semibold px-4 py-2 rounded-[10px] text-sm hover:opacity-90 transition-opacity cursor-pointer whitespace-nowrap"
+          >
             Add
           </button>
         </div>
 
-        {statusMsg && <div className={styles.statusMsg}>{statusMsg}</div>}
+        {statusMsg && (
+          <div className="text-xs text-[var(--accent-color)] bg-[rgba(16,185,129,0.1)] border border-[rgba(16,185,129,0.2)] rounded-[8px] px-3 py-1.5">
+            {statusMsg}
+          </div>
+        )}
 
         {/* Friends list */}
-        <div className={styles.friendsList}>
+        <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2">
           {friends.length === 0 && (
-            <p className={styles.muted}>
+            <p className="text-[var(--text-light)] text-sm text-center py-4">
               No friends yet. Add someone by email!
             </p>
           )}
           {friends.map((friend) => (
             <div
               key={friend.uid}
-              className={`${styles.friend} ${
-                activeChat?.friendUid === friend.uid ? styles.friendActive : ''
-              }`}
+              className={`flex items-center gap-3 p-3 rounded-[12px] border cursor-pointer transition-all${activeChat?.friendUid === friend.uid ? ' bg-[var(--bg-item-active)] border-[var(--accent-color)]/30' : ' border-transparent hover:bg-[var(--bg-sidebar)] hover:border-[var(--border-color)]'}`}
               onClick={() => openChat(friend)}
             >
-              <div className={styles.friendIcon}>
+              <div className="w-11 h-11 rounded-full overflow-hidden flex-shrink-0 bg-[var(--bg-sidebar)]">
                 {friend.photoURL ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -656,13 +663,13 @@ export default function FriendsPage() {
                   />
                 )}
               </div>
-              <div className={styles.friendInfo}>
-                <strong>{friend.username}</strong>
-                <span className={styles.muted}>{friend.email}</span>
+              <div className="flex-1 min-w-0 flex flex-col">
+                <strong className="text-[var(--text-main)] text-sm font-semibold truncate">{friend.username}</strong>
+                <span className="text-[var(--text-light)] text-xs truncate">{friend.email}</span>
               </div>
               <button
                 type="button"
-                className={styles.viewBtn}
+                className="text-[var(--accent-color)] text-xs font-semibold px-3 py-1 rounded-[8px] bg-[rgba(16,185,129,0.1)] border border-[rgba(16,185,129,0.2)] hover:bg-[rgba(16,185,129,0.2)] transition-colors cursor-pointer"
                 onClick={(e) => {
                   e.stopPropagation();
                   viewFriendProfile(friend);
@@ -675,16 +682,16 @@ export default function FriendsPage() {
         </div>
 
         {/* Pending requests */}
-        <div className={styles.requestsSection}>
+        <div className="shrink-0 max-h-[220px] overflow-y-auto space-y-2 border-t border-[var(--border-color)] pt-3">
           {incomingRequests.length > 0 && (
             <>
-              <h4>Incoming Requests</h4>
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-light)] mb-2">Incoming Requests</h4>
               {incomingRequests.map((req) => (
                 <div
                   key={req.id}
-                  className={`${styles.friend} ${styles.pendingRequest}`}
+                  className="flex items-center gap-3 p-3 rounded-[12px] border border-transparent hover:bg-[var(--bg-sidebar)] hover:border-[var(--border-color)] cursor-pointer transition-all opacity-80"
                 >
-                  <div className={styles.friendIcon}>
+                  <div className="w-11 h-11 rounded-full overflow-hidden flex-shrink-0 bg-[var(--bg-sidebar)]">
                     <Image
                       src="/img/default-avatar.png"
                       alt={req.fromUsername}
@@ -692,21 +699,21 @@ export default function FriendsPage() {
                       height={44}
                     />
                   </div>
-                  <div className={styles.friendInfo}>
-                    <strong>{req.fromUsername}</strong>
-                    <span className={styles.muted}>{req.fromEmail}</span>
+                  <div className="flex-1 min-w-0 flex flex-col">
+                    <strong className="text-[var(--text-main)] text-sm font-semibold truncate">{req.fromUsername}</strong>
+                    <span className="text-[var(--text-light)] text-xs truncate">{req.fromEmail}</span>
                   </div>
-                  <div className={styles.friendActions}>
+                  <div className="flex gap-1.5">
                     <button
                       type="button"
-                      className={styles.acceptBtn}
+                      className="bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 text-xs font-semibold px-2.5 py-1 rounded-[6px] hover:bg-emerald-500/20 transition-colors cursor-pointer"
                       onClick={() => handleAccept(req)}
                     >
                       Accept
                     </button>
                     <button
                       type="button"
-                      className={styles.declineBtn}
+                      className="bg-red-500/10 text-red-400 border border-red-500/30 text-xs font-semibold px-2.5 py-1 rounded-[6px] hover:bg-red-500/20 transition-colors cursor-pointer"
                       onClick={() => handleDecline(req)}
                     >
                       Decline
@@ -719,13 +726,13 @@ export default function FriendsPage() {
 
           {outgoingRequests.length > 0 && (
             <>
-              <h4>Outgoing Requests</h4>
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-light)] mb-2">Outgoing Requests</h4>
               {outgoingRequests.map((req) => (
                 <div
                   key={req.id}
-                  className={`${styles.friend} ${styles.pendingRequest}`}
+                  className="flex items-center gap-3 p-3 rounded-[12px] border border-transparent hover:bg-[var(--bg-sidebar)] hover:border-[var(--border-color)] cursor-pointer transition-all opacity-80"
                 >
-                  <div className={styles.friendIcon}>
+                  <div className="w-11 h-11 rounded-full overflow-hidden flex-shrink-0 bg-[var(--bg-sidebar)]">
                     <Image
                       src="/img/default-avatar.png"
                       alt={req.toEmail}
@@ -733,14 +740,14 @@ export default function FriendsPage() {
                       height={44}
                     />
                   </div>
-                  <div className={styles.friendInfo}>
-                    <strong>{req.toEmail}</strong>
-                    <span className={styles.muted}>Pending...</span>
+                  <div className="flex-1 min-w-0 flex flex-col">
+                    <strong className="text-[var(--text-main)] text-sm font-semibold truncate">{req.toEmail}</strong>
+                    <span className="text-[var(--text-light)] text-xs truncate">Pending...</span>
                   </div>
-                  <div className={styles.friendActions}>
+                  <div className="flex gap-1.5">
                     <button
                       type="button"
-                      className={styles.cancelBtn}
+                      className="bg-[var(--bg-sidebar)] text-[var(--text-light)] border border-[var(--border-color)] text-xs font-semibold px-2.5 py-1 rounded-[6px] hover:border-red-500/50 transition-colors cursor-pointer"
                       onClick={() => handleCancel(req)}
                     >
                       Cancel
@@ -754,15 +761,15 @@ export default function FriendsPage() {
       </div>
 
       {/* ==================== RIGHT PANEL ==================== */}
-      <div className={styles.chatPanel}>
+      <div className="flex-1 flex flex-col bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[20px] overflow-hidden">
         {activeChat ? (
           <>
             {/* Chat header */}
-            <div className={styles.chatHeader}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-color)] font-semibold text-[var(--text-main)]">
               <span>{activeChat.friendName}</span>
               <button
                 type="button"
-                className={styles.viewBtn}
+                className="text-[var(--accent-color)] text-xs font-semibold px-3 py-1 rounded-[8px] bg-[rgba(16,185,129,0.1)] border border-[rgba(16,185,129,0.2)] hover:bg-[rgba(16,185,129,0.2)] transition-colors cursor-pointer"
                 onClick={() => {
                   const friend = friends.find(
                     (f) => f.uid === activeChat.friendUid,
@@ -776,23 +783,23 @@ export default function FriendsPage() {
 
             {/* Messages */}
             <div
-              className={styles.chatMessages}
+              className="flex-1 overflow-y-auto p-5 flex flex-col gap-3"
               ref={chatMessagesRef}
             >
               {messages.length === 0 && (
-                <p className={styles.muted} style={{ textAlign: 'center' }}>
+                <p className="text-[var(--text-light)] text-sm text-center mt-8">
                   No messages yet. Say hello!
                 </p>
               )}
               {messages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={`${styles.chatMessage} ${
-                    msg.fromUid === uid ? styles.me : styles.them
-                  }`}
+                  className={`flex flex-col max-w-[70%]${msg.fromUid === uid ? ' self-end items-end' : ' self-start items-start'}`}
                 >
-                  <div className={styles.chatMessageText}>{msg.text}</div>
-                  <div className={styles.chatMessageMeta}>
+                  <div className={msg.fromUid === uid ? 'bg-[var(--accent-color)] text-white px-4 py-2.5 rounded-[16px] rounded-br-[4px] text-sm' : 'bg-[var(--bg-sidebar)] text-[var(--text-main)] border border-[var(--border-color)] px-4 py-2.5 rounded-[16px] rounded-bl-[4px] text-sm'}>
+                    {msg.text}
+                  </div>
+                  <div className="text-[var(--text-light)] text-[0.65rem] mt-1 px-1">
                     {msg.fromUsername}
                     {msg.createdAt ? ` · ${formatTime(msg.createdAt)}` : ''}
                   </div>
@@ -801,7 +808,7 @@ export default function FriendsPage() {
             </div>
 
             {/* Input */}
-            <div className={styles.chatInput}>
+            <div className="flex gap-3 p-4 border-t border-[var(--border-color)]">
               <input
                 type="text"
                 placeholder="Type a message..."
@@ -810,14 +817,19 @@ export default function FriendsPage() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleSendMessage();
                 }}
+                className="flex-1 bg-[var(--bg-sidebar)] border border-[var(--border-color)] rounded-[12px] px-4 py-2.5 text-[var(--text-main)] placeholder:text-[var(--text-light)] focus:outline-none focus:border-[var(--accent-color)] transition-colors text-sm"
               />
-              <button type="button" onClick={handleSendMessage}>
+              <button
+                type="button"
+                onClick={handleSendMessage}
+                className="bg-[var(--accent-color)] text-white w-10 h-10 rounded-[12px] flex items-center justify-center hover:opacity-90 transition-opacity cursor-pointer"
+              >
                 Send
               </button>
             </div>
           </>
         ) : (
-          <div className={styles.chatPlaceholder}>
+          <div className="flex-1 flex items-center justify-center text-[var(--text-light)] text-sm">
             Select a friend to start chatting
           </div>
         )}
@@ -826,7 +838,7 @@ export default function FriendsPage() {
       {/* ==================== MODAL ==================== */}
       {modalVisible && modalData && (
         <div
-          className={styles.modal}
+          className="fixed inset-0 z-[2000] flex items-center justify-center bg-[rgba(2,6,23,0.85)] backdrop-blur-[8px]"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setModalVisible(false);
@@ -834,10 +846,10 @@ export default function FriendsPage() {
             }
           }}
         >
-          <div className={styles.modalContent}>
+          <div className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-[28px] p-8 relative">
             <button
               type="button"
-              className={styles.closeBtn}
+              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-[var(--bg-sidebar)] border border-[var(--border-color)] rounded-full text-[var(--text-light)] hover:bg-red-500 hover:text-white hover:rotate-90 transition-all duration-200 cursor-pointer"
               onClick={() => {
                 setModalVisible(false);
                 setModalData(null);
@@ -846,7 +858,7 @@ export default function FriendsPage() {
               &times;
             </button>
 
-            <div className={styles.profileIcon}>
+            <div className="w-20 h-20 rounded-full overflow-hidden mx-auto mb-4 border-4 border-[var(--accent-color)]/30">
               {modalData.photoURL ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -865,10 +877,10 @@ export default function FriendsPage() {
               )}
             </div>
 
-            <h3>{modalData.username}</h3>
-            <p className={styles.muted}>{modalData.email}</p>
+            <h3 className="text-xl font-bold text-[var(--text-main)] text-center mb-1">{modalData.username}</h3>
+            <p className="text-[var(--text-light)] text-sm text-center">{modalData.email}</p>
 
-            <div className={styles.statsBox}>
+            <div className="bg-[var(--bg-sidebar)] rounded-[16px] p-4 space-y-2 text-sm text-[var(--text-main)] my-5 border border-[var(--border-color)]">
               <div>
                 <strong>Joined:</strong> {modalData.joinDate}
               </div>
@@ -879,7 +891,7 @@ export default function FriendsPage() {
 
             <button
               type="button"
-              className={styles.unfriendBtn}
+              className="w-full bg-red-500/10 text-red-400 border border-red-500/30 font-semibold px-6 py-2.5 rounded-[12px] hover:bg-red-500/20 transition-colors cursor-pointer"
               onClick={handleUnfriend}
             >
               Unfriend

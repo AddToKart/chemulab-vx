@@ -3,6 +3,7 @@ import { Inter, Plus_Jakarta_Sans } from 'next/font/google';
 import './globals.css';
 import AuthProvider from '@/components/auth/AuthProvider';
 import ThemeProvider from '@/components/layout/ThemeProvider';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -34,7 +35,9 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className={`${inter.variable} ${plusJakarta.variable}`}>
       <body>
         <AuthProvider>
-          <ThemeProvider>{children}</ThemeProvider>
+          <ThemeProvider>
+            <TooltipProvider>{children}</TooltipProvider>
+          </ThemeProvider>
         </AuthProvider>
       </body>
     </html>

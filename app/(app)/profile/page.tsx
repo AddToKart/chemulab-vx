@@ -15,7 +15,7 @@ import {
 import { useAuthStore } from '@/store/auth-store';
 import { loadDiscoveries } from '@/lib/firebase/discoveries';
 import type { Discovery } from '@/lib/firebase/discoveries';
-import styles from './page.module.css';
+
 
 const TOTAL_ELEMENTS = 118;
 const DEFAULT_AVATAR = '/img/default-avatar.png';
@@ -360,7 +360,7 @@ export default function ProfilePage() {
   // Loading state
   if (authLoading) {
     return (
-      <div className={styles.loadingContainer}>
+      <div className="flex items-center justify-center p-16 text-[var(--text-light)]">
         <p>Loading profile...</p>
       </div>
     );
@@ -369,7 +369,7 @@ export default function ProfilePage() {
   // Not authenticated
   if (!user || !profile) {
     return (
-      <div className={styles.loadingContainer}>
+      <div className="flex items-center justify-center p-16 text-[var(--text-light)]">
         <p>Please sign in to view your profile.</p>
       </div>
     );
@@ -380,20 +380,23 @@ export default function ProfilePage() {
   const percentage = Math.round(progressData.progressPercentage);
 
   return (
-    <section className={styles.profileSection}>
+    <section className="space-y-6">
       {/* Header */}
-      <div className={styles.header}>
-        <h1>Profile</h1>
-        <button className={styles.editBtn} onClick={handleOpenEdit}>
+      <div className="flex items-center justify-between mb-2">
+        <h1 className="text-[2rem] font-extrabold text-[var(--text-main)] tracking-tight">Profile</h1>
+        <button
+          className="bg-[var(--bg-sidebar)] border border-[var(--border-color)] text-[var(--text-main)] font-semibold px-6 py-2.5 rounded-[12px] hover:border-[var(--accent-color)] transition-all cursor-pointer"
+          onClick={handleOpenEdit}
+        >
           Edit
         </button>
       </div>
 
       {/* Profile Card */}
-      <div className={styles.profileCard}>
-        <div className={styles.profileHeader}>
-          <div className={styles.avatarContainer}>
-            <div className={styles.avatar}>
+      <div className="bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[28px] p-8">
+        <div className="flex items-center gap-6">
+          <div className="relative">
+            <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-[var(--accent-color)]/30 ring-2 ring-[var(--accent-color)]/20">
               <Image
                 src={displayAvatar}
                 alt={profile.username}
@@ -403,73 +406,49 @@ export default function ProfilePage() {
               />
             </div>
           </div>
-          <div className={styles.profileInfo}>
-            <h2>{profile.username}</h2>
-            <p className={styles.muted}>{user.email}</p>
-            <p className={styles.muted}>Joined: {joinDate}</p>
+          <div>
+            <h2 className="text-xl font-bold text-[var(--text-main)]">{profile.username}</h2>
+            <p className="text-[var(--text-light)] text-sm">{user.email}</p>
+            <p className="text-[var(--text-light)] text-sm">Joined: {joinDate}</p>
           </div>
         </div>
       </div>
 
       {/* Progress Section */}
-      <div className={styles.progressSection}>
-        <h2>Progress Tracker</h2>
-        <p className={styles.syncStatus}>{syncStatus}</p>
+      <div className="bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[28px] p-8 space-y-4">
+        <h2 className="text-lg font-bold text-[var(--text-main)] mb-4">Progress Tracker</h2>
+        <p className="text-xs text-[var(--text-light)] italic">{syncStatus}</p>
 
         {/* Progress Bar */}
-        <div className={styles.progressBarContainer}>
+        <div className="relative h-3 bg-[var(--bg-sidebar)] rounded-full overflow-hidden">
           <div
-            className={styles.progressBar}
+            className="absolute inset-y-0 left-0 bg-gradient-to-r from-[var(--accent-color)] to-[#0ea5e9] rounded-full transition-[width] duration-700"
             style={{ width: `${percentage}%` }}
           />
-          <span className={styles.progressText}>{percentage}%</span>
+          <span className="absolute inset-0 flex items-center justify-center text-[0.65rem] font-bold text-white">{percentage}%</span>
         </div>
 
         {/* Stats */}
-        <div className={styles.progressStats}>
-          <div className={styles.statItem}>
-            <h3>Discoveries</h3>
-            <p>
+        <div className="grid grid-cols-2 gap-4 mt-4 max-[600px]:grid-cols-1">
+          <div className="bg-[var(--bg-sidebar)] rounded-[16px] p-5 border border-[var(--border-color)]">
+            <h3 className="text-xs font-semibold text-[var(--text-light)] uppercase tracking-wide mb-2">Discoveries</h3>
+            <p className="text-2xl font-extrabold text-[var(--text-main)]">
               {progressData.completedDiscoveries} / {TOTAL_ELEMENTS}
             </p>
           </div>
-          <div className={styles.statItem}>
-            <h3>Milestones</h3>
-            <div className={styles.milestones}>
-              <div
-                className={`${styles.milestone} ${
-                  progressData.milestones.beginner
-                    ? styles.milestoneAchieved
-                    : ''
-                }`}
-              >
+          <div className="bg-[var(--bg-sidebar)] rounded-[16px] p-5 border border-[var(--border-color)]">
+            <h3 className="text-xs font-semibold text-[var(--text-light)] uppercase tracking-wide mb-2">Milestones</h3>
+            <div className="flex flex-wrap gap-2">
+              <div className={progressData.milestones.beginner ? 'bg-[rgba(16,185,129,0.15)] text-emerald-500 border border-[rgba(16,185,129,0.3)] px-3 py-1 rounded-full text-xs font-semibold' : 'bg-[var(--bg-sidebar)] text-[var(--text-light)] border border-[var(--border-color)] px-3 py-1 rounded-full text-xs font-semibold'}>
                 Beginner
               </div>
-              <div
-                className={`${styles.milestone} ${
-                  progressData.milestones.intermediate
-                    ? styles.milestoneAchieved
-                    : ''
-                }`}
-              >
+              <div className={progressData.milestones.intermediate ? 'bg-[rgba(16,185,129,0.15)] text-emerald-500 border border-[rgba(16,185,129,0.3)] px-3 py-1 rounded-full text-xs font-semibold' : 'bg-[var(--bg-sidebar)] text-[var(--text-light)] border border-[var(--border-color)] px-3 py-1 rounded-full text-xs font-semibold'}>
                 Intermediate
               </div>
-              <div
-                className={`${styles.milestone} ${
-                  progressData.milestones.advanced
-                    ? styles.milestoneAchieved
-                    : ''
-                }`}
-              >
+              <div className={progressData.milestones.advanced ? 'bg-[rgba(16,185,129,0.15)] text-emerald-500 border border-[rgba(16,185,129,0.3)] px-3 py-1 rounded-full text-xs font-semibold' : 'bg-[var(--bg-sidebar)] text-[var(--text-light)] border border-[var(--border-color)] px-3 py-1 rounded-full text-xs font-semibold'}>
                 Advanced
               </div>
-              <div
-                className={`${styles.milestone} ${
-                  progressData.milestones.master
-                    ? styles.milestoneAchieved
-                    : ''
-                }`}
-              >
+              <div className={progressData.milestones.master ? 'bg-[rgba(16,185,129,0.15)] text-emerald-500 border border-[rgba(16,185,129,0.3)] px-3 py-1 rounded-full text-xs font-semibold' : 'bg-[var(--bg-sidebar)] text-[var(--text-light)] border border-[var(--border-color)] px-3 py-1 rounded-full text-xs font-semibold'}>
                 Master
               </div>
             </div>
@@ -478,24 +457,24 @@ export default function ProfilePage() {
       </div>
 
       {/* Discoveries Section */}
-      <div className={styles.discoveriesSection}>
-        <h2>
+      <div className="bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[28px] p-8 space-y-4">
+        <h2 className="text-lg font-bold text-[var(--text-main)] mb-4">
           Discoveries ({progressData.completedDiscoveries} / {TOTAL_ELEMENTS})
         </h2>
 
         {discoveriesLoading ? (
-          <p className={styles.emptyText}>Loading discoveries...</p>
+          <p className="text-[var(--text-light)] text-sm text-center py-8">Loading discoveries...</p>
         ) : discoveries.length === 0 ? (
-          <p className={styles.emptyText}>
+          <p className="text-[var(--text-light)] text-sm text-center py-8">
             No discoveries yet. Start combining elements in the Lab!
           </p>
         ) : (
-          <div className={styles.discoveriesList}>
+          <div className="grid grid-cols-2 gap-2 max-[600px]:grid-cols-1">
             {discoveries.map((d) => (
-              <div key={d.symbol} className={styles.discoveryItem}>
-                <div className={styles.discoverySymbol}>{d.symbol}</div>
-                <div className={styles.discoveryName}>{d.name}</div>
-                <div className={styles.discoveryDate}>
+              <div key={d.symbol} className="flex items-center gap-3 p-3 bg-[var(--bg-sidebar)] rounded-[12px] border border-[var(--border-color)] hover:border-[var(--accent-color)] transition-colors">
+                <div className="w-10 h-10 flex items-center justify-center bg-[var(--bg-item-active)] rounded-[8px] font-bold text-[var(--text-main)] text-sm">{d.symbol}</div>
+                <div className="flex-1 text-[var(--text-main)] text-sm font-medium truncate">{d.name}</div>
+                <div className="text-[var(--text-light)] text-xs">
                   {formatDate(d.dateDiscovered)}
                 </div>
               </div>
@@ -506,15 +485,18 @@ export default function ProfilePage() {
 
       {/* Edit Profile Modal */}
       {showEditModal && (
-        <div className={styles.modal} onClick={handleBackdropClick}>
-          <div className={styles.modalContent}>
-            <button className={styles.closeBtn} onClick={handleCloseEdit}>
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-[rgba(2,6,23,0.85)] backdrop-blur-[8px]" onClick={handleBackdropClick}>
+          <div className="w-full max-w-[480px] bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-[28px] p-8 relative max-h-[90vh] overflow-y-auto">
+            <button
+              className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-[var(--bg-sidebar)] border border-[var(--border-color)] rounded-full text-[var(--text-light)] hover:bg-red-500 hover:text-white hover:rotate-90 transition-all duration-200 cursor-pointer"
+              onClick={handleCloseEdit}
+            >
               &times;
             </button>
 
             {/* Modal Header with avatar preview */}
-            <div className={styles.modalHeader}>
-              <div className={styles.editAvatarPreview}>
+            <div className="flex items-center gap-5 mb-6">
+              <div className="w-[70px] h-[70px] rounded-full overflow-hidden border-4 border-[var(--accent-color)]/40">
                 <Image
                   src={editPreviewAvatar}
                   alt="Avatar preview"
@@ -523,24 +505,24 @@ export default function ProfilePage() {
                   unoptimized={editPreviewAvatar !== DEFAULT_AVATAR}
                 />
               </div>
-              <h3 className={styles.modalTitle}>Edit Profile</h3>
+              <h3 className="text-xl font-bold text-[var(--text-main)]">Edit Profile</h3>
             </div>
 
             {/* Form */}
-            <div className={styles.infoGrid}>
+            <div className="space-y-4">
               {/* Avatar URL */}
-              <div className={styles.infoItem}>
-                <label className={styles.infoLabel}>Avatar URL</label>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-light)]">Avatar URL</label>
                 <input
                   type="text"
-                  className={styles.formInput}
+                  className="w-full bg-[var(--bg-sidebar)] border border-[var(--border-color)] rounded-[12px] px-4 py-2.5 text-[var(--text-main)] placeholder:text-[var(--text-light)] focus:outline-none focus:border-[var(--accent-color)] transition-colors"
                   placeholder="Image URL"
                   value={editPhotoURL}
                   onChange={(e) => setEditPhotoURL(e.target.value)}
                 />
                 {editPhotoURL && (
                   <button
-                    className={styles.removePhotoBtn}
+                    className="mt-1 text-xs text-red-400 hover:text-red-500 underline cursor-pointer bg-transparent border-0 p-0"
                     onClick={handleRemovePhoto}
                     type="button"
                   >
@@ -550,11 +532,11 @@ export default function ProfilePage() {
               </div>
 
               {/* Username */}
-              <div className={styles.infoItem}>
-                <label className={styles.infoLabel}>Username</label>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-light)]">Username</label>
                 <input
                   type="text"
-                  className={styles.formInput}
+                  className="w-full bg-[var(--bg-sidebar)] border border-[var(--border-color)] rounded-[12px] px-4 py-2.5 text-[var(--text-main)] placeholder:text-[var(--text-light)] focus:outline-none focus:border-[var(--accent-color)] transition-colors"
                   placeholder="Username (3-20 chars)"
                   value={editUsername}
                   onChange={(e) => setEditUsername(e.target.value)}
@@ -563,35 +545,35 @@ export default function ProfilePage() {
               </div>
 
               {/* Email (read-only) */}
-              <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>Email</span>
-                <span className={styles.infoValue}>{user.email}</span>
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-semibold uppercase tracking-wide text-[var(--text-light)]">Email</span>
+                <span className="text-[var(--text-main)] font-semibold">{user.email}</span>
               </div>
 
               {/* Join Date (read-only) */}
-              <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>Joined</span>
-                <span className={styles.infoValue}>{joinDate}</span>
+              <div className="flex flex-col gap-1">
+                <span className="text-xs font-semibold uppercase tracking-wide text-[var(--text-light)]">Joined</span>
+                <span className="text-[var(--text-main)] font-semibold">{joinDate}</span>
               </div>
             </div>
 
             {/* Messages */}
-            {editError && <div className={styles.errorMsg}>{editError}</div>}
+            {editError && <div className="mt-4 bg-red-500/10 border border-red-500/30 text-red-400 rounded-[10px] px-4 py-2.5 text-sm">{editError}</div>}
             {editSuccess && (
-              <div className={styles.successMsg}>{editSuccess}</div>
+              <div className="mt-4 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-[10px] px-4 py-2.5 text-sm">{editSuccess}</div>
             )}
 
             {/* Actions */}
-            <div className={styles.footerActions}>
+            <div className="flex gap-3 mt-6">
               <button
-                className={styles.saveBtn}
+                className="flex-1 bg-[var(--accent-color)] text-white font-semibold px-6 py-2.5 rounded-[12px] hover:opacity-90 disabled:opacity-50 transition-opacity cursor-pointer"
                 onClick={handleSave}
                 disabled={saving}
               >
                 {saving ? 'Saving...' : 'Save Changes'}
               </button>
               <button
-                className={styles.cancelBtnModal}
+                className="flex-1 bg-[var(--bg-sidebar)] border border-[var(--border-color)] text-[var(--text-main)] font-semibold px-6 py-2.5 rounded-[12px] hover:border-[var(--accent-color)] transition-all cursor-pointer"
                 onClick={handleCloseEdit}
               >
                 Cancel

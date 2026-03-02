@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuthStore } from '@/store/auth-store';
+import { cn } from '@/lib/utils';
 import {
   initialElements,
   attemptCombination,
@@ -17,7 +18,7 @@ import {
   createLocalBackup,
   type Discovery,
 } from '@/lib/firebase/discoveries';
-import styles from './page.module.css';
+
 
 export default function LabPage() {
   const user = useAuthStore((s) => s.user);
@@ -40,11 +41,11 @@ export default function LabPage() {
   /* ---------- filtered elements ---------- */
   const filteredElements = searchTerm
     ? initialElements.filter(
-        (el) =>
-          el.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          el.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          el.type.toLowerCase().includes(searchTerm.toLowerCase()),
-      )
+      (el) =>
+        el.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        el.symbol.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        el.type.toLowerCase().includes(searchTerm.toLowerCase()),
+    )
     : initialElements;
 
   /* ---------- toast helper ---------- */
@@ -98,17 +99,17 @@ export default function LabPage() {
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    e.currentTarget.classList.add(styles.dragOver);
+    e.currentTarget.classList.add('lab-slot-drag-over');
   }, []);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.currentTarget.classList.remove(styles.dragOver);
+    e.currentTarget.classList.remove('lab-slot-drag-over');
   }, []);
 
   const handleDrop = useCallback(
     (e: React.DragEvent, slotSetter: (el: LabElement) => void) => {
       e.preventDefault();
-      e.currentTarget.classList.remove(styles.dragOver);
+      e.currentTarget.classList.remove('lab-slot-drag-over');
       try {
         const data = e.dataTransfer.getData('application/json');
         if (data) {
@@ -261,44 +262,43 @@ export default function LabPage() {
   const renderElementCard = (el: LabElement, isSelected: boolean) => (
     <div
       key={el.symbol}
-      className={`${styles.element} ${isSelected ? styles.selected : ''}`}
+      className={`flex flex-col items-center justify-center gap-1 p-2 rounded-lg cursor-pointer select-none transition-all duration-200 hover:scale-105 hover:brightness-110 text-white text-center shadow-sm${isSelected ? ' ring-2 ring-primary ring-offset-2 scale-105' : ''}`}
       style={{ backgroundColor: el.color }}
       draggable
       onDragStart={(e) => handleDragStart(e, el)}
       onClick={() => handleElementClick(el)}
     >
-      <span className={styles.elementSymbol}>{el.symbol}</span>
-      <span className={styles.elementName}>{el.name}</span>
+      <span className="font-bold text-base leading-none">{el.symbol}</span>
+      <span className="text-[0.55rem] leading-none opacity-90 truncate w-full text-center">{el.name}</span>
     </div>
   );
 
   const renderSlotContent = (slotEl: LabElement | null, label: string) => {
     if (slotEl) {
       return (
-        <div className={styles.slotElement} style={{ backgroundColor: slotEl.color }}>
-          <span className={styles.slotSymbol}>{slotEl.symbol}</span>
-          <span className={styles.slotName}>{slotEl.name}</span>
+        <div className="w-full h-full flex flex-col items-center justify-center rounded-lg text-white p-2 shadow-sm" style={{ backgroundColor: slotEl.color }}>
+          <span className="font-extrabold text-3xl leading-none tracking-tight">{slotEl.symbol}</span>
+          <span className="text-sm font-medium leading-none mt-2 opacity-95">{slotEl.name}</span>
         </div>
       );
     }
-    return <div className={styles.slotLabel}>{label}</div>;
+    return <div className="text-muted-foreground text-sm font-medium text-center">{label}</div>;
   };
 
   /* ---------- render ---------- */
   return (
-    <div className={styles.labInterface}>
+    <div className="flex gap-6 h-[calc(100vh-130px)] max-[900px]:flex-col max-[900px]:h-auto">
       {/* ---- Elements Panel ---- */}
-      <div className={styles.elementsPanel}>
-        <h3>Elements</h3>
-        <div className={styles.searchBar}>
-          <input
-            type="text"
-            placeholder="Search elements..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className={styles.elementGrid}>
+      <div className="w-[280px] max-[900px]:w-full max-[900px]:order-2 max-[900px]:max-h-[350px] flex flex-col gap-4 bg-card border border-border rounded-xl p-5 shadow-sm overflow-hidden flex-shrink-0">
+        <h3 className="font-semibold text-foreground text-lg tracking-tight">Elements</h3>
+        <input
+          type="text"
+          placeholder="Search elements..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full bg-background border border-input rounded-md px-4 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring transition-colors shadow-sm"
+        />
+        <div className="grid grid-cols-3 gap-3 overflow-y-auto pr-1">
           {filteredElements.map((el) =>
             renderElementCard(el, selectedElement?.symbol === el.symbol),
           )}
@@ -306,90 +306,90 @@ export default function LabPage() {
       </div>
 
       {/* ---- Crafting Area ---- */}
-      <div className={styles.craftingArea}>
-        <div className={styles.craftingSlots}>
+      <div className="flex-1 max-[900px]:order-1 flex flex-col items-center justify-center gap-10 bg-card border border-border rounded-xl p-8 shadow-sm">
+        <div className="flex items-center gap-6 max-[500px]:gap-3 w-full justify-center">
           <div
-            className={styles.craftingSlot}
+            className="w-36 h-36 max-[500px]:w-28 max-[500px]:h-28 flex flex-col text-center items-center justify-center border-2 border-dashed border-border rounded-xl cursor-pointer transition-all duration-200 hover:border-primary hover:bg-muted/50 bg-background"
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, setSlot1)}
             onClick={() => handleSlotClick(setSlot1, slot1)}
           >
-            {renderSlotContent(slot1, 'Drop First Element')}
+            {renderSlotContent(slot1, 'Drop or tap to place')}
           </div>
-          <div className={styles.plusSign}>+</div>
+          <div className="text-4xl max-[500px]:text-3xl font-light text-muted-foreground">+</div>
           <div
-            className={styles.craftingSlot}
+            className="w-36 h-36 max-[500px]:w-28 max-[500px]:h-28 flex flex-col text-center items-center justify-center border-2 border-dashed border-border rounded-xl cursor-pointer transition-all duration-200 hover:border-primary hover:bg-muted/50 bg-background"
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, setSlot2)}
             onClick={() => handleSlotClick(setSlot2, slot2)}
           >
-            {renderSlotContent(slot2, 'Drop Second Element')}
+            {renderSlotContent(slot2, 'Drop or tap to place')}
           </div>
         </div>
 
         <button
-          className={styles.combineBtn}
+          className="bg-primary text-primary-foreground font-semibold px-10 py-3.5 max-[500px]:px-6 max-[500px]:py-3 rounded-lg text-base cursor-pointer transition-all duration-200 hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm active:scale-[0.98]"
           disabled={!slot1 || !slot2}
           onClick={handleCombine}
         >
           Combine Elements
         </button>
 
-        <div className={styles.resultArea}>
-          <div className={styles.resultSlot}>
+        <div className="w-full flex flex-col items-center gap-3">
+          <div className="w-40 h-40 max-[500px]:w-32 max-[500px]:h-32 flex flex-col text-center items-center justify-center border-2 border-dashed border-border rounded-xl cursor-pointer transition-all duration-200 hover:border-primary hover:bg-muted/50 bg-background">
             {result ? (
-              <div className={styles.slotElement} style={{ backgroundColor: result.color }}>
-                <span className={styles.slotSymbol}>{result.symbol}</span>
-                <span className={styles.slotName}>{result.name}</span>
+              <div className="w-full h-full flex flex-col items-center justify-center rounded-lg text-white p-2 shadow-sm" style={{ backgroundColor: result.color }}>
+                <span className="font-extrabold text-3xl leading-none tracking-tight">{result.symbol}</span>
+                <span className="text-sm font-medium leading-none mt-2 opacity-95">{result.name}</span>
               </div>
             ) : (
-              <div className={styles.slotLabel}>Result will appear here</div>
+              <div className="text-muted-foreground text-sm font-medium text-center">Result will appear here</div>
             )}
           </div>
         </div>
       </div>
 
       {/* ---- Discoveries Panel ---- */}
-      <div className={styles.discoveriesPanel}>
-        <h3>
+      <div className="w-[280px] max-[900px]:w-full max-[900px]:order-3 max-[900px]:min-h-[300px] flex flex-col gap-3 bg-card border border-border rounded-xl p-5 shadow-sm overflow-hidden flex-shrink-0">
+        <h3 className="font-semibold text-foreground text-lg tracking-tight flex items-center justify-between">
           Your Discoveries
-          {saving && <span className={styles.savingIndicator}>Saving...</span>}
+          {saving && <span className="text-xs text-muted-foreground font-normal animate-pulse">Saving...</span>}
         </h3>
 
         {loading ? (
-          <div className={styles.loadingText}>Loading discoveries...</div>
+          <div className="text-muted-foreground text-sm text-center py-6">Loading discoveries...</div>
         ) : discoveries.length === 0 ? (
-          <div className={styles.emptyText}>
+          <div className="text-muted-foreground text-sm text-center py-6">
             No discoveries yet. Combine elements to create compounds!
           </div>
         ) : (
-          <div className={styles.discoveriesList}>
+          <div className="flex-1 overflow-y-auto flex flex-col gap-2 pr-1">
             {discoveries.map((d) => (
               <div
                 key={d.symbol}
-                className={styles.discoveryItem}
+                className="flex items-center gap-3 p-2.5 bg-background border border-border rounded-md cursor-pointer hover:border-primary hover:bg-muted/50 transition-all shadow-sm group"
                 draggable
                 onDragStart={(e) => handleDiscoveryDragStart(e, d)}
                 onClick={() => handleDiscoveryClick(d)}
               >
-                <span className={styles.discoverySymbol}>{d.symbol}</span>
-                <span className={styles.discoveryName}>{d.name}</span>
+                <span className="w-8 h-8 flex items-center justify-center bg-muted rounded font-bold text-foreground text-xs flex-shrink-0 group-hover:bg-primary/10 group-hover:text-primary transition-colors">{d.symbol}</span>
+                <span className="text-foreground text-sm font-medium truncate">{d.name}</span>
               </div>
             ))}
           </div>
         )}
 
         {/* Export / Import controls */}
-        <div className={styles.discoveriesControls}>
+        <div className="flex gap-2 mt-auto pt-3 border-t border-border">
           <button
-            className={styles.iconBtn}
+            className="w-9 h-9 flex items-center justify-center bg-background border border-border rounded-md text-muted-foreground hover:text-foreground hover:border-primary hover:bg-muted transition-all cursor-pointer shadow-sm"
             onClick={handleExport}
             title="Export discoveries"
             aria-label="Export discoveries"
           >
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path
                 d="M12 3v10"
                 stroke="currentColor"
@@ -418,17 +418,17 @@ export default function LabPage() {
             ref={importRef}
             type="file"
             accept="application/json"
-            className={styles.importInput}
+            className="hidden"
             onChange={handleImport}
           />
           <label
-            className={styles.iconBtn}
+            className="w-9 h-9 flex items-center justify-center bg-background border border-border rounded-md text-muted-foreground hover:text-foreground hover:border-primary hover:bg-muted transition-all cursor-pointer shadow-sm"
             htmlFor=""
             onClick={() => importRef.current?.click()}
             title="Import discoveries"
             aria-label="Import discoveries"
           >
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
               <path
                 d="M12 21V9"
                 stroke="currentColor"
@@ -457,8 +457,11 @@ export default function LabPage() {
 
       {/* ---- Toast ---- */}
       {toast && (
-        <div className={styles.toastContainer}>
-          <div className={`${styles.toast} ${toast.error ? styles.toastError : ''}`}>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] animate-in slide-in-from-bottom-5 fade-in">
+          <div className={cn(
+            "bg-foreground text-background rounded-md px-5 py-3 font-medium shadow-lg transition-all",
+            toast.error && "bg-destructive text-destructive-foreground"
+          )}>
             {toast.message}
           </div>
         </div>

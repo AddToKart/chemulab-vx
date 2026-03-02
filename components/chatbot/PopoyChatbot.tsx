@@ -2,7 +2,11 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import styles from './PopoyChatbot.module.css';
+import ReactMarkdown from 'react-markdown';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface ChatMessage {
   role: 'bot' | 'user';
@@ -16,13 +20,11 @@ export default function PopoyChatbot() {
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const messagesRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (messagesRef.current) {
-      messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
-    }
-  }, [messages]);
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, loading]);
 
   const sendMessage = async () => {
     const text = input.trim();
@@ -39,78 +41,123 @@ export default function PopoyChatbot() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text }),
       });
-
       const data = await res.json();
-
       if (res.ok && data.response) {
         setMessages((prev) => [...prev, { role: 'bot', content: data.response }]);
       } else {
-        setMessages((prev) => [
-          ...prev,
-          { role: 'bot', content: data.error || 'Something went wrong. Please try again!' },
-        ]);
+        setMessages((prev) => [...prev, { role: 'bot', content: data.error || 'Something went wrong. Please try again!' }]);
       }
     } catch {
-      setMessages((prev) => [
-        ...prev,
-        { role: 'bot', content: 'Network error. Please check your connection and try again.' },
-      ]);
+      setMessages((prev) => [...prev, { role: 'bot', content: 'Network error. Please check your connection and try again.' }]);
     } finally {
       setLoading(false);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      sendMessage();
-    }
+    if (e.key === 'Enter') { e.preventDefault(); sendMessage(); }
   };
 
   return (
     <>
-      <div className={styles.bubble} onClick={() => setIsOpen((prev) => !prev)}>
-        <Image src="/img/jepoy.png" alt="Popoy" width={56} height={56} />
-      </div>
+      {/* Chat bubble toggle */}
+      <Button
+        variant="outline"
+        className="fixed bottom-6 right-6 w-14 h-14 rounded-full shadow-lg border-2 border-primary/20 bg-background hover:bg-accent cursor-pointer hover:scale-105 transition-all z-[1500] overflow-hidden p-0"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-label="Toggle Popoy AI chat"
+      >
+        <Image src="/img/jepoy.png" alt="Popoy" width={56} height={56} className="w-full h-full object-cover" />
+      </Button>
 
-      <div className={`${styles.window} ${isOpen ? styles.windowActive : ''}`}>
-        <div className={styles.header}>
-          <h3>Popoy AI</h3>
-          <button className={styles.closeBtn} onClick={() => setIsOpen(false)} aria-label="Close chat">
-            &times;
-          </button>
-        </div>
-
-        <div className={styles.messages} ref={messagesRef}>
-          {messages.map((msg, i) => (
-            <div key={i} className={`${styles.message} ${styles[msg.role]}`}>
-              {msg.content}
+      {/* Chat window */}
+      {isOpen && (
+        <Card
+          className="fixed bottom-24 right-6 w-[340px] h-[480px] flex flex-col shadow-xl z-[1400] overflow-hidden animate-in slide-in-from-bottom-5 fade-in duration-200"
+        >
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-3 bg-muted/50 border-b">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full overflow-hidden border border-primary/20 bg-background">
+                <Image src="/img/jepoy.png" alt="Popoy" width={32} height={32} className="w-full h-full object-cover" />
+              </div>
+              <h3 className="font-semibold text-sm">Popoy AI</h3>
             </div>
-          ))}
-          {loading && (
-            <div className={`${styles.message} ${styles.bot} ${styles.loading}`}>
-              Popoy is thinking...
-            </div>
-          )}
-        </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="w-7 h-7 rounded-full text-muted-foreground hover:bg-destructive hover:text-destructive-foreground transition-colors"
+              onClick={() => setIsOpen(false)}
+              aria-label="Close chat"
+            >
+              &times;
+            </Button>
+          </div>
 
-        <div className={styles.inputArea}>
-          <input
-            className={styles.input}
-            type="text"
-            placeholder="Ask Popoy anything..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={loading}
-          />
-          <button className={styles.sendBtn} onClick={sendMessage} disabled={loading} aria-label="Send message">
-            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-            </svg>
-          </button>
-        </div>
-      </div>
+          {/* Messages */}
+          <div className="flex-1 min-h-0 overflow-hidden">
+          <ScrollArea className="h-full">
+            <div className="flex flex-col gap-3 p-4">
+              {messages.map((msg, i) => (
+                <div
+                  key={i}
+                  className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${msg.role === 'user'
+                      ? 'self-end bg-primary text-primary-foreground rounded-br-sm'
+                      : 'self-start bg-muted text-foreground rounded-bl-sm'
+                    }`}
+                >
+                  {msg.role === 'bot' ? (
+                    <ReactMarkdown
+                      components={{
+                        p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
+                        strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                        em: ({ children }) => <em>{children}</em>,
+                        ul: ({ children }) => <ul className="list-disc pl-4 mb-1 space-y-0.5">{children}</ul>,
+                        ol: ({ children }) => <ol className="list-decimal pl-4 mb-1 space-y-0.5">{children}</ol>,
+                        li: ({ children }) => <li>{children}</li>,
+                      }}
+                    >
+                      {msg.content}
+                    </ReactMarkdown>
+                  ) : (
+                    msg.content
+                  )}
+                </div>
+              ))}
+              {loading && (
+                <div className="self-start bg-muted text-muted-foreground rounded-2xl rounded-bl-sm px-3.5 py-2.5 text-sm italic">
+                  Popoy is thinking…
+                </div>
+              )}
+              <div ref={bottomRef} />
+            </div>
+          </ScrollArea>
+          </div>
+
+          {/* Input area */}
+          <div className="flex gap-2 p-3 border-t bg-background">
+            <Input
+              className="flex-1"
+              placeholder="Ask Popoy anything..."
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              disabled={loading}
+            />
+            <Button
+              size="icon"
+              className="shrink-0 transition-opacity"
+              onClick={sendMessage}
+              disabled={loading || !input.trim()}
+              aria-label="Send message"
+            >
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+              </svg>
+            </Button>
+          </div>
+        </Card>
+      )}
     </>
   );
 }
