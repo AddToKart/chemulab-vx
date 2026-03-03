@@ -7,6 +7,8 @@ export interface UserProfile {
   username: string;
   isAdmin: boolean;
   emailVerified: boolean;
+  photoURL?: string;
+  photoSourceURL?: string;
 }
 
 interface AuthState {

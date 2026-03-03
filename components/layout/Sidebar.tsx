@@ -136,7 +136,7 @@ export default function Sidebar({ collapsed }: { collapsed: boolean }) {
                 style={{ background: `conic-gradient(var(--accent-color) ${progressPct}%, transparent ${progressPct}%)` }}
               >
                 <Avatar className={cn("border-2 border-background", collapsed ? "w-8 h-8" : "w-10 h-10")}>
-                  <AvatarImage src="/img/default-avatar.png" alt="Profile" className="object-cover" />
+                  <AvatarImage src={profile.photoURL || "/img/default-avatar.png"} alt="Profile" className="object-cover" />
                   <AvatarFallback className="bg-background text-foreground text-xs font-semibold">
                     {profile.username?.substring(0, 2).toUpperCase() || 'U'}
                   </AvatarFallback>

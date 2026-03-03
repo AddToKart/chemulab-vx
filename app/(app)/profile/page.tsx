@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
+import Cropper from 'react-easy-crop';
+import type { Area } from 'react-easy-crop';
+import { getCroppedImg } from '@/lib/utils/crop-image';
 import { db } from '@/lib/firebase/config';
 import {
   doc,
@@ -74,15 +77,24 @@ export default function ProfilePage() {
 
   // Profile state
   const [photoURL, setPhotoURL] = useState<string>('');
+  const [photoSourceURL, setPhotoSourceURL] = useState<string>('');
   const [joinDate, setJoinDate] = useState<string>('Unknown');
 
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false);
   const [editUsername, setEditUsername] = useState('');
   const [editPhotoURL, setEditPhotoURL] = useState('');
+  const [editCroppedData, setEditCroppedData] = useState<string | null>(null);
+  const [removePhoto, setRemovePhoto] = useState(false);
   const [editError, setEditError] = useState('');
   const [editSuccess, setEditSuccess] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Crop state
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
 
   // Progress state
   const [progressData, setProgressData] = useState<ProgressData>({
@@ -112,6 +124,9 @@ export default function ProfilePage() {
           // Photo URL
           if (data.photoURL) {
             setPhotoURL(data.photoURL);
+          }
+          if (data.photoSourceURL) {
+            setPhotoSourceURL(data.photoSourceURL);
           }
 
           // Join date: try registrationDate, then createdAt, then auth metadata
@@ -226,11 +241,13 @@ export default function ProfilePage() {
   // Open edit modal
   const handleOpenEdit = useCallback(() => {
     setEditUsername(profile?.username || '');
-    setEditPhotoURL(photoURL);
+    setEditPhotoURL(photoSourceURL || (photoURL && !photoURL.startsWith('data:') ? photoURL : ''));
+    setEditCroppedData(null);
+    setRemovePhoto(false);
     setEditError('');
     setEditSuccess('');
     setShowEditModal(true);
-  }, [profile, photoURL]);
+  }, [profile, photoURL, photoSourceURL]);
 
   // Close edit modal
   const handleCloseEdit = useCallback(() => {
@@ -246,6 +263,51 @@ export default function ProfilePage() {
   // Remove photo
   const handleRemovePhoto = useCallback(() => {
     setEditPhotoURL('');
+    setEditCroppedData(null);
+    setRemovePhoto(true);
+  }, []);
+
+  // Start cropping flow for the current editPhotoURL
+  const handleStartCrop = useCallback(() => {
+    if (!editPhotoURL) {
+      setEditError('Please provide an image URL first.');
+      return;
+    }
+
+    // Use proxy for external URLs to avoid CORS/Tainted Canvas issues
+    const isDataUrl = editPhotoURL.startsWith('data:');
+    const isLocalUrl = editPhotoURL.startsWith('/') || editPhotoURL.startsWith('http://localhost') || editPhotoURL.startsWith('http://192.168');
+
+    const finalUrl = (isDataUrl || isLocalUrl)
+      ? editPhotoURL
+      : `/api/image-proxy?url=${encodeURIComponent(editPhotoURL)}`;
+
+    setCropImageSrc(finalUrl);
+    setCrop({ x: 0, y: 0 });
+    setZoom(1);
+    setEditError('');
+  }, [editPhotoURL]);
+
+  // Crop complete callback
+  const onCropComplete = useCallback((_croppedArea: Area, croppedPixels: Area) => {
+    setCroppedAreaPixels(croppedPixels);
+  }, []);
+
+  // Confirm crop
+  const handleCropConfirm = useCallback(async () => {
+    if (!cropImageSrc || !croppedAreaPixels) return;
+    try {
+      const croppedDataUrl = await getCroppedImg(cropImageSrc, croppedAreaPixels, 256);
+      setEditCroppedData(croppedDataUrl);
+      setCropImageSrc(null);
+    } catch {
+      setEditError('Failed to crop image. Please try again.');
+    }
+  }, [cropImageSrc, croppedAreaPixels]);
+
+  // Cancel crop
+  const handleCropCancel = useCallback(() => {
+    setCropImageSrc(null);
   }, []);
 
   // Save profile
@@ -273,7 +335,14 @@ export default function ProfilePage() {
 
     const usernameChanged =
       trimmedUsername.toLowerCase() !== profile.username.toLowerCase();
-    const photoChanged = trimmedPhotoURL !== photoURL;
+
+    // Calculate what the final state would be
+    const finalPhotoURL = removePhoto ? '' : (editCroppedData || trimmedPhotoURL || '');
+    const finalPhotoSourceURL = removePhoto ? '' : (trimmedPhotoURL || '');
+
+    // Photo is changed if either the final display photo or the source URL differs from what's stored
+    // Also consider the explicit removePhoto flag
+    const photoChanged = removePhoto ? (!!photoURL || !!photoSourceURL) : (finalPhotoURL !== photoURL || finalPhotoSourceURL !== photoSourceURL);
 
     if (!usernameChanged && !photoChanged) {
       setEditError('No changes detected.');
@@ -301,7 +370,8 @@ export default function ProfilePage() {
         updateData.username = trimmedUsername;
       }
       if (photoChanged) {
-        updateData.photoURL = trimmedPhotoURL || '';
+        updateData.photoURL = finalPhotoURL;
+        updateData.photoSourceURL = finalPhotoSourceURL;
       }
 
       // Update user doc
@@ -322,16 +392,19 @@ export default function ProfilePage() {
 
       // Update local state
       if (photoChanged) {
-        setPhotoURL(trimmedPhotoURL);
+        setPhotoURL(finalPhotoURL);
+        setPhotoSourceURL(finalPhotoSourceURL);
       }
 
       // Update auth store profile
-      if (usernameChanged) {
-        useAuthStore.getState().setProfile({
-          ...profile,
-          username: trimmedUsername,
-        });
-      }
+      useAuthStore.getState().setProfile({
+        ...profile,
+        ...(usernameChanged ? { username: trimmedUsername } : {}),
+        ...(photoChanged ? {
+          photoURL: finalPhotoURL,
+          photoSourceURL: finalPhotoSourceURL
+        } : {}),
+      });
 
       setEditSuccess('Profile updated successfully!');
 
@@ -345,7 +418,7 @@ export default function ProfilePage() {
     } finally {
       setSaving(false);
     }
-  }, [uid, profile, user, editUsername, editPhotoURL, photoURL, handleCloseEdit]);
+  }, [uid, profile, user, editUsername, editPhotoURL, editCroppedData, removePhoto, photoURL, photoSourceURL, handleCloseEdit]);
 
   // Modal backdrop click
   const handleBackdropClick = useCallback(
@@ -376,7 +449,19 @@ export default function ProfilePage() {
   }
 
   const displayAvatar = photoURL || DEFAULT_AVATAR;
-  const editPreviewAvatar = editPhotoURL || DEFAULT_AVATAR;
+
+  let effectiveEditPhotoURL = '';
+  if (removePhoto) {
+    effectiveEditPhotoURL = '';
+  } else if (editCroppedData) {
+    effectiveEditPhotoURL = editCroppedData;
+  } else if (editPhotoURL && !editPhotoURL.startsWith('data:')) {
+    effectiveEditPhotoURL = editPhotoURL;
+  } else if (photoURL) {
+    effectiveEditPhotoURL = photoURL;
+  }
+
+  const editPreviewAvatar = effectiveEditPhotoURL || DEFAULT_AVATAR;
   const percentage = Math.round(progressData.progressPercentage);
 
   return (
@@ -510,19 +595,33 @@ export default function ProfilePage() {
 
             {/* Form */}
             <div className="space-y-4">
-              {/* Avatar URL */}
-              <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-light)]">Avatar URL</label>
-                <input
-                  type="text"
-                  className="w-full bg-[var(--bg-sidebar)] border border-[var(--border-color)] rounded-[12px] px-4 py-2.5 text-[var(--text-main)] placeholder:text-[var(--text-light)] focus:outline-none focus:border-[var(--accent-color)] transition-colors"
-                  placeholder="Image URL"
-                  value={editPhotoURL}
-                  onChange={(e) => setEditPhotoURL(e.target.value)}
-                />
-                {editPhotoURL && (
+              {/* Avatar URL & Crop */}
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-light)]">Profile Picture URL</label>
+
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    className="flex-1 bg-[var(--bg-sidebar)] border border-[var(--border-color)] rounded-[12px] px-4 py-2.5 text-[var(--text-main)] placeholder:text-[var(--text-light)] focus:outline-none focus:border-[var(--accent-color)] transition-colors text-sm"
+                    placeholder="https://example.com/photo.jpg"
+                    value={editPhotoURL}
+                    onChange={(e) => {
+                      setEditPhotoURL(e.target.value);
+                      if (editCroppedData) setEditCroppedData(null); // Clear pending crop if URL changes
+                    }}
+                  />
                   <button
-                    className="mt-1 text-xs text-red-400 hover:text-red-500 underline cursor-pointer bg-transparent border-0 p-0"
+                    type="button"
+                    className="bg-[var(--accent-color)] text-white font-semibold px-4 py-2 rounded-[12px] hover:opacity-90 transition-opacity cursor-pointer text-sm"
+                    onClick={handleStartCrop}
+                  >
+                    Crop
+                  </button>
+                </div>
+
+                {editPreviewAvatar !== DEFAULT_AVATAR && (
+                  <button
+                    className="text-xs text-red-400 hover:text-red-500 underline cursor-pointer bg-transparent border-0 p-0 text-left"
                     onClick={handleRemovePhoto}
                     type="button"
                   >
@@ -575,6 +674,62 @@ export default function ProfilePage() {
               <button
                 className="flex-1 bg-[var(--bg-sidebar)] border border-[var(--border-color)] text-[var(--text-main)] font-semibold px-6 py-2.5 rounded-[12px] hover:border-[var(--accent-color)] transition-all cursor-pointer"
                 onClick={handleCloseEdit}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Crop Modal */}
+      {cropImageSrc && (
+        <div className="fixed inset-0 z-[2500] flex flex-col items-center justify-center bg-[rgba(2,6,23,0.92)] backdrop-blur-[10px]">
+          <div className="w-full max-w-[500px] flex flex-col bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-[28px] overflow-hidden">
+            <div className="px-6 pt-5 pb-3">
+              <h3 className="text-lg font-bold text-[var(--text-main)]">Crop Profile Picture</h3>
+              <p className="text-xs text-[var(--text-light)] mt-1">Drag to reposition. Scroll or use slider to zoom.</p>
+            </div>
+
+            <div className="relative w-full" style={{ height: 340 }}>
+              <Cropper
+                image={cropImageSrc}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                cropShape="round"
+                showGrid={false}
+                onCropChange={setCrop}
+                onZoomChange={setZoom}
+                onCropComplete={onCropComplete}
+              />
+            </div>
+
+            <div className="px-6 py-3">
+              <label className="text-xs font-semibold text-[var(--text-light)] mb-1 block">Zoom</label>
+              <input
+                type="range"
+                min={1}
+                max={3}
+                step={0.05}
+                value={zoom}
+                onChange={(e) => setZoom(Number(e.target.value))}
+                className="w-full accent-[var(--accent-color)] h-1.5 rounded-full"
+              />
+            </div>
+
+            <div className="flex gap-3 px-6 pb-5">
+              <button
+                type="button"
+                className="flex-1 bg-[var(--accent-color)] text-white font-semibold px-6 py-2.5 rounded-[12px] hover:opacity-90 transition-opacity cursor-pointer"
+                onClick={handleCropConfirm}
+              >
+                Apply Crop
+              </button>
+              <button
+                type="button"
+                className="flex-1 bg-[var(--bg-sidebar)] border border-[var(--border-color)] text-[var(--text-main)] font-semibold px-6 py-2.5 rounded-[12px] hover:border-[var(--accent-color)] transition-all cursor-pointer"
+                onClick={handleCropCancel}
               >
                 Cancel
               </button>

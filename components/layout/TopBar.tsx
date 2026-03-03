@@ -115,9 +115,9 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
             </Link>
             <Link
               href="/profile"
-              className="w-9 h-9 rounded-full overflow-hidden border-2 border-border hover:border-primary hover:scale-105 shadow-sm transition-all duration-200"
+              className="hidden md:block w-9 h-9 rounded-full overflow-hidden border-2 border-border hover:border-primary hover:scale-105 shadow-sm transition-all duration-200"
             >
-              <img src="/img/default-avatar.png" alt="Profile" className="w-full h-full object-cover" />
+              <img src={profile.photoURL || "/img/default-avatar.png"} alt="Profile" className="w-full h-full object-cover" />
             </Link>
           </>
         )}

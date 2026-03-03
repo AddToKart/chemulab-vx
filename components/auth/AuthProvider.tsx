@@ -40,6 +40,8 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
             username: username ?? firebaseUser.email ?? firebaseUser.uid,
             isAdmin: !!data?.isAdmin,
             emailVerified: firebaseUser.emailVerified,
+            photoURL: (data?.photoURL as string) || '',
+            photoSourceURL: (data?.photoSourceURL as string) || '',
           });
         } catch {
           // Fallback profile
@@ -49,6 +51,8 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
             username: firebaseUser.email ?? firebaseUser.uid,
             isAdmin: false,
             emailVerified: firebaseUser.emailVerified,
+            photoURL: '',
+            photoSourceURL: '',
           });
         }
       } else {
