@@ -103,25 +103,45 @@ service cloud.firestore {
 
     // Volcano experiment multiplayer games
     match /volcanoGames/{gameId} {
-      // Anyone authenticated can create a game (as player1)
       allow create: if request.auth != null
-                    && request.resource.data.player1Uid == request.auth.uid;
+                    && request.resource.data.player1.uid == request.auth.uid;
 
-      // Only participants can read the game
       allow read: if request.auth != null
-                  && (resource.data.player1Uid == request.auth.uid 
-                      || resource.data.player2Uid == request.auth.uid
-                      || resource.data.player2Uid == null);
+                  && (resource.data.player1.uid == request.auth.uid 
+                      || (resource.data.player2 != null && resource.data.player2.uid == request.auth.uid)
+                      || resource.data.player2 == null);
 
-      // Only participants can update (for joining and gameplay)
       allow update: if request.auth != null
-                    && (resource.data.player1Uid == request.auth.uid 
-                        || resource.data.player2Uid == request.auth.uid
-                        || (resource.data.player2Uid == null && request.resource.data.player2Uid == request.auth.uid));
+                    && (resource.data.player1.uid == request.auth.uid 
+                        || (resource.data.player2 != null && resource.data.player2.uid == request.auth.uid)
+                        || (resource.data.player2 == null && request.resource.data.player2.uid == request.auth.uid));
 
-      // Only player1 can delete the game
       allow delete: if request.auth != null
-                    && resource.data.player1Uid == request.auth.uid;
+                    && resource.data.player1.uid == request.auth.uid;
+    }
+
+    // Elephant Toothpaste (foam-race) multiplayer games
+    match /foamGames/{gameId} {
+      allow create: if request.auth != null && request.resource.data.player1 == request.auth.uid;
+      allow read: if request.auth != null && (resource.data.player1 == request.auth.uid || resource.data.player2 == request.auth.uid || resource.data.player2 == null);
+      allow update: if request.auth != null && (resource.data.player1 == request.auth.uid || resource.data.player2 == request.auth.uid || (resource.data.player2 == null && request.resource.data.player2 == request.auth.uid));
+      allow delete: if request.auth != null && resource.data.player1 == request.auth.uid;
+    }
+
+    // Balloon Race multiplayer games
+    match /balloonGames/{gameId} {
+      allow create: if request.auth != null && request.resource.data.player1 == request.auth.uid;
+      allow read: if request.auth != null && (resource.data.player1 == request.auth.uid || resource.data.player2 == request.auth.uid || resource.data.player2 == null);
+      allow update: if request.auth != null && (resource.data.player1 == request.auth.uid || resource.data.player2 == request.auth.uid || (resource.data.player2 == null && request.resource.data.player2 == request.auth.uid));
+      allow delete: if request.auth != null && resource.data.player1 == request.auth.uid;
+    }
+
+    // pH Challenge multiplayer games
+    match /phGames/{gameId} {
+      allow create: if request.auth != null && request.resource.data.player1 == request.auth.uid;
+      allow read: if request.auth != null && (resource.data.player1 == request.auth.uid || resource.data.player2 == request.auth.uid || resource.data.player2 == null);
+      allow update: if request.auth != null && (resource.data.player1 == request.auth.uid || resource.data.player2 == request.auth.uid || (resource.data.player2 == null && request.resource.data.player2 == request.auth.uid));
+      allow delete: if request.auth != null && resource.data.player1 == request.auth.uid;
     }
   }
 }

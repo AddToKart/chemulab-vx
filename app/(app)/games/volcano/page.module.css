@@ -81,17 +81,49 @@
 }
 
 @keyframes shake {
-  0% { transform: translate(1px, 1px) rotate(0deg); }
-  10% { transform: translate(-1px, -2px) rotate(-1deg); }
-  20% { transform: translate(-3px, 0px) rotate(1deg); }
-  30% { transform: translate(3px, 2px) rotate(0deg); }
-  40% { transform: translate(1px, -1px) rotate(1deg); }
-  50% { transform: translate(-1px, 2px) rotate(-1deg); }
-  60% { transform: translate(-3px, 1px) rotate(0deg); }
-  70% { transform: translate(3px, 1px) rotate(-1deg); }
-  80% { transform: translate(-1px, -1px) rotate(1deg); }
-  90% { transform: translate(1px, 2px) rotate(0deg); }
-  100% { transform: translate(1px, -2px) rotate(-1deg); }
+  0% {
+    transform: translate(1px, 1px) rotate(0deg);
+  }
+
+  10% {
+    transform: translate(-1px, -2px) rotate(-1deg);
+  }
+
+  20% {
+    transform: translate(-3px, 0px) rotate(1deg);
+  }
+
+  30% {
+    transform: translate(3px, 2px) rotate(0deg);
+  }
+
+  40% {
+    transform: translate(1px, -1px) rotate(1deg);
+  }
+
+  50% {
+    transform: translate(-1px, 2px) rotate(-1deg);
+  }
+
+  60% {
+    transform: translate(-3px, 1px) rotate(0deg);
+  }
+
+  70% {
+    transform: translate(3px, 1px) rotate(-1deg);
+  }
+
+  80% {
+    transform: translate(-1px, -1px) rotate(1deg);
+  }
+
+  90% {
+    transform: translate(1px, 2px) rotate(0deg);
+  }
+
+  100% {
+    transform: translate(1px, -2px) rotate(-1deg);
+  }
 }
 
 /* Screen transitions */
@@ -104,6 +136,7 @@
     opacity: 0;
     transform: scale(0.95) translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: scale(1) translateY(0);
@@ -253,7 +286,9 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ======================== Buttons ======================== */
@@ -548,8 +583,15 @@
 }
 
 @keyframes pulse {
-  from { opacity: 0.7; transform: translateX(-50%) scale(1); }
-  to { opacity: 1; transform: translateX(-50%) scale(1.1); }
+  from {
+    opacity: 0.7;
+    transform: translateX(-50%) scale(1);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.1);
+  }
 }
 
 /* Volcano shape */
@@ -602,8 +644,15 @@
 }
 
 @keyframes flow {
-  0%, 100% { transform: translateX(-50%) scaleX(1); }
-  50% { transform: translateX(-50%) scaleX(1.2); }
+
+  0%,
+  100% {
+    transform: translateX(-50%) scaleX(1);
+  }
+
+  50% {
+    transform: translateX(-50%) scaleX(1.2);
+  }
 }
 
 /* Lava particles */
@@ -643,17 +692,37 @@
     transform: translateY(0);
     opacity: 1;
   }
+
   100% {
     transform: translateY(-150px) scale(0);
     opacity: 0;
   }
 }
 
-.particle:nth-child(1) { left: 20%; animation-delay: 0s; }
-.particle:nth-child(2) { left: 40%; animation-delay: 0.3s; }
-.particle:nth-child(3) { left: 60%; animation-delay: 0.6s; }
-.particle:nth-child(4) { left: 80%; animation-delay: 0.9s; }
-.particle:nth-child(5) { left: 50%; animation-delay: 0.15s; }
+.particle:nth-child(1) {
+  left: 20%;
+  animation-delay: 0s;
+}
+
+.particle:nth-child(2) {
+  left: 40%;
+  animation-delay: 0.3s;
+}
+
+.particle:nth-child(3) {
+  left: 60%;
+  animation-delay: 0.6s;
+}
+
+.particle:nth-child(4) {
+  left: 80%;
+  animation-delay: 0.9s;
+}
+
+.particle:nth-child(5) {
+  left: 50%;
+  animation-delay: 0.15s;
+}
 
 /* Progress bar */
 .sharedProgressContainer {
@@ -820,44 +889,118 @@
     width: 320px;
     height: 260px;
   }
+
   .volcanoContainer {
     height: 380px;
   }
 }
 
 @media (max-width: 768px) {
+  .container {
+    padding: 12px;
+  }
+
   .gameArea {
-    padding: 20px;
-    margin: 20px auto;
+    padding: 20px 16px;
+    margin: 12px auto;
     width: 100%;
+    border-radius: 16px;
+    min-height: auto;
   }
 
   .title {
-    font-size: 1.8em;
+    font-size: 1.6em;
+  }
+
+  .subtitle {
+    font-size: 0.95em;
   }
 
   .lobbyOptions {
     flex-direction: column;
-    gap: 20px;
+    gap: 16px;
+    margin: 24px auto;
   }
 
-  .volcano {
-    width: 240px;
-    height: 200px;
+  .lobbyCard {
+    padding: 20px;
   }
 
-  .volcanoContainer {
-    height: 300px;
+  .lobbyCard:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .lobbyCardIcon {
+    font-size: 2em;
+    margin-bottom: 10px;
+  }
+
+  .lobbyCardTitle {
+    font-size: 1.2em;
+  }
+
+  .lobbyInput {
+    font-size: 1.2em;
+    letter-spacing: 5px;
+    padding: 12px;
+  }
+
+  .btn {
+    width: 100%;
+  }
+
+  .btnSmall {
+    width: auto;
+  }
+
+  .roomCodeTag {
+    font-size: 2em;
+    letter-spacing: 4px;
+    padding: 14px 20px;
+  }
+
+  .waitingTitle {
+    font-size: 1.2em;
+  }
+
+  .waitingActions {
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
   }
 
   .playersContainer {
     flex-direction: column;
     align-items: center;
-    gap: 15px;
+    gap: 12px;
+    margin-bottom: 20px;
   }
 
   .playerPanel {
     min-width: 160px;
+    width: 100%;
+    max-width: 300px;
+    padding: 14px 20px;
+  }
+
+  .playerEmoji {
+    font-size: 1.5em;
+  }
+
+  .turnIndicator {
+    font-size: 1.1em;
+    padding: 12px 20px;
+  }
+
+  .sharedProgressContainer {
+    max-width: 100%;
+    height: 32px;
+  }
+
+  .progressText {
+    line-height: 32px;
+    font-size: 0.85em;
   }
 
   .gameLayout {
@@ -872,15 +1015,14 @@
     width: 100%;
   }
 
-  .roomCodeTag {
-    font-size: 2.5em;
-    letter-spacing: 4px;
-    padding: 15px 25px;
+  .volcano {
+    width: 200px;
+    height: 170px;
   }
 
-  .gameOverPanel {
-    padding: 30px;
-    width: 90%;
+  .volcanoContainer {
+    height: 260px;
+    padding: 16px;
   }
 
   .ingredientGrid {
@@ -888,7 +1030,87 @@
   }
 
   .ingredientCard {
-    height: 75px;
-    font-size: 1.5em;
+    height: 70px;
+    font-size: 1.4em;
+    border-radius: 14px;
+  }
+
+  .ingredientName {
+    font-size: 0.45em;
+  }
+
+  .ingredientCollectedShared {
+    grid-template-columns: repeat(2, 1fr);
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .sharedSlotEmoji {
+    font-size: 1.2em;
+  }
+
+  .sharedSlotCount {
+    font-size: 1.4em;
+  }
+
+  .gameOverPanel {
+    padding: 24px 20px;
+    width: 92%;
+    border-radius: 24px;
+  }
+
+  .gameOverEmoji {
+    font-size: 2.5em;
+  }
+
+  .gameOverTitle {
+    font-size: 1.6em;
+  }
+
+  .gameOverSubtitle {
+    font-size: 0.95em;
+    margin-bottom: 20px;
+  }
+
+  .leaveButtonContainer {
+    margin-top: 20px;
+  }
+}
+
+@media (max-width: 400px) {
+  .gameArea {
+    padding: 16px 12px;
+  }
+
+  .title {
+    font-size: 1.4em;
+  }
+
+  .roomCodeTag {
+    font-size: 1.6em;
+    letter-spacing: 3px;
+    padding: 12px 16px;
+  }
+
+  .volcano {
+    width: 160px;
+    height: 140px;
+  }
+
+  .volcanoContainer {
+    height: 220px;
+  }
+
+  .ingredientCard {
+    height: 60px;
+    font-size: 1.2em;
+  }
+
+  .gameOverPanel {
+    padding: 20px 16px;
+  }
+
+  .gameOverTitle {
+    font-size: 1.4em;
   }
 }

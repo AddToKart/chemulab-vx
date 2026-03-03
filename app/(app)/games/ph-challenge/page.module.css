@@ -47,6 +47,7 @@
     opacity: 0;
     transform: scale(0.95) translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: scale(1) translateY(0);
@@ -213,9 +214,13 @@
 }
 
 @keyframes bounce {
-  0%, 80%, 100% {
+
+  0%,
+  80%,
+  100% {
     transform: scale(0);
   }
+
   40% {
     transform: scale(1);
   }
@@ -440,34 +445,100 @@
 /* ===================== Responsive ===================== */
 
 @media (max-width: 768px) {
+  .container {
+    padding: 12px;
+  }
+
   .gameArea {
-    padding: 20px;
-    margin: 20px auto;
+    padding: 20px 16px;
+    margin: 12px auto;
     width: 100%;
+    border-radius: 16px;
+  }
+
+  .title {
+    font-size: 1.6em;
+  }
+
+  .subtitle {
+    font-size: 1em;
+    margin-bottom: 20px;
   }
 
   .lobbyOptions {
     flex-direction: column;
-    margin: 30px auto;
+    margin: 24px auto;
+    gap: 16px;
+  }
+
+  .lobbyCard {
+    padding: 20px;
   }
 
   .lobbyCard:hover {
     transform: none;
   }
 
+  .lobbyCardTitle {
+    font-size: 1.2em;
+  }
+
+  .inputGroup {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .codeInput {
+    width: 100%;
+    font-size: 1.2em;
+    letter-spacing: 6px;
+    padding: 12px;
+  }
+
+  .btn,
+  .btnSecondary {
+    width: 100%;
+    padding: 14px 20px;
+  }
+
+  .roomCodeTag {
+    font-size: 2em;
+    padding: 14px 20px;
+    letter-spacing: 5px;
+  }
+
+  .turnIndicator {
+    font-size: 1.2em;
+    margin-bottom: 16px;
+  }
+
+  .targetBox {
+    width: 60px;
+    height: 60px;
+  }
+
   .beakerContainer {
-    gap: 20px;
+    gap: 16px;
     height: auto;
-    padding: 20px 0;
+    padding: 16px 0;
   }
 
   .beaker {
-    width: 100px;
-    height: 150px;
+    width: 90px;
+    height: 130px;
+  }
+
+  .beakerLabel {
+    font-size: 0.85em;
+  }
+
+  .phValue {
+    font-size: 1em;
   }
 
   .ingredientGrid {
     grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
   }
 
   .ingCard {
@@ -475,18 +546,67 @@
     font-size: 1.2rem;
   }
 
-  .title {
+  /* Victory */
+  .victoryTitle {
     font-size: 1.8em;
   }
 
-  .roomCodeTag {
-    font-size: 2.4em;
-    padding: 14px 24px;
-    letter-spacing: 5px;
+  .winnerText {
+    font-size: 1.2em;
+  }
+
+  .resultRow {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .resultVs {
+    display: none;
+  }
+
+  .resultSwatch {
+    width: 50px;
+    height: 50px;
   }
 
   .victoryButtons {
     flex-direction: column;
+    align-items: center;
+  }
+
+  .victoryButtons .btn,
+  .victoryButtons .btnSecondary {
+    max-width: 280px;
+  }
+}
+
+@media (max-width: 400px) {
+  .gameArea {
+    padding: 16px 12px;
+  }
+
+  .title {
+    font-size: 1.4em;
+  }
+
+  .roomCodeTag {
+    font-size: 1.6em;
+    letter-spacing: 4px;
+    padding: 12px 16px;
+  }
+
+  .beaker {
+    width: 70px;
+    height: 100px;
+  }
+
+  .ingredientGrid {
+    gap: 8px;
+  }
+
+  .ingCard {
+    padding: 10px;
+    font-size: 1rem;
   }
 }
 
