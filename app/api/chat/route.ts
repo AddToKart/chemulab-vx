@@ -16,9 +16,9 @@ KNOWLEDGE BASE SUMMARY:
 Always keep explanations simple but scientifically accurate.`;
 
 export async function POST(request: NextRequest) {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: 'Gemini API key not configured' }, { status: 500 });
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey || apiKey === 'your_openrouter_api_key_here') {
+    return NextResponse.json({ error: 'OpenRouter API key not configured' }, { status: 500 });
   }
 
   const { message } = await request.json();
@@ -26,38 +26,39 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Message is required' }, { status: 400 });
   }
 
-  const modelsToTry = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-flash-latest'];
-  let lastError = '';
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+        'X-Title': 'CheMuLab',
+      },
+      body: JSON.stringify({
+        model: 'nvidia/nemotron-3-nano-30b-a3b:free',
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: message },
+        ],
+      }),
+    });
 
-  for (const model of modelsToTry) {
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-            contents: [{ parts: [{ text: message }] }],
-          }),
-        }
-      );
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-          return NextResponse.json({ response: data.candidates[0].content.parts[0].text });
-        }
-      } else if (res.status !== 404) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData?.error?.message || res.statusText);
+    if (res.ok) {
+      const data = await res.json();
+      const content = data.choices?.[0]?.message?.content;
+      if (content) {
+        return NextResponse.json({ response: content });
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`[chat] ${model} failed:`, msg);
-      lastError = msg;
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData?.error?.message || res.statusText);
     }
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn(`[chat] OpenRouter failed:`, msg);
+    return NextResponse.json({ error: msg }, { status: 502 });
   }
 
-  return NextResponse.json({ error: lastError || 'No working model found' }, { status: 502 });
+  return NextResponse.json({ error: 'No response from model' }, { status: 502 });
 }
+
