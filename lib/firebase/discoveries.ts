@@ -7,7 +7,6 @@
 import {
   doc,
   getDoc,
-  setDoc,
   writeBatch,
 } from 'firebase/firestore';
 import { db } from './config';
@@ -44,12 +43,12 @@ export interface UserProgressDoc {
   created?: string;
 }
 
-const TOTAL_ELEMENTS = 118;
+export const TOTAL_ELEMENTS = 118;
 const BACKUP_KEY = (uid: string) => `chemulab_discoveries_backup_${uid}`;
 
 /* ---------- helpers ---------- */
 
-function computeProgress(discoveries: Discovery[]): ProgressData {
+export function computeProgress(discoveries: Discovery[]): ProgressData {
   const count = discoveries.length;
   const pct = (count / TOTAL_ELEMENTS) * 100;
   return {
@@ -126,6 +125,32 @@ export async function loadDiscoveries(uid: string): Promise<Discovery[]> {
   }
 
   return dedupeDiscoveries(discoveries);
+}
+
+export async function loadUserProgress(uid: string): Promise<UserProgressDoc> {
+  const discoveries = await loadDiscoveries(uid);
+  const now = new Date().toISOString();
+
+  try {
+    const snap = await getDoc(doc(db, 'progress', uid));
+    if (snap.exists()) {
+      const data = snap.data() as Partial<UserProgressDoc>;
+      return {
+        discoveries,
+        progress: data.progress ?? computeProgress(discoveries),
+        lastUpdated: data.lastUpdated ?? now,
+        created: data.created,
+      };
+    }
+  } catch (err) {
+    console.warn('[discoveries] Error loading canonical progress doc:', err);
+  }
+
+  return {
+    discoveries,
+    progress: computeProgress(discoveries),
+    lastUpdated: now,
+  };
 }
 
 /* ---------- Firestore writes ---------- */

@@ -5,6 +5,19 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useThemeStore } from '@/store/theme-store';
 import { useAuthStore } from '@/store/auth-store';
+import { db } from '@/lib/firebase/config';
+import { 
+  collection, 
+  query, 
+  where, 
+  onSnapshot, 
+  doc, 
+  getDoc, 
+  updateDoc, 
+  deleteDoc, 
+  writeBatch, 
+  serverTimestamp 
+} from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 
 interface TopBarProps {
@@ -17,13 +30,77 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
   const pathname = usePathname();
   const profile = useAuthStore((s) => s.profile);
   const loading = useAuthStore((s) => s.loading);
+  const user = useAuthStore((s) => s.user);
   const [scrolled, setScrolled] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [requests, setRequests] = useState<any[]>([]);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Listen for friend requests
+  useEffect(() => {
+    if (!user?.uid) return;
+    const q = query(collection(db, 'friendRequests'), where('toUid', '==', user.uid));
+    const unsub = onSnapshot(q, (snap) => {
+      setRequests(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter((r: any) => !r.acceptedAt));
+    });
+    return () => unsub();
+  }, [user?.uid]);
+
+  // Click outside to close notifications
+  useEffect(() => {
+    if (!isNotificationsOpen) return;
+    const handleOutside = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('[data-notifications-dropdown]') && 
+          !(e.target as HTMLElement).closest('[data-notifications-trigger]')) {
+        setIsNotificationsOpen(false);
+      }
+    };
+    window.addEventListener('mousedown', handleOutside);
+    return () => window.removeEventListener('mousedown', handleOutside);
+  }, [isNotificationsOpen]);
+
+  const handleAccept = async (req: any) => {
+    if (!user?.uid || !profile) return;
+    try {
+      const senderSnap = await getDoc(doc(db, 'users', req.fromUid));
+      const senderData = senderSnap.exists() ? senderSnap.data() : {};
+      const batch = writeBatch(db);
+      batch.set(doc(db, 'users', user.uid, 'friends', req.fromUid), {
+        uid: req.fromUid,
+        email: req.fromEmail,
+        username: senderData.username ?? req.fromUsername ?? req.fromEmail,
+        photoURL: senderData.photoURL ?? '',
+        chatId: req.chatId,
+        createdAt: serverTimestamp(),
+      });
+      batch.set(doc(db, 'users', req.fromUid, 'friends', user.uid), {
+        uid: user.uid,
+        email: profile.email || '',
+        username: profile.username || '',
+        photoURL: profile.photoURL || '',
+        chatId: req.chatId,
+        createdAt: serverTimestamp(),
+      });
+      batch.set(doc(db, 'chats', req.chatId), { participants: [user.uid, req.fromUid], createdAt: serverTimestamp() }, { merge: true });
+      batch.delete(doc(db, 'friendRequests', req.id));
+      await batch.commit();
+    } catch (e) {
+      console.error('[TopBar] Request Accept Error:', e);
+    }
+  };
+
+  const handleDecline = async (req: any) => {
+    try {
+      await deleteDoc(doc(db, 'friendRequests', req.id));
+    } catch (e) {
+      console.error('[TopBar] Request Decline Error:', e);
+    }
+  };
 
   const getBreadcrumbs = () => {
     if (pathname === '/') return ['Home'];
@@ -104,15 +181,97 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
 
         {!loading && profile && (
           <>
-            <Link
-              href="/friends"
-              className="flex items-center justify-center p-2 rounded-xl text-muted-foreground hover:text-primary hover:bg-muted hover:scale-110 transition-all duration-200"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
-            </Link>
+            <div className="relative">
+              <button
+                data-notifications-trigger
+                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
+                className={cn(
+                  "flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200 cursor-pointer relative",
+                  isNotificationsOpen 
+                    ? "bg-primary text-white shadow-lg scale-105" 
+                    : "text-muted-foreground hover:text-primary hover:bg-muted hover:scale-110"
+                )}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+                {requests.length > 0 && (
+                  <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-background animate-pulse" />
+                )}
+              </button>
+
+              {/* Dropdown Menu */}
+              {isNotificationsOpen && (
+                <div 
+                  data-notifications-dropdown
+                  className="absolute right-0 mt-3 w-80 bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden z-[1200] animate-[slideDown_0.2s_ease-out]"
+                >
+                  <div className="px-5 py-4 border-b border-border flex items-center justify-between">
+                    <h3 className="font-bold text-sm">Notifications</h3>
+                    {requests.length > 0 && (
+                      <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">
+                        {requests.length} NEW
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="max-h-[320px] overflow-y-auto">
+                    {requests.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-10 px-6 text-center">
+                        <div className="p-3 bg-muted rounded-full mb-3 opacity-50">
+                          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                          </svg>
+                        </div>
+                        <p className="text-sm text-muted-foreground">All caught up!</p>
+                        <p className="text-xs text-muted-foreground mt-1">No new notifications or requests.</p>
+                      </div>
+                    ) : (
+                      <div className="p-2 space-y-1">
+                        {requests.map((req) => (
+                          <div key={req.id} className="p-3 bg-muted/40 hover:bg-muted/80 rounded-xl transition-colors border border-transparent hover:border-border/50">
+                            <div className="flex gap-3">
+                              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20 text-blue-500 text-lg">
+                                👋
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-foreground leading-tight">
+                                  <span className="text-primary">{req.fromUsername}</span>
+                                  <span className="font-normal text-muted-foreground"> sent you a friend request.</span>
+                                </p>
+                                <div className="flex gap-2 mt-2">
+                                  <button
+                                    onClick={() => handleAccept(req)}
+                                    className="flex-1 h-8 bg-emerald-500 text-white text-[11px] font-bold rounded-lg hover:bg-emerald-600 transition-colors shadow-sm cursor-pointer"
+                                  >
+                                    Accept
+                                  </button>
+                                  <button
+                                    onClick={() => handleDecline(req)}
+                                    className="flex-1 h-8 bg-muted text-foreground border border-border text-[11px] font-bold rounded-lg hover:bg-accent transition-colors cursor-pointer"
+                                  >
+                                    Decline
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <Link
+                    href="/friends"
+                    onClick={() => setIsNotificationsOpen(false)}
+                    className="block w-full py-3 bg-muted/50 hover:bg-muted text-center text-xs font-bold text-primary transition-colors border-t border-border no-underline"
+                  >
+                    View All Friends & Activity
+                  </Link>
+                </div>
+              )}
+            </div>
             <Link
               href="/profile"
               className="hidden md:block w-9 h-9 rounded-full overflow-hidden border-2 border-border hover:border-primary hover:scale-105 shadow-sm transition-all duration-200"

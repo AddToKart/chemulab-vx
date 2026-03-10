@@ -27,6 +27,9 @@ export default function SignInPage() {
   const [regPassword, setRegPassword] = useState('');
   const [regConfirm, setRegConfirm] = useState('');
   const [forgotEmail, setForgotEmail] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showRegPassword, setShowRegPassword] = useState(false);
+  const [showRegConfirm, setShowRegConfirm] = useState(false);
 
   const registering = useAuthStore((s) => s.registering);
 
@@ -62,7 +65,7 @@ export default function SignInPage() {
     setSubmitting(true);
     try {
       const result = await register(regUsername.toLowerCase().trim(), regEmail, regPassword);
-      setSuccess(result.emailSent ? result.message : 'Account created successfully!');
+      setSuccess(result.emailSent ? result.message : 'Account created! You can now log in.');
       setRegUsername(''); setRegEmail(''); setRegPassword(''); setRegConfirm('');
     } catch (err: any) {
       setError(err.message || 'Registration failed. Please try again.');
@@ -140,7 +143,7 @@ export default function SignInPage() {
           {/* ─── Login Form ─── */}
           {mode === 'login' && (
             <form className="flex flex-col gap-4" onSubmit={handleLogin}>
-              <h2 className="text-center text-2xl font-bold tracking-[-0.01em] mb-1">Sign In</h2>
+              <h2 className="text-center text-2xl font-bold tracking-[-0.01em] mb-1">Log In</h2>
               <Input
                 type="text"
                 placeholder="Email or Username"
@@ -149,14 +152,32 @@ export default function SignInPage() {
                 required
                 className="h-12 px-5 bg-black/10 border-[var(--border-color)] text-[var(--text-main)] placeholder:text-[var(--text-light)] focus-visible:ring-[var(--accent-color)] focus-visible:border-[var(--accent-color)] rounded-[12px]"
               />
-              <Input
-                type="password"
-                placeholder="Password"
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                required
-                className="h-12 px-5 bg-black/10 border-[var(--border-color)] text-[var(--text-main)] placeholder:text-[var(--text-light)] focus-visible:ring-[var(--accent-color)] focus-visible:border-[var(--accent-color)] rounded-[12px]"
-              />
+              <div className="relative">
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Password"
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  required
+                  className="h-12 px-5 bg-black/10 border-[var(--border-color)] text-[var(--text-main)] placeholder:text-[var(--text-light)] focus-visible:ring-[var(--accent-color)] focus-visible:border-[var(--accent-color)] rounded-[12px] pr-12"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-light)] hover:text-white transition-colors cursor-pointer bg-transparent border-none p-1"
+                >
+                  {showPassword ? (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                    </svg>
+                  )}
+                </button>
+              </div>
               <div className="text-right -mt-1">
                 <button type="button" onClick={() => switchMode('forgot')} className="text-sm text-white/70 hover:text-white hover:underline bg-transparent border-none cursor-pointer p-0 transition-colors">
                   Forgot Password?
@@ -176,23 +197,75 @@ export default function SignInPage() {
           {mode === 'register' && (
             <form className="flex flex-col gap-4" onSubmit={handleRegister}>
               <h2 className="text-center text-2xl font-bold tracking-[-0.01em] mb-1">Create Account</h2>
-              {[
-                { type: 'text', placeholder: 'Username (3–20 chars, letters/numbers/_)', value: regUsername, onChange: setRegUsername, autoComplete: 'username' },
-                { type: 'email', placeholder: 'Email', value: regEmail, onChange: setRegEmail },
-                { type: 'password', placeholder: 'Password', value: regPassword, onChange: setRegPassword },
-                { type: 'password', placeholder: 'Confirm Password', value: regConfirm, onChange: setRegConfirm },
-              ].map((field, i) => (
+              <Input
+                type="text"
+                placeholder="Username (3–20 chars, letters/numbers/_)"
+                value={regUsername}
+                onChange={(e) => setRegUsername(e.target.value)}
+                autoComplete="username"
+                required
+                className="h-12 px-5 bg-black/10 border-[var(--border-color)] text-[var(--text-main)] placeholder:text-[var(--text-light)] focus-visible:ring-[var(--accent-color)] focus-visible:border-[var(--accent-color)] rounded-[12px]"
+              />
+              <Input
+                type="email"
+                placeholder="Email"
+                value={regEmail}
+                onChange={(e) => setRegEmail(e.target.value)}
+                required
+                className="h-12 px-5 bg-black/10 border-[var(--border-color)] text-[var(--text-main)] placeholder:text-[var(--text-light)] focus-visible:ring-[var(--accent-color)] focus-visible:border-[var(--accent-color)] rounded-[12px]"
+              />
+              <div className="relative">
                 <Input
-                  key={i}
-                  type={field.type}
-                  placeholder={field.placeholder}
-                  value={field.value}
-                  onChange={(e) => field.onChange(e.target.value)}
-                  autoComplete={field.autoComplete}
+                  type={showRegPassword ? 'text' : 'password'}
+                  placeholder="Password"
+                  value={regPassword}
+                  onChange={(e) => setRegPassword(e.target.value)}
                   required
-                  className="h-12 px-5 bg-black/10 border-[var(--border-color)] text-[var(--text-main)] placeholder:text-[var(--text-light)] focus-visible:ring-[var(--accent-color)] focus-visible:border-[var(--accent-color)] rounded-[12px]"
+                  className="h-12 px-5 bg-black/10 border-[var(--border-color)] text-[var(--text-main)] placeholder:text-[var(--text-light)] focus-visible:ring-[var(--accent-color)] focus-visible:border-[var(--accent-color)] rounded-[12px] pr-12"
                 />
-              ))}
+                <button
+                  type="button"
+                  onClick={() => setShowRegPassword(!showRegPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-light)] hover:text-white transition-colors cursor-pointer bg-transparent border-none p-1"
+                >
+                  {showRegPassword ? (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                    </svg>
+                  )}
+                </button>
+              </div>
+              <div className="relative">
+                <Input
+                  type={showRegConfirm ? 'text' : 'password'}
+                  placeholder="Confirm Password"
+                  value={regConfirm}
+                  onChange={(e) => setRegConfirm(e.target.value)}
+                  required
+                  className="h-12 px-5 bg-black/10 border-[var(--border-color)] text-[var(--text-main)] placeholder:text-[var(--text-light)] focus-visible:ring-[var(--accent-color)] focus-visible:border-[var(--accent-color)] rounded-[12px] pr-12"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowRegConfirm(!showRegConfirm)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-light)] hover:text-white transition-colors cursor-pointer bg-transparent border-none p-1"
+                >
+                  {showRegConfirm ? (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+                    </svg>
+                  )}
+                </button>
+              </div>
               <Button
                 type="submit"
                 disabled={submitting}
@@ -237,7 +310,7 @@ export default function SignInPage() {
                 onClick={() => switchMode(mode === 'login' ? 'register' : 'login')}
                 className="bg-transparent border-none text-[var(--text-main)] font-bold cursor-pointer px-4 py-2 rounded-full hover:bg-[var(--bg-item-active)] hover:text-[var(--accent-color)] hover:-translate-y-0.5 transition-all duration-200"
               >
-                {mode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
+                {mode === 'login' ? "Don't have an account? Create One!" : 'Already have an account? Sign in'}
               </button>
             </div>
           )}

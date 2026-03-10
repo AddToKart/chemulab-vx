@@ -265,7 +265,24 @@ h6 {
 
 /* ===== Utility Classes ===== */
 
-/* Removed .glass-card utility */
+.glass-panel {
+  background: var(--bg-card);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border: 1.5px solid var(--glass-border);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), var(--glow-accent);
+}
+
+.glass-panel-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-panel-hover:hover {
+  background: var(--bg-card-hover);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15), var(--glow-accent);
+}
 
 .accent-btn {
   background: var(--accent-gradient);
@@ -400,6 +417,18 @@ h6 {
   from {
     opacity: 0;
     transform: translateY(40px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
   }
 
   to {

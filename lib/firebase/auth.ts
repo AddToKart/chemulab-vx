@@ -178,7 +178,7 @@ export async function register(
     return {
       emailSent,
       message: emailSent
-        ? 'Account created! Please check your email to verify your account before logging in.'
+        ? 'Account created! Please check your "SPAM EMAIL FOLDER" to verify your account before logging in.'
         : 'Account created! However, we could not send a verification email. Please try logging in and requesting a new one.',
     };
   } finally {

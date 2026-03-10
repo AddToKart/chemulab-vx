@@ -1,36 +1,73 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# CheMuLab VX
 
-## Getting Started
+CheMuLab is a Next.js chemistry learning app with a lab-combination workflow, discovery tracking, Firebase-backed auth, profile management, social features, and lightweight game modules.
 
-First, run the development server:
+## Stack
+
+- Next.js 16 App Router
+- React 19
+- TypeScript
+- Tailwind CSS v4
+- Firebase Auth + Firestore
+- Zustand for client state
+
+## Product Areas
+
+- `app/(auth)`: sign-in, registration, password reset
+- `app/(app)/lab`: single reaction chamber — drag elements (with quantities) to discover compounds
+- `app/(app)/elements`: periodic table explorer
+- `app/(app)/progress`: discovery progress and milestones
+- `app/(app)/profile`: profile editing, avatar crop, progress summary
+- `app/(app)/friends`: friend requests and chat
+- `app/(app)/games`: chemistry mini-games
+- `components/chatbot`: Popoy assistant UI
+- `app/api/chat`: server-side proxy for the assistant model
+- `app/api/image-proxy`: restricted image proxy used by avatar cropping
+
+## Local Setup
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Create `.env.local` with the Firebase and chat provider keys used by the app.
+
+Required client env vars:
+
+```bash
+NEXT_PUBLIC_FIREBASE_API_KEY=
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
+NEXT_PUBLIC_FIREBASE_APP_ID=
+```
+
+Required server env vars:
+
+```bash
+OPENROUTER_API_KEY=
+IMAGE_PROXY_ALLOWED_HOSTS=images.unsplash.com,lh3.googleusercontent.com
+```
+
+3. Start the dev server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Architecture Notes
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Auth state is hydrated in [`components/auth/AuthProvider.tsx`](./components/auth/AuthProvider.tsx) into Zustand.
+- Discovery persistence lives in [`lib/firebase/discoveries.ts`](./lib/firebase/discoveries.ts).
+- Shared progress state is exposed through [`lib/hooks/use-user-progress.ts`](./lib/hooks/use-user-progress.ts).
+- Lab discovery loading and import/export behavior is exposed through [`lib/hooks/use-lab-discoveries.ts`](./lib/hooks/use-lab-discoveries.ts).
+- Lab combination logic uses stoichiometric recipes in [`lib/data/lab-elements.ts`](./lib/data/lab-elements.ts). Each recipe maps element symbol counts (e.g. `{ H: 2, O: 1 }`) to a product compound.
+- Firestore rules are defined in [`firestore.rules`](./firestore.rules).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Validation
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Full repo lint currently reports some pre-existing issues in unrelated game and auth files.
+- The refactored files in the shared progress/discovery path and the two API routes lint clean.

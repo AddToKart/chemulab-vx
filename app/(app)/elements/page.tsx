@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import {
   elementsData,
   mainGridPositions,
@@ -14,6 +14,21 @@ export default function ElementsPage() {
 
   const handleElementClick = useCallback((el: ElementData) => setSelectedElement(el), []);
   const closeModal = useCallback(() => setSelectedElement(null), []);
+  const speakingRef = useRef(false);
+
+  const speakElementName = useCallback((name: string) => {
+    if (typeof window === 'undefined' || !window.speechSynthesis) return;
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(name);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.85;
+    utterance.pitch = 1;
+    utterance.onstart = () => { speakingRef.current = true; };
+    utterance.onend = () => { speakingRef.current = false; };
+    utterance.onerror = () => { speakingRef.current = false; };
+    window.speechSynthesis.speak(utterance);
+  }, []);
 
   const mainElements = elementsData.filter((el) => mainGridPositions[el.atomic_number] !== undefined);
   const lanthanides = elementsData.filter((el) => lanthanideFBlock.includes(el.atomic_number));
@@ -91,9 +106,25 @@ export default function ElementsPage() {
               <div className="w-[70px] h-[70px] bg-muted flex items-center justify-center text-[2rem] font-extrabold rounded-2xl shadow-sm border border-border text-foreground">
                 {selectedElement.symbol}
               </div>
-              <h2 className="m-0 text-[2rem] font-extrabold text-foreground tracking-[-0.02em]">
-                {selectedElement.name}
-              </h2>
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <h2 className="m-0 text-[2rem] font-extrabold text-foreground tracking-[-0.02em] truncate">
+                  {selectedElement.name}
+                </h2>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    speakElementName(selectedElement.name);
+                  }}
+                  className="flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-full bg-muted border border-border text-muted-foreground hover:bg-emerald-500/15 hover:text-emerald-500 hover:border-emerald-500/30 transition-all duration-200 cursor-pointer hover:scale-110 active:scale-95"
+                  aria-label={`Pronounce ${selectedElement.name}`}
+                  title={`Hear pronunciation of ${selectedElement.name}`}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072M17.95 6.05a8 8 0 010 11.9M11 5L6 9H2v6h4l5 4V5z" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             <div className="relative">

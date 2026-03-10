@@ -4,13 +4,11 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/store/auth-store';
 import { logout } from '@/lib/firebase/auth';
-import { useEffect, useState } from 'react';
-import { db } from '@/lib/firebase/config';
-import { doc, getDoc } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { useUserProgress } from '@/lib/hooks/use-user-progress';
 
 const NAV_ITEMS = [
   { href: '/', icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>, label: 'Home' },
@@ -27,18 +25,8 @@ export default function Sidebar({ collapsed }: { collapsed: boolean }) {
   const profile = useAuthStore((s) => s.profile);
   const loading = useAuthStore((s) => s.loading);
   const user = useAuthStore((s) => s.user);
-  const [progressPct, setProgressPct] = useState(0);
-
-  useEffect(() => {
-    if (!user) return;
-    getDoc(doc(db, 'progress', user.uid)).then(snap => {
-      if (snap.exists()) {
-        const data = snap.data();
-        const discs = data.discoveries || [];
-        setProgressPct(Math.min((discs.length / 118) * 100, 100));
-      }
-    });
-  }, [user]);
+  const { progress } = useUserProgress(user?.uid);
+  const progressPct = Math.min(progress.progressPercentage, 100);
 
   const handleLogout = async () => { await logout(); };
 

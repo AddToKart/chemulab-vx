@@ -139,83 +139,126 @@ export const initialElements: LabElement[] = [
   { symbol: 'Og', name: 'Oganesson', color: '#FF99CC', type: 'noble-gas' },
 ];
 
-// ─── Result type for attemptCombination ─────────────────────────────────────
+// ─── Recipe-based combination system ─────────────────────────────────────────
+
+export interface Recipe {
+  /** Map of element symbols → required count, e.g. { H: 2, O: 1 } for water */
+  reactants: Record<string, number>;
+  product: LabElement;
+}
+
 export type CombinationResult =
-  | { kind: 'success';  product: LabElement }
-  | { kind: 'invalid';  reason: string }
+  | { kind: 'success'; product: LabElement }
+  | { kind: 'partial'; hint: string }
   | { kind: 'none' };
 
-// ─── Invalid combinations (sorted element symbol keys) ───────────────────────
-// These are explicitly known non-reactions shown with an educational message.
-export const invalidCombinations: Record<string, string> = {
-  // ── Noble gases — full outer shell, won't bond ──
-  'H+He':  "Helium is a noble gas — it refuses to bond with anything!",
-  'He+N':  "Helium is chemically inert — no reaction possible here.",
-  'He+O':  "Helium has a full outer shell and won't react with oxygen.",
-  'He+Ne': "Two noble gases? Neither of them reacts with each other!",
-  'Ar+H':  "Argon is a noble gas — it's completely unreactive.",
-  'Ar+O':  "Argon won't form oxides — it's too stable and inert.",
-  'H+Kr':  "Krypton barely reacts under normal lab conditions.",
-  'Ne+O':  "Neon is an inert noble gas — no reaction with oxygen.",
-  // ── Same element — no new compound ──
-  'H+H':   "You need two different elements to form a compound!",
-  'O+O':   "Oxygen + Oxygen just gives you more oxygen — no new compound.",
-  'N+N':   "Two nitrogen atoms won't create a new compound here.",
-  'C+C':   "Carbon + Carbon doesn't form a new compound in this lab.",
-  // ── Noble/unreactive metals ──
-  'Au+H':  "Gold is highly unreactive — it won't combine with hydrogen.",
-  'Au+N':  "Gold doesn't react with nitrogen under normal conditions.",
-  'Au+O':  "Gold resists oxidation — that's why it stays shiny forever!",
-  'H+Pt':  "Platinum is a noble metal and won't react this way.",
-  'Ag+H':  "Silver won't react with hydrogen under normal lab conditions.",
-};
+// ─── All recipes (stoichiometrically accurate) ───────────────────────────────
 
-// ─── Allowed combinations (sorted element symbol keys) ───────────────────────
-// 🧪 Hydrogen Compounds (Hydrides / Acids)
-// 🌬️ Oxides (Element + Oxygen)
-// 🔩 Sulfides (Element + Sulfur)
-export const combinations: Record<string, LabElement> = {
+export const recipes: Recipe[] = [
   // ── Hydrogen Compounds ──
-  'H+O':   { symbol: 'H₂O',  name: 'Water',              color: '#B3E0FF', type: 'compound' },
-  'H₂O+O': { symbol: 'H₂O₂', name: 'Hydrogen Peroxide',  color: '#E6F3FF', type: 'compound' },
-  'H+N':   { symbol: 'NH₃',  name: 'Ammonia',             color: '#CC99FF', type: 'compound' },
-  'C+H':   { symbol: 'CH₄',  name: 'Methane',             color: '#D3D3D3', type: 'compound' },
-  'Cl+H':  { symbol: 'HCl',  name: 'Hydrogen Chloride',   color: '#90EE90', type: 'compound' },
-  'F+H':   { symbol: 'HF',   name: 'Hydrogen Fluoride',   color: '#CCFF99', type: 'compound' },
-  'Br+H':  { symbol: 'HBr',  name: 'Hydrogen Bromide',    color: '#BC8F8F', type: 'compound' },
-  'H+I':   { symbol: 'HI',   name: 'Hydrogen Iodide',     color: '#9370DB', type: 'compound' },
-  'H+S':   { symbol: 'H₂S',  name: 'Hydrogen Sulfide',    color: '#FFFF99', type: 'compound' },
+  { reactants: { H: 2, O: 1 },  product: { symbol: 'H₂O',   name: 'Water',              color: '#B3E0FF', type: 'compound' } },
+  { reactants: { H: 2, O: 2 },  product: { symbol: 'H₂O₂',  name: 'Hydrogen Peroxide',  color: '#E6F3FF', type: 'compound' } },
+  { reactants: { N: 1, H: 3 },  product: { symbol: 'NH₃',   name: 'Ammonia',             color: '#CC99FF', type: 'compound' } },
+  { reactants: { C: 1, H: 4 },  product: { symbol: 'CH₄',   name: 'Methane',             color: '#D3D3D3', type: 'compound' } },
+  { reactants: { H: 1, Cl: 1 }, product: { symbol: 'HCl',   name: 'Hydrogen Chloride',   color: '#90EE90', type: 'compound' } },
+  { reactants: { H: 1, F: 1 },  product: { symbol: 'HF',    name: 'Hydrogen Fluoride',   color: '#CCFF99', type: 'compound' } },
+  { reactants: { H: 1, Br: 1 }, product: { symbol: 'HBr',   name: 'Hydrogen Bromide',    color: '#BC8F8F', type: 'compound' } },
+  { reactants: { H: 1, I: 1 },  product: { symbol: 'HI',    name: 'Hydrogen Iodide',     color: '#9370DB', type: 'compound' } },
+  { reactants: { H: 2, S: 1 },  product: { symbol: 'H₂S',   name: 'Hydrogen Sulfide',    color: '#FFFF99', type: 'compound' } },
+
   // ── Oxides ──
-  'C+O':   { symbol: 'CO₂',  name: 'Carbon Dioxide',      color: '#A9A9A9', type: 'compound' },
-  'CO+O':  { symbol: 'CO',   name: 'Carbon Monoxide',      color: '#8A8A8A', type: 'compound' },
-  'O+S':   { symbol: 'SO₂',  name: 'Sulfur Dioxide',       color: '#FFDB4D', type: 'compound' },
-  'O+SO₂': { symbol: 'SO₃',  name: 'Sulfur Trioxide',      color: '#FFE480', type: 'compound' },
-  'N+O':   { symbol: 'NO',   name: 'Nitric Oxide',         color: '#E6B3B3', type: 'compound' },
-  'NO+O':  { symbol: 'NO₂',  name: 'Nitrogen Dioxide',     color: '#FF9999', type: 'compound' },
-  'Ca+O':  { symbol: 'CaO',  name: 'Calcium Oxide',        color: '#A0A0A0', type: 'compound' },
-  'Mg+O':  { symbol: 'MgO',  name: 'Magnesium Oxide',      color: '#B8B8B8', type: 'compound' },
-  'Fe+O':  { symbol: 'Fe₂O₃', name: 'Iron(III) Oxide',    color: '#CD853F', type: 'compound' },
-  'Al+O':  { symbol: 'Al₂O₃', name: 'Aluminum Oxide',     color: '#BFC7C9', type: 'compound' },
-  'O+Si':  { symbol: 'SiO₂', name: 'Silicon Dioxide',      color: '#F5C242', type: 'compound' },
+  { reactants: { C: 1, O: 2 },  product: { symbol: 'CO₂',   name: 'Carbon Dioxide',      color: '#A9A9A9', type: 'compound' } },
+  { reactants: { C: 1, O: 1 },  product: { symbol: 'CO',    name: 'Carbon Monoxide',      color: '#8A8A8A', type: 'compound' } },
+  { reactants: { S: 1, O: 2 },  product: { symbol: 'SO₂',   name: 'Sulfur Dioxide',       color: '#FFDB4D', type: 'compound' } },
+  { reactants: { S: 1, O: 3 },  product: { symbol: 'SO₃',   name: 'Sulfur Trioxide',      color: '#FFE480', type: 'compound' } },
+  { reactants: { N: 1, O: 1 },  product: { symbol: 'NO',    name: 'Nitric Oxide',         color: '#E6B3B3', type: 'compound' } },
+  { reactants: { N: 1, O: 2 },  product: { symbol: 'NO₂',   name: 'Nitrogen Dioxide',     color: '#FF9999', type: 'compound' } },
+  { reactants: { Ca: 1, O: 1 }, product: { symbol: 'CaO',   name: 'Calcium Oxide',        color: '#A0A0A0', type: 'compound' } },
+  { reactants: { Mg: 1, O: 1 }, product: { symbol: 'MgO',   name: 'Magnesium Oxide',      color: '#B8B8B8', type: 'compound' } },
+  { reactants: { Fe: 2, O: 3 }, product: { symbol: 'Fe₂O₃', name: 'Iron(III) Oxide',      color: '#CD853F', type: 'compound' } },
+  { reactants: { Al: 2, O: 3 }, product: { symbol: 'Al₂O₃', name: 'Aluminum Oxide',       color: '#BFC7C9', type: 'compound' } },
+  { reactants: { Si: 1, O: 2 }, product: { symbol: 'SiO₂',  name: 'Silicon Dioxide',      color: '#F5C242', type: 'compound' } },
+
   // ── Sulfides ──
-  'Fe+S':  { symbol: 'FeS',  name: 'Iron(II) Sulfide',     color: '#4B3621', type: 'compound' },
-  'S+Zn':  { symbol: 'ZnS',  name: 'Zinc Sulfide',         color: '#E0E0E0', type: 'compound' },
-  'Cu+S':  { symbol: 'CuS',  name: 'Copper(II) Sulfide',   color: '#3A3F44', type: 'compound' },
-  'Pb+S':  { symbol: 'PbS',  name: 'Lead(II) Sulfide',     color: '#2F4F4F', type: 'compound' },
-};
+  { reactants: { Fe: 1, S: 1 }, product: { symbol: 'FeS',   name: 'Iron(II) Sulfide',     color: '#4B3621', type: 'compound' } },
+  { reactants: { Zn: 1, S: 1 }, product: { symbol: 'ZnS',   name: 'Zinc Sulfide',         color: '#E0E0E0', type: 'compound' } },
+  { reactants: { Cu: 1, S: 1 }, product: { symbol: 'CuS',   name: 'Copper(II) Sulfide',   color: '#3A3F44', type: 'compound' } },
+  { reactants: { Pb: 1, S: 1 }, product: { symbol: 'PbS',   name: 'Lead(II) Sulfide',     color: '#2F4F4F', type: 'compound' } },
+
+  // ── Salts ──
+  { reactants: { Na: 1, Cl: 1 }, product: { symbol: 'NaCl',      name: 'Table Salt',      color: '#F0F0F0', type: 'compound' } },
+
+  // ── Everyday Compounds ──
+  { reactants: { Na: 1, H: 1, C: 1, O: 3 }, product: { symbol: 'NaHCO₃', name: 'Baking Soda', color: '#FAFAFA', type: 'compound' } },
+
+  // ── Allotropes ──
+  { reactants: { O: 3 },        product: { symbol: 'O₃',         name: 'Ozone',           color: '#ADD8E6', type: 'compound' } },
+
+  // ── Organic ──
+  { reactants: { C: 6, H: 12, O: 6 }, product: { symbol: 'C₆H₁₂O₆', name: 'Glucose (Sugar)', color: '#FFE4B5', type: 'compound' } },
+];
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/** Count occurrences of each element symbol in the array. */
+function countElements(elements: LabElement[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const el of elements) {
+    counts[el.symbol] = (counts[el.symbol] || 0) + 1;
+  }
+  return counts;
+}
+
+/** Check if two count maps are exactly equal. */
+function countsMatch(a: Record<string, number>, b: Record<string, number>): boolean {
+  const keysA = Object.keys(a);
+  const keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+  return keysA.every((k) => a[k] === b[k]);
+}
+
+/** Check if `subset` is a strict subset of `superset` (same keys, all values ≤). */
+function isSubset(subset: Record<string, number>, superset: Record<string, number>): boolean {
+  return Object.keys(subset).every(
+    (k) => superset[k] !== undefined && subset[k] <= superset[k],
+  );
+}
 
 /**
- * Attempt a combination of two elements.
- * Returns one of three outcomes:
- *  - 'success'  → a valid compound was created
- *  - 'invalid'  → the pair is a known non-reaction (with an educational reason)
- *  - 'none'     → no data for this pair at all
+ * Attempt a combination given an array of elements (may contain duplicates).
+ * Returns:
+ *  - 'success'  → exact recipe match, compound created
+ *  - 'partial'  → the input is a subset of a known recipe (hint shown)
+ *  - 'none'     → no recipe matches at all
  */
-export function attemptCombination(el1: LabElement, el2: LabElement): CombinationResult {
-  const key = [el1.symbol, el2.symbol].sort().join('+');
-  const reason = invalidCombinations[key];
-  if (reason) return { kind: 'invalid', reason };
-  const product = combinations[key];
-  if (product) return { kind: 'success', product };
+export function attemptCombination(elements: LabElement[]): CombinationResult {
+  if (elements.length === 0) return { kind: 'none' };
+
+  const counts = countElements(elements);
+
+  // Exact match
+  for (const recipe of recipes) {
+    if (countsMatch(counts, recipe.reactants)) {
+      return { kind: 'success', product: recipe.product };
+    }
+  }
+
+  // Partial match — the user has a subset of a valid recipe
+  for (const recipe of recipes) {
+    if (isSubset(counts, recipe.reactants)) {
+      const missing = Object.entries(recipe.reactants)
+        .filter(([sym, need]) => (counts[sym] || 0) < need)
+        .map(([sym, need]) => {
+          const have = counts[sym] || 0;
+          return `${need - have}× ${sym}`;
+        });
+      return {
+        kind: 'partial',
+        hint: `Close! You still need ${missing.join(', ')} to make ${recipe.product.name}.`,
+      };
+    }
+  }
+
   return { kind: 'none' };
 }
+

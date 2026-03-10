@@ -1,94 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { db } from '@/lib/firebase/config';
 import { useAuthStore } from '@/store/auth-store';
-import {
-  loadDiscoveries,
-  type Discovery,
-  type ProgressData,
-  type UserProgressDoc,
-} from '@/lib/firebase/discoveries';
-
-const TOTAL_ELEMENTS = 118;
-
-function computeProgress(discoveries: Discovery[]): ProgressData {
-  const count = discoveries.length;
-  const pct = (count / TOTAL_ELEMENTS) * 100;
-  return {
-    completedDiscoveries: count,
-    totalDiscoveries: count,
-    progressPercentage: pct,
-    milestones: {
-      beginner: pct >= 10,
-      intermediate: pct >= 50,
-      advanced: pct >= 75,
-      master: pct >= 100,
-    },
-    lastUpdated: new Date().toISOString(),
-  };
-}
-
-type SyncState = 'idle' | 'syncing' | 'synced' | 'error';
+import { TOTAL_ELEMENTS, type ProgressData } from '@/lib/firebase/discoveries';
+import { useUserProgress } from '@/lib/hooks/use-user-progress';
 
 export default function ProgressPage() {
   const { user, loading: authLoading } = useAuthStore();
-
-  const [discoveries, setDiscoveries] = useState<Discovery[]>([]);
-  const [progress, setProgress] = useState<ProgressData>(() => computeProgress([]));
-  const [syncStatus, setSyncStatus] = useState<SyncState>('idle');
-
-  const unsubRef = useRef<(() => void) | undefined>(undefined);
-
-  const updateProgress = useCallback((discs: Discovery[]) => {
-    setDiscoveries(discs);
-    setProgress(computeProgress(discs));
-  }, []);
-
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      updateProgress([]);
-      setSyncStatus('idle');
-      return;
-    }
-
-    const uid = user.uid;
-    setSyncStatus('syncing');
-
-    const unsub = onSnapshot(
-      doc(db, 'progress', uid),
-      (snap) => {
-        if (snap.exists()) {
-          const data = snap.data() as UserProgressDoc;
-          if (Array.isArray(data.discoveries)) {
-            updateProgress(data.discoveries);
-          }
-        }
-        setSyncStatus('synced');
-      },
-      (err) => {
-        console.error('[progress] Snapshot error:', err);
-        setSyncStatus('error');
-      },
-    );
-    unsubRef.current = unsub;
-
-    loadDiscoveries(uid)
-      .then((discs) => {
-        setDiscoveries((prev) => (prev.length === 0 ? discs : prev));
-        setProgress((prev) =>
-          prev.completedDiscoveries === 0 ? computeProgress(discs) : prev,
-        );
-      })
-      .catch((err) => console.warn('[progress] Fallback load failed:', err));
-
-    return () => {
-      unsub();
-      unsubRef.current = undefined;
-    };
-  }, [user, authLoading, updateProgress]);
+  const { discoveries, progress, syncState } = useUserProgress(user?.uid);
 
   const milestoneLabels: { key: keyof ProgressData['milestones']; label: string }[] = [
     { key: 'beginner', label: 'Beginner (10%)' },
@@ -97,17 +15,17 @@ export default function ProgressPage() {
     { key: 'master', label: 'Master (100%)' },
   ];
 
-  const syncLabel: Record<SyncState, string> = {
+  const syncLabel: Record<typeof syncState, string> = {
     idle: '',
-    syncing: 'Syncing…',
-    synced: 'Synced ✓',
-    error: 'Sync error — showing cached data',
+    syncing: 'Syncing...',
+    synced: 'Synced',
+    error: 'Sync error; showing cached data',
   };
 
   if (authLoading) {
     return (
       <div className="flex items-center justify-center p-16 text-[var(--text-light)]">
-        <p>Loading…</p>
+        <p>Loading...</p>
       </div>
     );
   }
@@ -124,16 +42,14 @@ export default function ProgressPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-[2rem] font-extrabold text-[var(--text-main)] tracking-tight">Progress Tracker</h1>
-        {syncLabel[syncStatus] && (
-          <span className="text-xs text-[var(--text-light)] italic">{syncLabel[syncStatus]}</span>
+        {syncLabel[syncState] && (
+          <span className="text-xs text-[var(--text-light)] italic">{syncLabel[syncState]}</span>
         )}
       </div>
 
-      {/* Progress Section */}
       <section className="bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[28px] p-8 space-y-5">
         <h2 className="text-lg font-bold text-[var(--text-main)]">Overall Progress</h2>
 
-        {/* Progress bar */}
         <div className="relative h-4 bg-[var(--bg-sidebar)] rounded-full overflow-hidden border border-[var(--border-color)]">
           <div
             className="absolute inset-y-0 left-0 bg-gradient-to-r from-[var(--accent-color)] to-[#0ea5e9] rounded-full transition-[width] duration-700"
@@ -144,7 +60,6 @@ export default function ProgressPage() {
           </span>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-2 gap-4 max-[600px]:grid-cols-1">
           <div className="bg-[var(--bg-sidebar)] rounded-[16px] p-5 border border-[var(--border-color)]">
             <h3 className="text-xs font-semibold text-[var(--text-light)] uppercase tracking-wide mb-2">Discovered</h3>
@@ -165,7 +80,8 @@ export default function ProgressPage() {
                       : 'bg-[var(--bg-card)] text-[var(--text-light)] border-[var(--border-color)] opacity-50'
                   }`}
                 >
-                  {progress.milestones[key] ? '✓ ' : ''}{label}
+                  {progress.milestones[key] ? '✓ ' : ''}
+                  {label}
                 </span>
               ))}
             </div>
@@ -173,7 +89,6 @@ export default function ProgressPage() {
         </div>
       </section>
 
-      {/* Discoveries Section */}
       <section className="bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[28px] p-8 space-y-4">
         <h2 className="text-lg font-bold text-[var(--text-main)]">Discovered Elements</h2>
 

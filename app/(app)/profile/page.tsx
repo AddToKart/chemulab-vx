@@ -13,35 +13,12 @@ import {
   updateDoc,
   deleteDoc,
   serverTimestamp,
-  onSnapshot,
 } from 'firebase/firestore';
 import { useAuthStore } from '@/store/auth-store';
-import { loadDiscoveries } from '@/lib/firebase/discoveries';
-import type { Discovery } from '@/lib/firebase/discoveries';
-
-
-const TOTAL_ELEMENTS = 118;
+import { TOTAL_ELEMENTS } from '@/lib/firebase/discoveries';
+import { useUserProgress } from '@/lib/hooks/use-user-progress';
 const DEFAULT_AVATAR = '/img/default-avatar.png';
 const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,20}$/;
-
-interface ProgressData {
-  completedDiscoveries: number;
-  totalDiscoveries: number;
-  progressPercentage: number;
-  milestones: {
-    beginner: boolean;
-    intermediate: boolean;
-    advanced: boolean;
-    master: boolean;
-  };
-  lastUpdated?: string;
-}
-
-interface UserProgressDoc {
-  discoveries?: Discovery[];
-  progress?: ProgressData;
-  lastUpdated?: string;
-}
 
 function formatDate(date: Date | string | undefined | null): string {
   if (!date) return 'Unknown';
@@ -54,26 +31,16 @@ function formatDate(date: Date | string | undefined | null): string {
   });
 }
 
-function computeProgress(discoveries: Discovery[]): ProgressData {
-  const count = discoveries.length;
-  const pct = Math.min((count / TOTAL_ELEMENTS) * 100, 100);
-  return {
-    completedDiscoveries: count,
-    totalDiscoveries: count,
-    progressPercentage: pct,
-    milestones: {
-      beginner: pct >= 10,
-      intermediate: pct >= 50,
-      advanced: pct >= 75,
-      master: pct >= 100,
-    },
-    lastUpdated: new Date().toISOString(),
-  };
-}
-
 export default function ProfilePage() {
   const { user, profile, loading: authLoading } = useAuthStore();
   const uid = user?.uid;
+  const {
+    discoveries,
+    progress,
+    loading: discoveriesLoading,
+    syncState,
+    lastUpdated,
+  } = useUserProgress(uid);
 
   // Profile state
   const [photoURL, setPhotoURL] = useState<string>('');
@@ -95,17 +62,6 @@ export default function ProfilePage() {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
-
-  // Progress state
-  const [progressData, setProgressData] = useState<ProgressData>({
-    completedDiscoveries: 0,
-    totalDiscoveries: 0,
-    progressPercentage: 0,
-    milestones: { beginner: false, intermediate: false, advanced: false, master: false },
-  });
-  const [discoveries, setDiscoveries] = useState<Discovery[]>([]);
-  const [discoveriesLoading, setDiscoveriesLoading] = useState(true);
-  const [syncStatus, setSyncStatus] = useState('Syncing...');
 
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
@@ -164,72 +120,6 @@ export default function ProfilePage() {
       cancelled = true;
     };
   }, [uid, user]);
-
-  // Load discoveries
-  useEffect(() => {
-    if (!uid) {
-      setDiscoveries([]);
-      setDiscoveriesLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    setDiscoveriesLoading(true);
-
-    loadDiscoveries(uid).then((data) => {
-      if (!cancelled) {
-        setDiscoveries(data);
-        setProgressData(computeProgress(data));
-        setDiscoveriesLoading(false);
-      }
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [uid]);
-
-  // Real-time progress listener
-  useEffect(() => {
-    if (!uid) return;
-
-    setSyncStatus('Syncing...');
-
-    const unsubscribe = onSnapshot(
-      doc(db, 'progress', uid),
-      (snap) => {
-        if (snap.exists()) {
-          const data = snap.data() as UserProgressDoc;
-
-          if (data.progress) {
-            setProgressData(data.progress);
-          }
-
-          if (Array.isArray(data.discoveries)) {
-            setDiscoveries(data.discoveries);
-            // Recompute in case progress field is stale
-            if (!data.progress) {
-              setProgressData(computeProgress(data.discoveries));
-            }
-          }
-
-          setSyncStatus(
-            data.lastUpdated
-              ? `Last synced: ${formatDate(data.lastUpdated)}`
-              : 'Synced',
-          );
-        } else {
-          setSyncStatus('No progress data found');
-        }
-      },
-      (err) => {
-        console.warn('[profile] Progress listener error:', err);
-        setSyncStatus('Sync error');
-      },
-    );
-
-    return () => unsubscribe();
-  }, [uid]);
 
   // Cleanup close timer
   useEffect(() => {
@@ -462,7 +352,15 @@ export default function ProfilePage() {
   }
 
   const editPreviewAvatar = effectiveEditPhotoURL || DEFAULT_AVATAR;
-  const percentage = Math.round(progressData.progressPercentage);
+  const percentage = Math.round(progress.progressPercentage);
+  const syncStatus =
+    syncState === 'error'
+      ? 'Sync error'
+      : lastUpdated
+        ? `Last synced: ${formatDate(lastUpdated)}`
+        : syncState === 'synced'
+          ? 'Synced'
+          : 'Syncing...';
 
   return (
     <section className="space-y-6">
@@ -518,22 +416,22 @@ export default function ProfilePage() {
           <div className="bg-[var(--bg-sidebar)] rounded-[16px] p-5 border border-[var(--border-color)]">
             <h3 className="text-xs font-semibold text-[var(--text-light)] uppercase tracking-wide mb-2">Discoveries</h3>
             <p className="text-2xl font-extrabold text-[var(--text-main)]">
-              {progressData.completedDiscoveries} / {TOTAL_ELEMENTS}
+              {progress.completedDiscoveries} / {TOTAL_ELEMENTS}
             </p>
           </div>
           <div className="bg-[var(--bg-sidebar)] rounded-[16px] p-5 border border-[var(--border-color)]">
             <h3 className="text-xs font-semibold text-[var(--text-light)] uppercase tracking-wide mb-2">Milestones</h3>
             <div className="flex flex-wrap gap-2">
-              <div className={progressData.milestones.beginner ? 'bg-[rgba(16,185,129,0.15)] text-emerald-500 border border-[rgba(16,185,129,0.3)] px-3 py-1 rounded-full text-xs font-semibold' : 'bg-[var(--bg-sidebar)] text-[var(--text-light)] border border-[var(--border-color)] px-3 py-1 rounded-full text-xs font-semibold'}>
+              <div className={progress.milestones.beginner ? 'bg-[rgba(16,185,129,0.15)] text-emerald-500 border border-[rgba(16,185,129,0.3)] px-3 py-1 rounded-full text-xs font-semibold' : 'bg-[var(--bg-sidebar)] text-[var(--text-light)] border border-[var(--border-color)] px-3 py-1 rounded-full text-xs font-semibold'}>
                 Beginner
               </div>
-              <div className={progressData.milestones.intermediate ? 'bg-[rgba(16,185,129,0.15)] text-emerald-500 border border-[rgba(16,185,129,0.3)] px-3 py-1 rounded-full text-xs font-semibold' : 'bg-[var(--bg-sidebar)] text-[var(--text-light)] border border-[var(--border-color)] px-3 py-1 rounded-full text-xs font-semibold'}>
+              <div className={progress.milestones.intermediate ? 'bg-[rgba(16,185,129,0.15)] text-emerald-500 border border-[rgba(16,185,129,0.3)] px-3 py-1 rounded-full text-xs font-semibold' : 'bg-[var(--bg-sidebar)] text-[var(--text-light)] border border-[var(--border-color)] px-3 py-1 rounded-full text-xs font-semibold'}>
                 Intermediate
               </div>
-              <div className={progressData.milestones.advanced ? 'bg-[rgba(16,185,129,0.15)] text-emerald-500 border border-[rgba(16,185,129,0.3)] px-3 py-1 rounded-full text-xs font-semibold' : 'bg-[var(--bg-sidebar)] text-[var(--text-light)] border border-[var(--border-color)] px-3 py-1 rounded-full text-xs font-semibold'}>
+              <div className={progress.milestones.advanced ? 'bg-[rgba(16,185,129,0.15)] text-emerald-500 border border-[rgba(16,185,129,0.3)] px-3 py-1 rounded-full text-xs font-semibold' : 'bg-[var(--bg-sidebar)] text-[var(--text-light)] border border-[var(--border-color)] px-3 py-1 rounded-full text-xs font-semibold'}>
                 Advanced
               </div>
-              <div className={progressData.milestones.master ? 'bg-[rgba(16,185,129,0.15)] text-emerald-500 border border-[rgba(16,185,129,0.3)] px-3 py-1 rounded-full text-xs font-semibold' : 'bg-[var(--bg-sidebar)] text-[var(--text-light)] border border-[var(--border-color)] px-3 py-1 rounded-full text-xs font-semibold'}>
+              <div className={progress.milestones.master ? 'bg-[rgba(16,185,129,0.15)] text-emerald-500 border border-[rgba(16,185,129,0.3)] px-3 py-1 rounded-full text-xs font-semibold' : 'bg-[var(--bg-sidebar)] text-[var(--text-light)] border border-[var(--border-color)] px-3 py-1 rounded-full text-xs font-semibold'}>
                 Master
               </div>
             </div>
@@ -544,7 +442,7 @@ export default function ProfilePage() {
       {/* Discoveries Section */}
       <div className="bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[28px] p-8 space-y-4">
         <h2 className="text-lg font-bold text-[var(--text-main)] mb-4">
-          Discoveries ({progressData.completedDiscoveries} / {TOTAL_ELEMENTS})
+          Discoveries ({progress.completedDiscoveries} / {TOTAL_ELEMENTS})
         </h2>
 
         {discoveriesLoading ? (

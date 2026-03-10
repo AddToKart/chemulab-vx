@@ -20,6 +20,7 @@ import {
   limit,
 } from 'firebase/firestore';
 import { useAuthStore } from '@/store/auth-store';
+import { filterProfanity } from '@/lib/utils';
 
 
 /* ------------------------------------------------------------------ */
@@ -114,6 +115,7 @@ export default function FriendsPage() {
   const [modalData, setModalData] = useState<ModalData | null>(null);
   const [incomingRequests, setIncomingRequests] = useState<FriendRequest[]>([]);
   const [outgoingRequests, setOutgoingRequests] = useState<FriendRequest[]>([]);
+  const [blockedUsers, setBlockedUsers] = useState<string[]>([]);
 
   /* Refs */
   const messagesUnsubRef = useRef<(() => void) | undefined>(undefined);
@@ -144,7 +146,13 @@ export default function FriendsPage() {
       }
       setFriends(list);
     }, (err) => console.error('[Friends] list listener error:', err));
-    return () => unsub();
+    
+    // Listen for blocked users
+    const unsubBlocked = onSnapshot(collection(db, 'users', uid, 'blocked'), (snap) => {
+      setBlockedUsers(snap.docs.map(d => d.id));
+    }, (err) => console.error('[Friends] blocked listener error:', err));
+
+    return () => { unsub(); unsubBlocked(); };
   }, [uid]);
 
   /* ---------------------------------------------------------------- */
@@ -279,6 +287,12 @@ export default function FriendsPage() {
         return;
       }
 
+      // Check if user is blocked
+      if (blockedUsers.includes(targetUid)) {
+        setStatus('You have blocked this user. Unblock them in settings to send a friend request.');
+        return;
+      }
+
       // Check if already friends
       const existingFriend = friends.find((f) => f.uid === targetUid);
       if (existingFriend) {
@@ -400,10 +414,23 @@ export default function FriendsPage() {
     const text = messageText.trim();
     if (!text) return;
 
+    // Check if we blocked them
+    if (blockedUsers.includes(activeChat.friendUid)) {
+      setStatus('You have blocked this user. Unblock them to send a message.');
+      return;
+    }
+
+    // Apply profanity filter
+    const filteredText = filterProfanity(text);
+
     setMessageText('');
     try {
+      // 1. Double check they haven't blocked us (read their blocked list if possible, or handle error)
+      // Since rules only allow owner to read /blocked, we can't easily check it directly without a Cloud Function.
+      // But we can let Firestore write it, and if they blocked us, they won't see it (or we could enforce it via rules if we restructure).
+      // For now, write the message.
       await addDoc(collection(db, 'chats', activeChat.chatId, 'messages'), {
-        text,
+        text: filteredText,
         fromUid: uid,
         fromEmail: profile.email || '',
         fromUsername: profile.username || '',
@@ -412,6 +439,34 @@ export default function FriendsPage() {
     } catch (e) {
       console.error('[SendMessage] Failed:', e);
       setMessageText(text);
+      setStatus("Couldn't send message.");
+    }
+  };
+
+  /* ---------------------------------------------------------------- */
+  /*  Report message                                                   */
+  /* ---------------------------------------------------------------- */
+
+  const handleReportMessage = async (msg: ChatMessage) => {
+    if (!uid || !profile) return;
+    const reason = window.prompt(`Why are you reporting this message from ${msg.fromUsername}?\n"${msg.text}"`);
+    if (!reason) return;
+
+    try {
+      await addDoc(collection(db, 'reports'), {
+        reporterUid: uid,
+        reporterUsername: profile.username,
+        messageId: msg.id,
+        messageText: msg.text,
+        messageFromUid: msg.fromUid,
+        messageFromUsername: msg.fromUsername,
+        reason,
+        timestamp: serverTimestamp(),
+      });
+      alert('Thank you. The message has been reported for review.');
+    } catch (e) {
+      console.error('[ReportMessage] Failed:', e);
+      alert('Failed to report message. Please try again.');
     }
   };
 
@@ -480,6 +535,8 @@ export default function FriendsPage() {
       batch.delete(doc(db, 'users', uid, 'friends', modalData.uid));
       // Delete from their friends list (rule: friendId can write)
       batch.delete(doc(db, 'users', modalData.uid, 'friends', uid));
+      // Delete chat
+      batch.delete(doc(db, 'chats', modalData.chatId));
       await batch.commit();
 
       if (activeChat?.friendUid === modalData.uid) {
@@ -491,6 +548,44 @@ export default function FriendsPage() {
       setModalData(null);
     } catch (e) {
       console.error('[Unfriend] Failed:', e);
+    }
+  };
+
+  const handleBlock = async () => {
+    if (!uid || !modalData) return;
+    const confirmed = window.confirm(
+      `Are you sure you want to block ${modalData.username}? You won't receive their messages anymore.`,
+    );
+    if (!confirmed) return;
+
+    try {
+      // Only add to blocked list, preserve friend doc & chat history
+      await setDoc(doc(db, 'users', uid, 'blocked', modalData.uid), {
+        uid: modalData.uid,
+        email: modalData.email,
+        username: modalData.username,
+        blockedAt: serverTimestamp(),
+      });
+
+      setModalVisible(false);
+      setModalData(null);
+      setStatus(`Blocked ${modalData.username}.`);
+    } catch (e) {
+      console.error('[Block] Failed:', e);
+      setStatus('Failed to block user.');
+    }
+  };
+
+  const handleUnblock = async () => {
+    if (!uid || !modalData) return;
+    try {
+      await deleteDoc(doc(db, 'users', uid, 'blocked', modalData.uid));
+      setModalVisible(false);
+      setModalData(null);
+      setStatus(`Unblocked ${modalData.username}.`);
+    } catch (e) {
+      console.error('[Unblock] Failed:', e);
+      setStatus('Failed to unblock user.');
     }
   };
 
@@ -704,20 +799,38 @@ export default function FriendsPage() {
                   No messages yet. Say hello!
                 </p>
               )}
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex flex-col max-w-[70%]${msg.fromUid === uid ? ' self-end items-end' : ' self-start items-start'}`}
-                >
-                  <div className={msg.fromUid === uid ? 'bg-[var(--accent-color)] text-white px-4 py-2.5 rounded-[16px] rounded-br-[4px] text-sm' : 'bg-[var(--bg-sidebar)] text-[var(--text-main)] border border-[var(--border-color)] px-4 py-2.5 rounded-[16px] rounded-bl-[4px] text-sm'}>
-                    {msg.text}
+              {messages.map((msg) => {
+                // Ignore messages from people we've blocked that were sent AFTER we blocked them
+                // (Optional: right now we just hide all messages from blocked users for simplicity, or we can show them since they are still friends)
+                // Let's hide them for a true "block" feel.
+                if (msg.fromUid !== uid && blockedUsers.includes(msg.fromUid)) {
+                  return null;
+                }
+                return (
+                  <div
+                    key={msg.id}
+                    className={`flex flex-col max-w-[70%] group${msg.fromUid === uid ? ' self-end items-end' : ' self-start items-start'}`}
+                  >
+                    <div className={msg.fromUid === uid ? 'bg-[var(--accent-color)] text-white px-4 py-2.5 rounded-[16px] rounded-br-[4px] text-sm shadow-sm' : 'bg-[var(--bg-sidebar)] text-[var(--text-main)] border border-[var(--border-color)] px-4 py-2.5 rounded-[16px] rounded-bl-[4px] text-sm shadow-sm'}>
+                      {msg.text}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1 px-1">
+                      <span className="text-[var(--text-light)] text-[0.65rem]">
+                        {msg.fromUsername}
+                        {msg.createdAt ? ` · ${formatTime(msg.createdAt)}` : ''}
+                      </span>
+                      {msg.fromUid !== uid && (
+                        <button 
+                          onClick={() => handleReportMessage(msg)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-red-400 hover:text-red-500 hover:underline cursor-pointer font-medium"
+                        >
+                          Report
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-[var(--text-light)] text-[0.65rem] mt-1 px-1">
-                    {msg.fromUsername}
-                    {msg.createdAt ? ` · ${formatTime(msg.createdAt)}` : ''}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Input */}
@@ -802,13 +915,32 @@ export default function FriendsPage() {
               </div>
             </div>
 
-            <button
-              type="button"
-              className="w-full bg-red-500/10 text-red-400 border border-red-500/30 font-semibold px-6 py-2.5 rounded-[12px] hover:bg-red-500/20 transition-colors cursor-pointer"
-              onClick={handleUnfriend}
-            >
-              Unfriend
-            </button>
+            <div className="flex gap-3 mt-6">
+              {blockedUsers.includes(modalData.uid) ? (
+                <button
+                  type="button"
+                  className="flex-1 bg-emerald-500/10 text-emerald-500 border border-emerald-500/30 font-semibold px-4 py-2.5 rounded-[12px] hover:bg-emerald-500 hover:text-white transition-colors cursor-pointer"
+                  onClick={handleUnblock}
+                >
+                  Unblock
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="flex-1 bg-red-500/10 text-red-500 border border-red-500/30 font-semibold px-4 py-2.5 rounded-[12px] hover:bg-red-500 hover:text-white transition-colors cursor-pointer"
+                  onClick={handleBlock}
+                >
+                  Block
+                </button>
+              )}
+              <button
+                type="button"
+                className="flex-1 bg-[var(--bg-sidebar)] text-[var(--text-light)] border border-[var(--border-color)] font-semibold px-4 py-2.5 rounded-[12px] hover:border-red-500/50 hover:text-red-400 transition-colors cursor-pointer"
+                onClick={handleUnfriend}
+              >
+                Unfriend
+              </button>
+            </div>
           </div>
         </div>
       )}
