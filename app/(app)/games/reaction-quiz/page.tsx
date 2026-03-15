@@ -5,11 +5,14 @@ import Link from 'next/link';
 import { reactionsData } from '@/lib/data/reactions-data';
 import styles from './page.module.css';
 
+import { ShareGameScore } from '@/components/game/ShareGameScore';
+
 interface Question {
   reactants: string;
-  correctAnswer: string;
+  reactantsName: string;
+  correctAnswer: { formula: string; name: string };
   reactionName: string;
-  options: string[];
+  options: { formula: string; name: string }[];
 }
 
 export default function ReactionQuizPage() {
@@ -22,24 +25,25 @@ export default function ReactionQuizPage() {
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [feedbackText, setFeedbackText] = useState('');
   const [showNext, setShowNext] = useState(false);
+  const [showName, setShowName] = useState(false);
 
   const generateQuestion = useCallback((): Question => {
     const correctReaction =
       reactionsData[Math.floor(Math.random() * reactionsData.length)];
 
-    const correctAnswer = correctReaction.products;
+    const correctAnswer = { formula: correctReaction.products, name: correctReaction.productsName };
 
     // Generate 3 distractors from other reactions' products
-    const distractors: string[] = [];
-    const usedValues = new Set<string>([correctAnswer]);
+    const distractors: { formula: string; name: string }[] = [];
+    const usedValues = new Set<string>([correctAnswer.formula]);
 
     while (distractors.length < 3) {
       const randomReaction =
         reactionsData[Math.floor(Math.random() * reactionsData.length)];
-      const distractor = randomReaction.products;
+      const distractor = { formula: randomReaction.products, name: randomReaction.productsName };
 
-      if (!usedValues.has(distractor)) {
-        usedValues.add(distractor);
+      if (!usedValues.has(distractor.formula)) {
+        usedValues.add(distractor.formula);
         distractors.push(distractor);
       }
     }
@@ -53,6 +57,7 @@ export default function ReactionQuizPage() {
 
     return {
       reactants: correctReaction.reactants,
+      reactantsName: correctReaction.reactantsName,
       correctAnswer,
       reactionName: correctReaction.name,
       options,
@@ -78,7 +83,7 @@ export default function ReactionQuizPage() {
       setSelectedAnswer(answer);
       setShowNext(true);
 
-      if (answer === question.correctAnswer) {
+      if (answer === question.correctAnswer.formula) {
         const points = 10 + streak * 2;
         setScore((prev) => prev + points);
         setStreak((prev) => prev + 1);
@@ -86,7 +91,7 @@ export default function ReactionQuizPage() {
       } else {
         setStreak(0);
         setFeedbackText(
-          `Wrong! The answer was ${question.correctAnswer}`
+          `Wrong! The answer was ${showName ? question.correctAnswer.name : question.correctAnswer.formula}`
         );
         setLives((prev) => {
           const newLives = prev - 1;
@@ -99,7 +104,7 @@ export default function ReactionQuizPage() {
         });
       }
     },
-    [question, selectedAnswer, streak]
+    [question, selectedAnswer, streak, showName]
   );
 
   const nextQuestion = useCallback(() => {
@@ -112,10 +117,10 @@ export default function ReactionQuizPage() {
   const getOptionClass = (option: string): string => {
     if (selectedAnswer === null) return styles.optionBtn;
 
-    if (option === question?.correctAnswer) {
+    if (option === question?.correctAnswer.formula) {
       return `${styles.optionBtn} ${styles.optionBtnCorrect}`;
     }
-    if (option === selectedAnswer && option !== question?.correctAnswer) {
+    if (option === selectedAnswer && option !== question?.correctAnswer.formula) {
       return `${styles.optionBtn} ${styles.optionBtnWrong}`;
     }
     return styles.optionBtn;
@@ -153,21 +158,32 @@ export default function ReactionQuizPage() {
             </div>
 
             <div className={styles.questionBox}>
+              <div className={styles.toggleContainer}>
+                <span className={!showName ? styles.activeToggle : ''}>Formula</span>
+                <button 
+                  className={styles.toggleBtn} 
+                  onClick={() => setShowName(!showName)}
+                  aria-pressed={showName}
+                >
+                  <div className={`${styles.toggleKnob} ${showName ? styles.toggleKnobActive : ''}`} />
+                </button>
+                <span className={showName ? styles.activeToggle : ''}>Name</span>
+              </div>
               <p>What are the products of this reaction?</p>
               <p className={styles.reactionEquation}>
-                {question.reactants} &rarr; ?
+                {showName ? `${question.reactantsName} \u2192 ?` : `${question.reactants} \u2192 ?`}
               </p>
             </div>
 
             <div className={styles.optionsGrid}>
               {question.options.map((option) => (
                 <button
-                  key={option}
-                  className={getOptionClass(option)}
-                  onClick={() => handleAnswer(option)}
+                  key={option.formula}
+                  className={getOptionClass(option.formula)}
+                  onClick={() => handleAnswer(option.formula)}
                   disabled={selectedAnswer !== null}
                 >
-                  {option}
+                  {showName ? option.name : option.formula}
                 </button>
               ))}
             </div>
@@ -186,6 +202,9 @@ export default function ReactionQuizPage() {
           <div className={styles.gameOverScreen}>
             <h2 className={styles.gameOverTitle}>Game Over!</h2>
             <p className={styles.finalScore}>Final Score: {score}</p>
+            <div style={{ margin: '1rem 0', display: 'flex', justifyContent: 'center' }}>
+              <ShareGameScore score={score} gameName="Reaction Quiz" />
+            </div>
             <button className={styles.playAgainBtn} onClick={startGame}>
               Play Again
             </button>

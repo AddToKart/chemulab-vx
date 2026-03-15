@@ -16,7 +16,7 @@ import {
   updateDoc, 
   deleteDoc, 
   writeBatch, 
-  serverTimestamp 
+  serverTimestamp,
 } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 
@@ -34,6 +34,7 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
   const [scrolled, setScrolled] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [requests, setRequests] = useState<any[]>([]);
+  const [unreadChats, setUnreadChats] = useState<any[]>([]);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -51,6 +52,22 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
     return () => unsub();
   }, [user?.uid]);
 
+  // Listen for unread message notifications
+  useEffect(() => {
+    if (!user?.uid) return;
+    const q = query(
+      collection(db, 'notifications'),
+      where('toUid', '==', user.uid),
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      console.log('[TopBar] Notifications snap:', snap.docs.length, 'docs');
+      setUnreadChats(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (err) => {
+      console.error('[TopBar] Notifications listener error:', err);
+    });
+    return () => unsub();
+  }, [user?.uid]);
+
   // Click outside to close notifications
   useEffect(() => {
     if (!isNotificationsOpen) return;
@@ -63,6 +80,14 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
     window.addEventListener('mousedown', handleOutside);
     return () => window.removeEventListener('mousedown', handleOutside);
   }, [isNotificationsOpen]);
+
+  const handleDismissNotification = async (notifId: string) => {
+    try {
+      await deleteDoc(doc(db, 'notifications', notifId));
+    } catch (e) {
+      console.error('[TopBar] Dismiss notification error:', e);
+    }
+  };
 
   const handleAccept = async (req: any) => {
     if (!user?.uid || !profile) return;
@@ -196,7 +221,7 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
                   <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                   <path d="M13.73 21a2 2 0 0 1-3.46 0" />
                 </svg>
-                {requests.length > 0 && (
+                {(requests.length > 0 || unreadChats.length > 0) && (
                   <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-background animate-pulse" />
                 )}
               </button>
@@ -209,15 +234,15 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
                 >
                   <div className="px-5 py-4 border-b border-border flex items-center justify-between">
                     <h3 className="font-bold text-sm">Notifications</h3>
-                    {requests.length > 0 && (
+                    {(requests.length > 0 || unreadChats.length > 0) && (
                       <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">
-                        {requests.length} NEW
+                        {requests.length + unreadChats.length} NEW
                       </span>
                     )}
                   </div>
 
                   <div className="max-h-[320px] overflow-y-auto">
-                    {requests.length === 0 ? (
+                    {requests.length === 0 && unreadChats.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-10 px-6 text-center">
                         <div className="p-3 bg-muted rounded-full mb-3 opacity-50">
                           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -225,10 +250,11 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
                           </svg>
                         </div>
                         <p className="text-sm text-muted-foreground">All caught up!</p>
-                        <p className="text-xs text-muted-foreground mt-1">No new notifications or requests.</p>
+                        <p className="text-xs text-muted-foreground mt-1">No new notifications or messages.</p>
                       </div>
                     ) : (
                       <div className="p-2 space-y-1">
+                        {/* Friend Requests */}
                         {requests.map((req) => (
                           <div key={req.id} className="p-3 bg-muted/40 hover:bg-muted/80 rounded-xl transition-colors border border-transparent hover:border-border/50">
                             <div className="flex gap-3">
@@ -254,6 +280,47 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
                                     Decline
                                   </button>
                                 </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+
+                        {/* Unread Message Notifications */}
+                        {unreadChats.map((notif) => (
+                          <div 
+                            key={notif.id} 
+                            className="p-3 bg-muted/40 hover:bg-muted/80 rounded-xl transition-colors border border-transparent hover:border-border/50"
+                          >
+                            <div className="flex gap-3 items-center">
+                              <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 border border-blue-500/20 text-blue-500 text-lg">
+                                💬
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-foreground leading-tight">
+                                  <span className="text-primary">{notif.fromUsername || 'Someone'}</span>
+                                  <span className="font-normal text-muted-foreground"> sent you a message:</span>
+                                </p>
+                                <p className="text-xs text-muted-foreground truncate mt-1 italic">
+                                  &quot;{notif.message}&quot;
+                                </p>
+                              </div>
+                              <div className="flex gap-1.5 shrink-0">
+                                <Link 
+                                  href={`/friends?chatId=${notif.chatId}`}
+                                  onClick={() => {
+                                    handleDismissNotification(notif.id);
+                                    setIsNotificationsOpen(false);
+                                  }}
+                                  className="h-7 px-2.5 bg-primary/10 text-primary text-[10px] font-bold rounded-lg hover:bg-primary/20 transition-colors cursor-pointer no-underline flex items-center"
+                                >
+                                  View
+                                </Link>
+                                <button
+                                  onClick={() => handleDismissNotification(notif.id)}
+                                  className="h-7 w-7 bg-muted text-muted-foreground border border-border text-xs rounded-lg hover:bg-accent transition-colors cursor-pointer flex items-center justify-center"
+                                >
+                                  ✕
+                                </button>
                               </div>
                             </div>
                           </div>

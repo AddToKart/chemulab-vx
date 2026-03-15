@@ -33,8 +33,8 @@ export function validateEmail(email: string): boolean {
 }
 
 export async function checkUsernameExists(username: string): Promise<boolean> {
-  const snap = await getDoc(doc(db, 'usernames', username));
-  return snap.exists();
+  // Username uniqueness is no longer enforced
+  return false;
 }
 
 // ─── Username utilities ───
@@ -45,58 +45,22 @@ function deriveUsername(email: string): string {
   return base.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 20) || 'user';
 }
 
-/** Ensure a username -> uid mapping exists. Returns the reserved username. */
+/** Ensure a profile has a username. Returns the username. */
 export async function ensureUsernameForUser(
   uid: string,
   email: string | null,
   preferredUsername?: string,
 ): Promise<string | null> {
-  // Check if mapping already exists for uid
-  const existingQ = query(collection(db, 'usernames'), where('uid', '==', uid), limit(1));
-  const existingSnap = await getDocs(existingQ);
-  if (!existingSnap.empty) {
-    const existingUsername = existingSnap.docs[0].id;
-    // Ensure profile also has this username
-    const profileSnap = await getDoc(doc(db, 'users', uid));
-    if (!profileSnap.exists() || !profileSnap.data()?.username) {
-      await setDoc(doc(db, 'users', uid), { username: existingUsername, email }, { merge: true });
-    }
-    return existingUsername;
-  }
-
   // Check if profile already has a username
   const profileSnap = await getDoc(doc(db, 'users', uid));
   if (profileSnap.exists() && profileSnap.data()?.username) {
-    const profileUsername = profileSnap.data()!.username as string;
-    const unameSnap = await getDoc(doc(db, 'usernames', profileUsername));
-    if (!unameSnap.exists()) {
-      await setDoc(doc(db, 'usernames', profileUsername), {
-        uid,
-        email,
-        createdAt: serverTimestamp(),
-      });
-    }
-    return profileUsername;
+    return profileSnap.data()!.username as string;
   }
 
-  // Derive and reserve a new username
-  let base = preferredUsername || (email ? deriveUsername(email) : uid.slice(0, 8));
-  base = base.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 20) || uid.slice(0, 8);
-
-  let candidate = base;
-  let suffix = 0;
-  while (suffix < 200) {
-    const ref = doc(db, 'usernames', candidate);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) {
-      await setDoc(ref, { uid, email, createdAt: serverTimestamp() });
-      await setDoc(doc(db, 'users', uid), { username: candidate, email }, { merge: true });
-      return candidate;
-    }
-    suffix++;
-    candidate = base + suffix;
-  }
-  return null;
+  // Derive a new username
+  const username = preferredUsername || (email ? deriveUsername(email) : uid.slice(0, 8));
+  await setDoc(doc(db, 'users', uid), { username, email }, { merge: true });
+  return username;
 }
 
 // ─── Registration ───
@@ -115,10 +79,7 @@ export async function register(
     throw new Error('Invalid email format');
   }
 
-  // Check username availability
-  if (await checkUsernameExists(username)) {
-    throw new Error('This username is already taken. Please choose a different username.');
-  }
+  // Username uniqueness is no longer checked here
 
   // Suppress auth-listener side-effects (redirect, profile fetch) during registration
   const { setRegistering } = useAuthStore.getState();
@@ -141,15 +102,7 @@ export async function register(
       throw err;
     }
 
-    // Reserve username via transaction
-    const usernameRef = doc(db, 'usernames', username);
-    await runTransaction(db, async (tx) => {
-      const snap = await tx.get(usernameRef);
-      if (snap.exists()) throw new Error('Username already taken');
-      tx.set(usernameRef, { uid, email, createdAt: serverTimestamp() });
-    });
-
-    // Write user profile
+    // Write user profile (no more usernames collection reservation)
     await setDoc(
       doc(db, 'users', uid),
       {
@@ -190,16 +143,8 @@ export async function register(
 // ─── Login ───
 
 export async function login(identifier: string, password: string): Promise<User> {
-  let email = identifier;
-
-  // If identifier is a username (no @), resolve to email
-  if (!identifier.includes('@')) {
-    const snap = await getDoc(doc(db, 'usernames', identifier));
-    if (!snap.exists()) throw new Error('Username does not exist');
-    const data = snap.data();
-    if (!data?.email) throw new Error('No email mapped for username');
-    email = data.email as string;
-  }
+  // Login now only supports email (username-to-email resolution removed as usernames are no longer unique)
+  const email = identifier;
 
   const userCred = await signInWithEmailAndPassword(auth, email, password);
   const user = userCred.user;

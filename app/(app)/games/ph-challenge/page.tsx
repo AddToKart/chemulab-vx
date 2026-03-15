@@ -15,6 +15,8 @@ import {
 import { useAuthStore } from '@/store/auth-store';
 import styles from './page.module.css';
 
+import { ShareGameScore } from '@/components/game/ShareGameScore';
+
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
@@ -525,6 +527,12 @@ export default function PHChallengePage() {
             </p>
 
             <div className={styles.victoryButtons}>
+              <div style={{ marginBottom: '1rem', width: '100%', display: 'flex', justifyContent: 'center' }}>
+                <ShareGameScore 
+                    gameName="pH Challenge" 
+                    customMessage={`I finished with pH ${playerNumber === 1 ? gameData.p1PH : gameData.p2PH} (Target: ${gameData.targetPH}) in pH Challenge! 🧪`} 
+                />
+              </div>
               <button className={styles.btn} onClick={handleReplay}>
                 Play Again
               </button>

@@ -15,6 +15,8 @@ import {
 import { useAuthStore } from '@/store/auth-store';
 import styles from './page.module.css';
 
+import { ShareGameScore } from '@/components/game/ShareGameScore';
+
 // --------------- Types ---------------
 
 interface Ingredient {
@@ -724,6 +726,12 @@ export default function VolcanoPage() {
                   ingredients and triggered the eruption!
                 </p>
                 <div className={styles.gameOverActions}>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <ShareGameScore 
+                        gameName="Volcano Experiment" 
+                        customMessage="I just successfully triggered the volcano eruption in Volcano Experiment! 🌋" 
+                    />
+                  </div>
                   <button
                     className={`${styles.btn} ${styles.btnPrimary}`}
                     onClick={leaveGame}

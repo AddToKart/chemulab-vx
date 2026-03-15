@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { elementsData } from '@/lib/data/elements-data';
 import styles from './page.module.css';
 
+import { ShareGameScore } from '@/components/game/ShareGameScore';
+
 const HEAVY_METALS = ['Pb', 'Hg', 'Cd', 'As', 'Tl', 'Cr', 'U', 'Pu', 'Ra', 'Po'];
 const TOTAL_HOLES = 16;
 const GAME_DURATION = 30;
@@ -255,6 +257,9 @@ export default function WhackAMolePage() {
             <div className={styles.gameOver}>Game Over!</div>
             <div className={styles.finalScore}>{score}</div>
             <p>points</p>
+            <div style={{ margin: '1rem 0', display: 'flex', justifyContent: 'center' }}>
+              <ShareGameScore score={score} gameName="Whack-a-Mole" />
+            </div>
             <button className={styles.restartBtn} onClick={startGame}>
               Play Again
             </button>

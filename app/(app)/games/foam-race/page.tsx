@@ -15,6 +15,8 @@ import {
 import { useAuthStore } from '@/store/auth-store';
 import styles from './page.module.css';
 
+import { ShareGameScore } from '@/components/game/ShareGameScore';
+
 /* ─── Ingredient data ─── */
 
 interface Ingredient {
@@ -558,6 +560,8 @@ export default function FoamRacePage() {
   const renderVictory = () => {
     if (!winnerInfo || !gameData) return null;
 
+    const myScore = getPlayerNumber() === 1 ? winnerInfo.p1Score : winnerInfo.p2Score;
+
     return (
       <div className={styles.screen}>
         <h1 className={styles.victoryTitle}>{winnerInfo.text}</h1>
@@ -601,9 +605,15 @@ export default function FoamRacePage() {
           </div>
         </div>
 
-        <button className={styles.btnPrimary} onClick={playAgain}>
-          Play Again
-        </button>
+        <div className="flex flex-col items-center gap-4 mt-8">
+            <ShareGameScore 
+                customMessage={`I built a ${myScore}cm foam tower in Foam Race! 🐘`}
+                gameName="Foam Race" 
+            />
+            <button className={styles.btnPrimary} onClick={playAgain}>
+            Play Again
+            </button>
+        </div>
       </div>
     );
   };

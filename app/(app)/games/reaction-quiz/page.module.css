@@ -91,6 +91,54 @@
   margin: 10px 0 0;
 }
 
+.toggleContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 15px;
+  font-size: 0.75em;
+  font-weight: 600;
+  color: #666;
+}
+
+.activeToggle {
+  color: #e65100;
+  font-weight: 700;
+}
+
+.toggleBtn {
+  width: 44px;
+  height: 24px;
+  background: #ccc;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  position: relative;
+  transition: background-color 0.3s;
+  padding: 0;
+}
+
+.toggleBtn[aria-pressed="true"] {
+  background: #e65100;
+}
+
+.toggleKnob {
+  width: 20px;
+  height: 20px;
+  background: #fff;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.3s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.toggleKnobActive {
+  transform: translateX(20px);
+}
+
 .optionsGrid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -210,6 +258,22 @@
 
 :global([data-theme='dark']) .reactionEquation {
   color: #ffb74d;
+}
+
+:global([data-theme='dark']) .toggleContainer {
+  color: var(--text-muted, #aaa);
+}
+
+:global([data-theme='dark']) .activeToggle {
+  color: #ffb74d;
+}
+
+:global([data-theme='dark']) .toggleBtn {
+  background: #555;
+}
+
+:global([data-theme='dark']) .toggleBtn[aria-pressed="true"] {
+  background: #ffb74d;
 }
 
 :global([data-theme='dark']) .optionBtn {

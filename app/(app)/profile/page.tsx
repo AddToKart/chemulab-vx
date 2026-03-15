@@ -1,132 +1,83 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
-import Cropper from 'react-easy-crop';
-import type { Area } from 'react-easy-crop';
-import { getCroppedImg } from '@/lib/utils/crop-image';
 import { db } from '@/lib/firebase/config';
 import {
   doc,
-  getDoc,
-  setDoc,
   updateDoc,
-  deleteDoc,
-  serverTimestamp,
 } from 'firebase/firestore';
 import { useAuthStore } from '@/store/auth-store';
-import { TOTAL_ELEMENTS } from '@/lib/firebase/discoveries';
+import { cn } from '@/lib/utils';
+import Cropper, { Area } from 'react-easy-crop';
+import { getCroppedImg } from '@/lib/utils/crop-image';
 import { useUserProgress } from '@/lib/hooks/use-user-progress';
-const DEFAULT_AVATAR = '/img/default-avatar.png';
+import { TOTAL_ELEMENTS as CANONICAL_TOTAL_ELEMENTS } from '@/lib/firebase/discoveries';
+
+const DEFAULT_AVATAR = '/images/profile.png';
 const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,20}$/;
 
-function formatDate(date: Date | string | undefined | null): string {
-  if (!date) return 'Unknown';
-  const d = typeof date === 'string' ? new Date(date) : date;
-  if (isNaN(d.getTime())) return 'Unknown';
-  return d.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+interface FirestoreDate {
+  toDate: () => Date;
+}
+
+// Helper function to format dates safely
+function formatDate(date: string | FirestoreDate | null | undefined): string {
+  if (!date) return 'Recently';
+  try {
+    const d = (typeof (date as FirestoreDate).toDate === 'function')
+      ? (date as FirestoreDate).toDate()
+      : new Date(date as string);
+    return d.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  } catch {
+    return 'Recently';
+  }
 }
 
 export default function ProfilePage() {
   const { user, profile, loading: authLoading } = useAuthStore();
   const uid = user?.uid;
-  const {
-    discoveries,
-    progress,
-    loading: discoveriesLoading,
-    syncState,
-    lastUpdated,
-  } = useUserProgress(uid);
 
-  // Profile state
-  const [photoURL, setPhotoURL] = useState<string>('');
-  const [photoSourceURL, setPhotoSourceURL] = useState<string>('');
-  const [joinDate, setJoinDate] = useState<string>('Unknown');
+  // Real-time progress and discoveries
+  const { discoveries, progress, loading: discoveriesLoading, syncState } = useUserProgress(uid);
+
+  // Profile data state
+  const [photoURL, setPhotoURL] = useState(profile?.photoURL || '');
+  const [photoSourceURL, setPhotoSourceURL] = useState(profile?.photoSourceURL || '');
 
   // Edit modal state
   const [showEditModal, setShowEditModal] = useState(false);
   const [editUsername, setEditUsername] = useState('');
   const [editPhotoURL, setEditPhotoURL] = useState('');
-  const [editCroppedData, setEditCroppedData] = useState<string | null>(null);
-  const [removePhoto, setRemovePhoto] = useState(false);
+  const [editBio, setEditBio] = useState('');
   const [editError, setEditError] = useState('');
   const [editSuccess, setEditSuccess] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Crop state
+  // Cropping state
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const [editCroppedData, setEditCroppedData] = useState<string | null>(null);
+  const [removePhoto, setRemovePhoto] = useState(false);
 
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load user doc for join date and photoURL
+  // Constants
+  const joinDate = formatDate((profile?.registrationDate || profile?.createdAt) as string | FirestoreDate);
+
+  // Initialize state when profile loads
   useEffect(() => {
-    if (!uid) return;
-
-    let cancelled = false;
-
-    async function fetchUserDoc() {
-      try {
-        const snap = await getDoc(doc(db, 'users', uid!));
-        if (snap.exists() && !cancelled) {
-          const data = snap.data();
-
-          // Photo URL
-          if (data.photoURL) {
-            setPhotoURL(data.photoURL);
-          }
-          if (data.photoSourceURL) {
-            setPhotoSourceURL(data.photoSourceURL);
-          }
-
-          // Join date: try registrationDate, then createdAt, then auth metadata
-          let date: Date | null = null;
-          if (data.registrationDate) {
-            date =
-              typeof data.registrationDate.toDate === 'function'
-                ? data.registrationDate.toDate()
-                : new Date(data.registrationDate);
-          } else if (data.createdAt) {
-            date =
-              typeof data.createdAt.toDate === 'function'
-                ? data.createdAt.toDate()
-                : new Date(data.createdAt);
-          }
-
-          if (date && !isNaN(date.getTime())) {
-            setJoinDate(formatDate(date));
-          } else if (user?.metadata.creationTime) {
-            setJoinDate(formatDate(user.metadata.creationTime));
-          }
-        } else if (!cancelled && user?.metadata.creationTime) {
-          setJoinDate(formatDate(user.metadata.creationTime));
-        }
-      } catch (err) {
-        console.warn('[profile] Error loading user doc:', err);
-        if (!cancelled && user?.metadata.creationTime) {
-          setJoinDate(formatDate(user.metadata.creationTime));
-        }
-      }
+    if (profile) {
+      setPhotoURL(profile.photoURL || '');
+      setPhotoSourceURL(profile.photoSourceURL || '');
     }
-
-    fetchUserDoc();
-    return () => {
-      cancelled = true;
-    };
-  }, [uid, user]);
-
-  // Cleanup close timer
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    };
-  }, []);
+  }, [profile]);
 
   // Open edit modal
   const handleOpenEdit = useCallback(() => {
@@ -134,6 +85,7 @@ export default function ProfilePage() {
     setEditPhotoURL(photoSourceURL || (photoURL && !photoURL.startsWith('data:') ? photoURL : ''));
     setEditCroppedData(null);
     setRemovePhoto(false);
+    setEditBio(profile?.bio || '');
     setEditError('');
     setEditSuccess('');
     setShowEditModal(true);
@@ -146,7 +98,7 @@ export default function ProfilePage() {
     setEditSuccess('');
     if (closeTimerRef.current) {
       clearTimeout(closeTimerRef.current);
-      closeTimerRef.current = undefined;
+      closeTimerRef.current = null;
     }
   }, []);
 
@@ -209,6 +161,7 @@ export default function ProfilePage() {
 
     const trimmedUsername = editUsername.trim();
     const trimmedPhotoURL = editPhotoURL.trim();
+    const trimmedBio = editBio.trim();
 
     // Validate username
     if (!trimmedUsername) {
@@ -223,18 +176,31 @@ export default function ProfilePage() {
       return;
     }
 
-    const usernameChanged =
-      trimmedUsername.toLowerCase() !== profile.username.toLowerCase();
+    const usernameChanged = trimmedUsername !== profile.username;
 
     // Calculate what the final state would be
-    const finalPhotoURL = removePhoto ? '' : (editCroppedData || trimmedPhotoURL || '');
-    const finalPhotoSourceURL = removePhoto ? '' : (trimmedPhotoURL || '');
+    let finalPhotoURL = photoURL;
+    let finalPhotoSourceURL = photoSourceURL;
+
+    if (removePhoto) {
+      finalPhotoURL = '';
+      finalPhotoSourceURL = '';
+    } else if (editCroppedData) {
+      // User provided a new crop
+      finalPhotoURL = editCroppedData;
+      finalPhotoSourceURL = trimmedPhotoURL;
+    } else if (trimmedPhotoURL !== photoSourceURL) {
+      // User changed the source URL but didn't crop yet
+      finalPhotoURL = trimmedPhotoURL;
+      finalPhotoSourceURL = trimmedPhotoURL;
+    }
+    // If trimmedPhotoURL === photoSourceURL and !editCroppedData, we keep existing finalPhotoURL (photoURL)
 
     // Photo is changed if either the final display photo or the source URL differs from what's stored
-    // Also consider the explicit removePhoto flag
-    const photoChanged = removePhoto ? (!!photoURL || !!photoSourceURL) : (finalPhotoURL !== photoURL || finalPhotoSourceURL !== photoSourceURL);
+    const photoChanged = finalPhotoURL !== photoURL || finalPhotoSourceURL !== photoSourceURL;
+    const bioChanged = trimmedBio !== (profile.bio || '');
 
-    if (!usernameChanged && !photoChanged) {
+    if (!usernameChanged && !photoChanged && !bioChanged) {
       setEditError('No changes detected.');
       return;
     }
@@ -242,18 +208,6 @@ export default function ProfilePage() {
     setSaving(true);
 
     try {
-      // Check username uniqueness
-      if (usernameChanged) {
-        const usernameDoc = await getDoc(
-          doc(db, 'usernames', trimmedUsername.toLowerCase()),
-        );
-        if (usernameDoc.exists()) {
-          setEditError('Username is already taken.');
-          setSaving(false);
-          return;
-        }
-      }
-
       // Build update object
       const updateData: Record<string, unknown> = {};
       if (usernameChanged) {
@@ -263,22 +217,13 @@ export default function ProfilePage() {
         updateData.photoURL = finalPhotoURL;
         updateData.photoSourceURL = finalPhotoSourceURL;
       }
+      if (bioChanged) {
+        const { filterProfanity } = await import('@/lib/utils');
+        updateData.bio = filterProfanity(trimmedBio);
+      }
 
       // Update user doc
-      await updateDoc(doc(db, 'users', uid), updateData);
-
-      // Handle username change in usernames collection
-      if (usernameChanged) {
-        // Delete old username doc
-        await deleteDoc(doc(db, 'usernames', profile.username.toLowerCase()));
-
-        // Create new username doc
-        await setDoc(doc(db, 'usernames', trimmedUsername.toLowerCase()), {
-          uid,
-          email: user?.email || profile.email,
-          createdAt: serverTimestamp(),
-        });
-      }
+      await updateDoc(doc(db, 'users', uid as string), updateData);
 
       // Update local state
       if (photoChanged) {
@@ -294,6 +239,7 @@ export default function ProfilePage() {
           photoURL: finalPhotoURL,
           photoSourceURL: finalPhotoSourceURL
         } : {}),
+        ...(bioChanged ? { bio: (updateData.bio as string) } : {}),
       });
 
       setEditSuccess('Profile updated successfully!');
@@ -308,7 +254,7 @@ export default function ProfilePage() {
     } finally {
       setSaving(false);
     }
-  }, [uid, profile, user, editUsername, editPhotoURL, editCroppedData, removePhoto, photoURL, photoSourceURL, handleCloseEdit]);
+  }, [uid, profile, editUsername, editPhotoURL, editBio, editCroppedData, removePhoto, photoURL, photoSourceURL, handleCloseEdit]);
 
   // Modal backdrop click
   const handleBackdropClick = useCallback(
@@ -353,14 +299,7 @@ export default function ProfilePage() {
 
   const editPreviewAvatar = effectiveEditPhotoURL || DEFAULT_AVATAR;
   const percentage = Math.round(progress.progressPercentage);
-  const syncStatus =
-    syncState === 'error'
-      ? 'Sync error'
-      : lastUpdated
-        ? `Last synced: ${formatDate(lastUpdated)}`
-        : syncState === 'synced'
-          ? 'Synced'
-          : 'Syncing...';
+  const syncStatus = syncState === 'synced' ? 'Synced' : 'Syncing...';
 
   return (
     <section className="space-y-6">
@@ -378,62 +317,86 @@ export default function ProfilePage() {
       {/* Profile Card */}
       <div className="bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[28px] p-8">
         <div className="flex items-center gap-6">
-          <div className="relative">
-            <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-[var(--accent-color)]/30 ring-2 ring-[var(--accent-color)]/20">
+          <div className="relative shrink-0">
+            <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-[var(--accent-color)]/30 ring-2 ring-[var(--accent-color)]/20 shadow-xl">
               <Image
                 src={displayAvatar}
                 alt={profile.username}
                 width={80}
                 height={80}
                 unoptimized={displayAvatar !== DEFAULT_AVATAR}
+                className="object-cover"
               />
             </div>
           </div>
-          <div>
-            <h2 className="text-xl font-bold text-[var(--text-main)]">{profile.username}</h2>
-            <p className="text-[var(--text-light)] text-sm">{user.email}</p>
-            <p className="text-[var(--text-light)] text-sm">Joined: {joinDate}</p>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-xl font-bold text-[var(--text-main)] truncate">{profile.username}</h2>
+            <p className="text-[var(--text-light)] text-sm truncate">{user.email}</p>
+            <p className="text-[var(--text-light)] text-xs mt-1">Joined: {joinDate}</p>
           </div>
+        </div>
+
+        {/* Bio Display */}
+        <div className="mt-6 pt-6 border-t border-[var(--glass-border)]">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-light)] mb-2">About Me</h3>
+          <p className="text-[var(--text-main)] text-sm leading-relaxed whitespace-pre-wrap italic">
+            {profile.bio || "No bio yet. Click Edit to add one!"}
+          </p>
         </div>
       </div>
 
       {/* Progress Section */}
       <div className="bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[28px] p-8 space-y-4">
-        <h2 className="text-lg font-bold text-[var(--text-main)] mb-4">Progress Tracker</h2>
-        <p className="text-xs text-[var(--text-light)] italic">{syncStatus}</p>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-lg font-bold text-[var(--text-main)]">Progress Tracker</h2>
+          <span className={cn(
+            "text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full border",
+            syncState === 'synced' ? "text-emerald-500 border-emerald-500/20 bg-emerald-500/5" : "text-amber-500 border-amber-500/20 bg-amber-500/5"
+          )}>
+            {syncStatus}
+          </span>
+        </div>
 
         {/* Progress Bar */}
-        <div className="relative h-3 bg-[var(--bg-sidebar)] rounded-full overflow-hidden">
+        <div className="relative h-4 bg-[var(--bg-sidebar)] rounded-full overflow-hidden border border-[var(--border-color)]">
           <div
-            className="absolute inset-y-0 left-0 bg-gradient-to-r from-[var(--accent-color)] to-[#0ea5e9] rounded-full transition-[width] duration-700"
+            className="absolute inset-y-0 left-0 bg-gradient-to-r from-[var(--accent-color)] to-[#0ea5e9] rounded-full transition-[width] duration-1000 ease-out shadow-[0_0_10px_rgba(16,185,129,0.3)]"
             style={{ width: `${percentage}%` }}
           />
-          <span className="absolute inset-0 flex items-center justify-center text-[0.65rem] font-bold text-white">{percentage}%</span>
+          <span className="absolute inset-0 flex items-center justify-center text-[0.6rem] font-black text-white mix-blend-difference">
+            {percentage}% COMPLETE
+          </span>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-4 mt-4 max-[600px]:grid-cols-1">
-          <div className="bg-[var(--bg-sidebar)] rounded-[16px] p-5 border border-[var(--border-color)]">
-            <h3 className="text-xs font-semibold text-[var(--text-light)] uppercase tracking-wide mb-2">Discoveries</h3>
-            <p className="text-2xl font-extrabold text-[var(--text-main)]">
-              {progress.completedDiscoveries} / {TOTAL_ELEMENTS}
+          <div className="bg-[var(--bg-sidebar)] rounded-[16px] p-5 border border-[var(--border-color)] hover:border-[var(--accent-color)]/30 transition-colors group">
+            <h3 className="text-xs font-semibold text-[var(--text-light)] uppercase tracking-wide mb-2 group-hover:text-[var(--accent-color)] transition-colors">Discoveries</h3>
+            <p className="text-2xl font-extrabold text-[var(--text-main)] flex items-baseline gap-1">
+              {progress.completedDiscoveries} <span className="text-xs font-medium text-[var(--text-light)]">/ {CANONICAL_TOTAL_ELEMENTS}</span>
             </p>
           </div>
           <div className="bg-[var(--bg-sidebar)] rounded-[16px] p-5 border border-[var(--border-color)]">
             <h3 className="text-xs font-semibold text-[var(--text-light)] uppercase tracking-wide mb-2">Milestones</h3>
             <div className="flex flex-wrap gap-2">
-              <div className={progress.milestones.beginner ? 'bg-[rgba(16,185,129,0.15)] text-emerald-500 border border-[rgba(16,185,129,0.3)] px-3 py-1 rounded-full text-xs font-semibold' : 'bg-[var(--bg-sidebar)] text-[var(--text-light)] border border-[var(--border-color)] px-3 py-1 rounded-full text-xs font-semibold'}>
-                Beginner
-              </div>
-              <div className={progress.milestones.intermediate ? 'bg-[rgba(16,185,129,0.15)] text-emerald-500 border border-[rgba(16,185,129,0.3)] px-3 py-1 rounded-full text-xs font-semibold' : 'bg-[var(--bg-sidebar)] text-[var(--text-light)] border border-[var(--border-color)] px-3 py-1 rounded-full text-xs font-semibold'}>
-                Intermediate
-              </div>
-              <div className={progress.milestones.advanced ? 'bg-[rgba(16,185,129,0.15)] text-emerald-500 border border-[rgba(16,185,129,0.3)] px-3 py-1 rounded-full text-xs font-semibold' : 'bg-[var(--bg-sidebar)] text-[var(--text-light)] border border-[var(--border-color)] px-3 py-1 rounded-full text-xs font-semibold'}>
-                Advanced
-              </div>
-              <div className={progress.milestones.master ? 'bg-[rgba(16,185,129,0.15)] text-emerald-500 border border-[rgba(16,185,129,0.3)] px-3 py-1 rounded-full text-xs font-semibold' : 'bg-[var(--bg-sidebar)] text-[var(--text-light)] border border-[var(--border-color)] px-3 py-1 rounded-full text-xs font-semibold'}>
-                Master
-              </div>
+              {[
+                { label: 'Beginner', active: progress.milestones.beginner },
+                { label: 'Intermediate', active: progress.milestones.intermediate },
+                { label: 'Advanced', active: progress.milestones.advanced },
+                { label: 'Master', active: progress.milestones.master }
+              ].map((m) => (
+                <div 
+                  key={m.label}
+                  className={cn(
+                    'px-3 py-1 rounded-full text-[0.65rem] font-bold border transition-all duration-300',
+                    m.active 
+                      ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30 shadow-[0_0_8px_rgba(16,185,129,0.15)]' 
+                      : 'bg-[var(--bg-sidebar)] text-[var(--text-light)] border-[var(--border-color)] opacity-50 grayscale'
+                  )}
+                >
+                  {m.label}
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -442,24 +405,44 @@ export default function ProfilePage() {
       {/* Discoveries Section */}
       <div className="bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[28px] p-8 space-y-4">
         <h2 className="text-lg font-bold text-[var(--text-main)] mb-4">
-          Discoveries ({progress.completedDiscoveries} / {TOTAL_ELEMENTS})
+          Discoveries ({progress.completedDiscoveries} / {CANONICAL_TOTAL_ELEMENTS})
         </h2>
 
         {discoveriesLoading ? (
-          <p className="text-[var(--text-light)] text-sm text-center py-8">Loading discoveries...</p>
+          <div className="flex flex-col items-center justify-center py-12 gap-3">
+            <div className="w-8 h-8 border-4 border-[var(--accent-color)]/20 border-t-[var(--accent-color)] rounded-full animate-spin" />
+            <p className="text-[var(--text-light)] text-sm font-medium">Loading discoveries...</p>
+          </div>
         ) : discoveries.length === 0 ? (
-          <p className="text-[var(--text-light)] text-sm text-center py-8">
-            No discoveries yet. Start combining elements in the Lab!
-          </p>
+          <div className="text-center py-12 px-6 border-2 border-dashed border-[var(--border-color)] rounded-[20px]">
+            <p className="text-[var(--text-light)] text-sm italic">
+              &quot;Every great discovery was once an experiment.&quot;
+            </p>
+            <p className="text-[var(--text-main)] text-sm font-bold mt-2">
+              Start combining elements in the Lab to begin your collection!
+            </p>
+          </div>
         ) : (
-          <div className="grid grid-cols-2 gap-2 max-[600px]:grid-cols-1">
+          <div className="grid grid-cols-2 gap-3 max-[768px]:grid-cols-1">
             {discoveries.map((d) => (
-              <div key={d.symbol} className="flex items-center gap-3 p-3 bg-[var(--bg-sidebar)] rounded-[12px] border border-[var(--border-color)] hover:border-[var(--accent-color)] transition-colors">
-                <div className="w-10 h-10 flex items-center justify-center bg-[var(--bg-item-active)] rounded-[8px] font-bold text-[var(--text-main)] text-sm">{d.symbol}</div>
-                <div className="flex-1 text-[var(--text-main)] text-sm font-medium truncate">{d.name}</div>
-                <div className="text-[var(--text-light)] text-xs">
-                  {formatDate(d.dateDiscovered)}
+              <div 
+                key={d.symbol} 
+                className="flex items-center gap-3 p-3 bg-[var(--bg-sidebar)] rounded-[16px] border border-[var(--border-color)] hover:border-[var(--accent-color)]/40 hover:bg-[var(--bg-item-active)] transition-all group overflow-hidden"
+              >
+                <div className="w-12 h-12 flex-shrink-0 flex items-center justify-center bg-[var(--bg-card)] rounded-[12px] font-bold text-[var(--text-main)] text-sm border border-[var(--border-color)] shadow-sm group-hover:scale-105 transition-transform duration-300">
+                  {d.symbol}
                 </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[var(--text-main)] text-sm font-bold truncate group-hover:text-[var(--accent-color)] transition-colors">{d.name}</div>
+                  <div className="text-[var(--text-light)] text-[0.65rem] font-medium opacity-80">
+                    Discovered: {formatDate(d.dateDiscovered)}
+                  </div>
+                </div>
+                {d.type && (
+                  <div className="px-2 py-0.5 rounded-md bg-[var(--bg-card)] border border-[var(--border-color)] text-[10px] text-[var(--text-light)] font-semibold hidden sm:block">
+                    {d.type}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -486,6 +469,7 @@ export default function ProfilePage() {
                   width={70}
                   height={70}
                   unoptimized={editPreviewAvatar !== DEFAULT_AVATAR}
+                  className="object-cover"
                 />
               </div>
               <h3 className="text-xl font-bold text-[var(--text-main)]">Edit Profile</h3>
@@ -534,11 +518,26 @@ export default function ProfilePage() {
                 <input
                   type="text"
                   className="w-full bg-[var(--bg-sidebar)] border border-[var(--border-color)] rounded-[12px] px-4 py-2.5 text-[var(--text-main)] placeholder:text-[var(--text-light)] focus:outline-none focus:border-[var(--accent-color)] transition-colors"
-                  placeholder="Username (3-20 chars)"
+                  placeholder="Username (3-20 characters)"
                   value={editUsername}
                   onChange={(e) => setEditUsername(e.target.value)}
                   maxLength={20}
                 />
+              </div>
+
+              {/* Bio */}
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-light)]">Bio</label>
+                <textarea
+                  className="w-full bg-[var(--bg-sidebar)] border border-[var(--border-color)] rounded-[12px] px-4 py-2.5 text-[var(--text-main)] placeholder:text-[var(--text-light)] focus:outline-none focus:border-[var(--accent-color)] transition-colors min-h-[100px] resize-none"
+                  placeholder="Tell us about yourself..."
+                  value={editBio}
+                  onChange={(e) => setEditBio(e.target.value)}
+                  maxLength={160}
+                />
+                <div className="flex justify-end">
+                  <span className="text-[10px] text-[var(--text-light)]">{editBio.length}/160</span>
+                </div>
               </div>
 
               {/* Email (read-only) */}

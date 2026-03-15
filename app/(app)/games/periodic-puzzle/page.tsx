@@ -4,39 +4,65 @@ import { useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import styles from './page.module.css';
 
-/* ─── Element data with grid positions (simplified periodic table) ─── */
+import { ShareGameScore } from '@/components/game/ShareGameScore';
+
+/* ─── Element data with REAL periodic table positions (periods 1–4) ─── */
 
 interface PuzzleElement {
   symbol: string;
-  row: number;
-  col: number;
+  name: string;
+  row: number;   // period
+  col: number;   // group (1–18)
+  category: string;
 }
 
 const puzzleElements: PuzzleElement[] = [
-  { symbol: 'H', row: 1, col: 1 },
-  { symbol: 'He', row: 1, col: 6 },
-  { symbol: 'Li', row: 2, col: 1 },
-  { symbol: 'Be', row: 2, col: 2 },
-  { symbol: 'B', row: 2, col: 3 },
-  { symbol: 'C', row: 2, col: 4 },
-  { symbol: 'N', row: 2, col: 5 },
-  { symbol: 'O', row: 2, col: 6 },
-  { symbol: 'F', row: 3, col: 1 },
-  { symbol: 'Ne', row: 3, col: 6 },
-  { symbol: 'Na', row: 4, col: 1 },
-  { symbol: 'Mg', row: 4, col: 2 },
-  { symbol: 'Al', row: 4, col: 3 },
-  { symbol: 'Si', row: 4, col: 4 },
-  { symbol: 'P', row: 4, col: 5 },
-  { symbol: 'S', row: 4, col: 6 },
-  { symbol: 'Cl', row: 5, col: 1 },
-  { symbol: 'Ar', row: 5, col: 6 },
+  // Period 1
+  { symbol: 'H',  name: 'Hydrogen',   row: 1, col: 1,  category: 'nonmetal' },
+  { symbol: 'He', name: 'Helium',     row: 1, col: 18, category: 'noble-gas' },
+  // Period 2
+  { symbol: 'Li', name: 'Lithium',    row: 2, col: 1,  category: 'alkali-metal' },
+  { symbol: 'Be', name: 'Beryllium',  row: 2, col: 2,  category: 'alkaline-earth' },
+  { symbol: 'B',  name: 'Boron',      row: 2, col: 13, category: 'metalloid' },
+  { symbol: 'C',  name: 'Carbon',     row: 2, col: 14, category: 'nonmetal' },
+  { symbol: 'N',  name: 'Nitrogen',   row: 2, col: 15, category: 'nonmetal' },
+  { symbol: 'O',  name: 'Oxygen',     row: 2, col: 16, category: 'nonmetal' },
+  { symbol: 'F',  name: 'Fluorine',   row: 2, col: 17, category: 'halogen' },
+  { symbol: 'Ne', name: 'Neon',       row: 2, col: 18, category: 'noble-gas' },
+  // Period 3
+  { symbol: 'Na', name: 'Sodium',     row: 3, col: 1,  category: 'alkali-metal' },
+  { symbol: 'Mg', name: 'Magnesium',  row: 3, col: 2,  category: 'alkaline-earth' },
+  { symbol: 'Al', name: 'Aluminium',  row: 3, col: 13, category: 'post-transition' },
+  { symbol: 'Si', name: 'Silicon',    row: 3, col: 14, category: 'metalloid' },
+  { symbol: 'P',  name: 'Phosphorus', row: 3, col: 15, category: 'nonmetal' },
+  { symbol: 'S',  name: 'Sulfur',     row: 3, col: 16, category: 'nonmetal' },
+  { symbol: 'Cl', name: 'Chlorine',   row: 3, col: 17, category: 'halogen' },
+  { symbol: 'Ar', name: 'Argon',      row: 3, col: 18, category: 'noble-gas' },
+  // Period 4
+  { symbol: 'K',  name: 'Potassium',  row: 4, col: 1,  category: 'alkali-metal' },
+  { symbol: 'Ca', name: 'Calcium',    row: 4, col: 2,  category: 'alkaline-earth' },
+  { symbol: 'Sc', name: 'Scandium',   row: 4, col: 3,  category: 'transition-metal' },
+  { symbol: 'Ti', name: 'Titanium',   row: 4, col: 4,  category: 'transition-metal' },
+  { symbol: 'V',  name: 'Vanadium',   row: 4, col: 5,  category: 'transition-metal' },
+  { symbol: 'Cr', name: 'Chromium',   row: 4, col: 6,  category: 'transition-metal' },
+  { symbol: 'Mn', name: 'Manganese',  row: 4, col: 7,  category: 'transition-metal' },
+  { symbol: 'Fe', name: 'Iron',       row: 4, col: 8,  category: 'transition-metal' },
+  { symbol: 'Co', name: 'Cobalt',     row: 4, col: 9,  category: 'transition-metal' },
+  { symbol: 'Ni', name: 'Nickel',     row: 4, col: 10, category: 'transition-metal' },
+  { symbol: 'Cu', name: 'Copper',     row: 4, col: 11, category: 'transition-metal' },
+  { symbol: 'Zn', name: 'Zinc',       row: 4, col: 12, category: 'transition-metal' },
+  { symbol: 'Ga', name: 'Gallium',    row: 4, col: 13, category: 'post-transition' },
+  { symbol: 'Ge', name: 'Germanium',  row: 4, col: 14, category: 'metalloid' },
+  { symbol: 'As', name: 'Arsenic',    row: 4, col: 15, category: 'metalloid' },
+  { symbol: 'Se', name: 'Selenium',   row: 4, col: 16, category: 'nonmetal' },
+  { symbol: 'Br', name: 'Bromine',    row: 4, col: 17, category: 'halogen' },
+  { symbol: 'Kr', name: 'Krypton',    row: 4, col: 18, category: 'noble-gas' },
 ];
 
-const ROWS = 5;
-const COLS = 6;
+const ROWS = 4;
+const COLS = 18;
 
-/** Build a lookup: "row-col" → expected symbol (only for slots that should be visible) */
+/** Build a lookup: "row-col" → expected symbol */
 function buildExpectedMap(): Record<string, string> {
   const map: Record<string, string> = {};
   for (const el of puzzleElements) {
@@ -46,6 +72,18 @@ function buildExpectedMap(): Record<string, string> {
 }
 
 const expectedMap = buildExpectedMap();
+
+/** Category → CSS color variable name */
+const CATEGORY_COLORS: Record<string, string> = {
+  'nonmetal':          '#56bb8a',
+  'noble-gas':         '#c78fd1',
+  'alkali-metal':      '#e8674a',
+  'alkaline-earth':    '#f5a623',
+  'metalloid':         '#5bbfcc',
+  'halogen':           '#58b4f5',
+  'post-transition':   '#7a93c4',
+  'transition-metal':  '#e0c240',
+};
 
 /** Fisher-Yates shuffle */
 function shuffle<T>(arr: T[]): T[] {
@@ -60,44 +98,30 @@ function shuffle<T>(arr: T[]): T[] {
 /* ─── Component ─── */
 
 export default function PeriodicPuzzlePage() {
-  /* Grid state: placed[key] = symbol placed in that slot */
   const [placed, setPlaced] = useState<Record<string, string>>({});
-
-  /* Pieces remaining in tray */
   const [pieces, setPieces] = useState<string[]>(() =>
     shuffle(puzzleElements.map((e) => e.symbol)),
   );
-
-  /* Check results: null = not checked, map key → 'correct' | 'wrong' */
   const [results, setResults] = useState<Record<string, 'correct' | 'wrong'> | null>(null);
-
-  /* Result message */
   const [message, setMessage] = useState<string>('');
-
-  /* Drag-and-drop: currently dragged symbol */
   const draggedSymbol = useRef<string | undefined>(undefined);
-
-  /* Click-to-place: currently selected piece */
   const [selectedPiece, setSelectedPiece] = useState<string | null>(null);
-
-  /* Drop-over highlight */
   const [dropTarget, setDropTarget] = useState<string | null>(null);
 
   /* ── Helpers ── */
-
   const slotKey = (row: number, col: number) => `${row}-${col}`;
-
   const isValidSlot = (row: number, col: number) =>
     expectedMap[slotKey(row, col)] !== undefined;
 
-  /* ── Drag handlers ── */
+  const getElementBySymbol = (symbol: string) =>
+    puzzleElements.find((e) => e.symbol === symbol);
 
+  /* ── Drag handlers ── */
   const handleDragStart = useCallback(
     (symbol: string) => (e: React.DragEvent) => {
       draggedSymbol.current = symbol;
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', symbol);
-      // Clear click-to-place selection when dragging
       setSelectedPiece(null);
     },
     [],
@@ -120,10 +144,8 @@ export default function PeriodicPuzzlePage() {
     (key: string) => (e: React.DragEvent) => {
       e.preventDefault();
       setDropTarget(null);
-
       const symbol = draggedSymbol.current ?? e.dataTransfer.getData('text/plain');
       if (!symbol) return;
-
       placeSymbol(key, symbol);
       draggedSymbol.current = undefined;
     },
@@ -132,28 +154,20 @@ export default function PeriodicPuzzlePage() {
   );
 
   /* ── Click-to-place handlers ── */
-
   const handlePieceClick = useCallback(
     (symbol: string) => {
-      if (selectedPiece === symbol) {
-        setSelectedPiece(null);
-      } else {
-        setSelectedPiece(symbol);
-      }
+      setSelectedPiece(selectedPiece === symbol ? null : symbol);
     },
     [selectedPiece],
   );
 
   const handleSlotClick = useCallback(
     (key: string) => {
-      // If a piece is selected via click-to-place, place it
       if (selectedPiece) {
         placeSymbol(key, selectedPiece);
         setSelectedPiece(null);
         return;
       }
-
-      // If slot has a placed piece and no piece is selected, remove it back to tray
       if (placed[key]) {
         const sym = placed[key];
         setPlaced((prev) => {
@@ -171,35 +185,26 @@ export default function PeriodicPuzzlePage() {
   );
 
   /* ── Place a symbol into a slot ── */
-
   const placeSymbol = (key: string, symbol: string) => {
-    // If slot already occupied, swap back to tray
     setPlaced((prev) => {
       const next = { ...prev };
       const existing = next[key];
       next[key] = symbol;
-
-      // Return existing to tray if it was there
       if (existing) {
         setPieces((p) => [...p.filter((s) => s !== symbol), existing]);
       } else {
         setPieces((p) => p.filter((s) => s !== symbol));
       }
-
       return next;
     });
-
-    // Clear previous results when placing
     setResults(null);
     setMessage('');
   };
 
   /* ── Check answer ── */
-
   const handleCheck = useCallback(() => {
     const res: Record<string, 'correct' | 'wrong'> = {};
     let correct = 0;
-
     for (const el of puzzleElements) {
       const key = slotKey(el.row, el.col);
       if (placed[key] === el.symbol) {
@@ -209,19 +214,16 @@ export default function PeriodicPuzzlePage() {
         res[key] = 'wrong';
       }
     }
-
     setResults(res);
     const total = puzzleElements.length;
-
     if (correct === total) {
-      setMessage('Perfect! You placed all 18 elements correctly!');
+      setMessage(`🎉 Perfect! You placed all ${total} elements correctly!`);
     } else {
-      setMessage(`${correct}/${total} correct`);
+      setMessage(`${correct}/${total} correct — keep trying!`);
     }
   }, [placed]);
 
   /* ── Reset ── */
-
   const handleReset = useCallback(() => {
     setPlaced({});
     setPieces(shuffle(puzzleElements.map((e) => e.symbol)));
@@ -231,53 +233,76 @@ export default function PeriodicPuzzlePage() {
   }, []);
 
   /* ── Slot class helper ── */
-
   const slotClassName = (key: string) => {
     const classes = [styles.puzzleSlot];
-
     if (results) {
       if (results[key] === 'correct') classes.push(styles.puzzleSlotCorrect);
       else if (results[key] === 'wrong') classes.push(styles.puzzleSlotWrong);
     } else if (placed[key]) {
       classes.push(styles.puzzleSlotFilled);
     }
-
     if (dropTarget === key) classes.push(styles.puzzleSlotDroppable);
-
     return classes.join(' ');
   };
 
-  /* ── Render ── */
+  /* ── Group headers (group numbers 1–18) ── */
+  const groupHeaders: React.ReactNode[] = [];
+  for (let c = 1; c <= COLS; c++) {
+    groupHeaders.push(
+      <div key={`gh-${c}`} className={styles.groupHeader}>
+        {c}
+      </div>,
+    );
+  }
 
+  /* ── Build grid ── */
   const gridSlots: React.ReactNode[] = [];
-
   for (let r = 1; r <= ROWS; r++) {
+    // Period label
+    gridSlots.push(
+      <div key={`pl-${r}`} className={styles.periodLabel}>
+        {r}
+      </div>,
+    );
     for (let c = 1; c <= COLS; c++) {
       const key = slotKey(r, c);
       const valid = isValidSlot(r, c);
-
       if (!valid) {
         gridSlots.push(
           <div key={key} className={`${styles.puzzleSlot} ${styles.puzzleSlotHidden}`} />,
         );
       } else {
+        const placedSymbol = placed[key];
+        const placedEl = placedSymbol ? getElementBySymbol(placedSymbol) : null;
         gridSlots.push(
           <div
             key={key}
             className={slotClassName(key)}
+            style={
+              placedEl
+                ? { backgroundColor: CATEGORY_COLORS[placedEl.category] || undefined }
+                : undefined
+            }
             onDragOver={handleDragOver(key)}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop(key)}
             onClick={() => handleSlotClick(key)}
-            title={`Row ${r}, Col ${c}`}
+            title={`Period ${r}, Group ${c}`}
           >
-            {placed[key] ?? ''}
+            {placedSymbol ?? ''}
           </div>,
         );
       }
     }
   }
 
+  /* ── Piece color from category ── */
+  const getPieceColor = (symbol: string) => {
+    const el = getElementBySymbol(symbol);
+    return el ? CATEGORY_COLORS[el.category] || '#2196f3' : '#2196f3';
+  };
+
+  /* ── Render ── */
   return (
     <>
       <Link href="/games" className={styles.backLink}>
@@ -288,32 +313,54 @@ export default function PeriodicPuzzlePage() {
         <h1 className={styles.title}>Periodic Puzzle</h1>
 
         <div className={styles.instructions}>
-          Drag element symbols from the tray and drop them into the correct
-          positions on the simplified periodic table. You can also click a piece
-          to select it, then click a slot to place it. Click a placed piece to
-          return it to the tray.
+          Drag element symbols from the tray into their correct positions on the periodic table (periods 1–4).
+          You can also click a piece to select it, then click a slot to place it. Click a placed piece to return it to the tray.
         </div>
 
-        <div className={styles.puzzleContainer}>
-          {/* Grid */}
-          <div className={styles.puzzleGrid}>{gridSlots}</div>
+        {/* Legend */}
+        <div className={styles.legend}>
+          {Object.entries(CATEGORY_COLORS).map(([cat, color]) => (
+            <div key={cat} className={styles.legendItem}>
+              <span className={styles.legendSwatch} style={{ backgroundColor: color }} />
+              <span className={styles.legendLabel}>{cat.replace(/-/g, ' ')}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className={styles.puzzleWrapper}>
+          {/* Grid with group headers */}
+          <div className={styles.tableArea}>
+            <div className={styles.groupHeaderRow}>
+              <div className={styles.periodLabel} /> {/* corner spacer */}
+              {groupHeaders}
+            </div>
+            <div className={styles.puzzleGrid}>
+              {gridSlots}
+            </div>
+          </div>
 
           {/* Pieces tray */}
           <div className={styles.piecesTray}>
-            <div className={styles.piecesTrayTitle}>Elements</div>
-            {pieces.map((symbol) => (
-              <button
-                key={symbol}
-                className={`${styles.puzzlePiece}${
-                  selectedPiece === symbol ? ` ${styles.puzzlePieceSelected}` : ''
-                }`}
-                draggable
-                onDragStart={handleDragStart(symbol)}
-                onClick={() => handlePieceClick(symbol)}
-              >
-                {symbol}
-              </button>
-            ))}
+            <div className={styles.piecesTrayTitle}>
+              Elements ({pieces.length} remaining)
+            </div>
+            <div className={styles.piecesTrayGrid}>
+              {pieces.map((symbol) => (
+                <button
+                  key={symbol}
+                  className={`${styles.puzzlePiece}${
+                    selectedPiece === symbol ? ` ${styles.puzzlePieceSelected}` : ''
+                  }`}
+                  style={{ backgroundColor: getPieceColor(symbol) }}
+                  draggable
+                  onDragStart={handleDragStart(symbol)}
+                  onClick={() => handlePieceClick(symbol)}
+                  title={getElementBySymbol(symbol)?.name}
+                >
+                  {symbol}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -329,12 +376,20 @@ export default function PeriodicPuzzlePage() {
 
         {/* Result */}
         {message && (
-          <div
-            className={`${styles.resultMessage} ${
-              message.startsWith('Perfect') ? styles.resultSuccess : styles.resultPartial
-            }`}
-          >
-            {message}
+          <div className="flex flex-col items-center gap-2">
+            <div
+                className={`${styles.resultMessage} ${
+                message.startsWith('🎉') ? styles.resultSuccess : styles.resultPartial
+                }`}
+            >
+                {message}
+            </div>
+            {results && (
+                <ShareGameScore 
+                    customMessage={`I placed ${Object.values(results).filter(r => r === 'correct').length} elements correctly in Periodic Puzzle! 🧩`}
+                    gameName="Periodic Puzzle" 
+                />
+            )}
           </div>
         )}
       </div>

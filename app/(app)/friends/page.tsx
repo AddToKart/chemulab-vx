@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase/config';
 import {
   doc,
@@ -14,13 +15,15 @@ import {
   onSnapshot,
   addDoc,
   getDocs,
-  orderBy,
   writeBatch,
   serverTimestamp,
   limit,
+  updateDoc,
+  arrayRemove,
+  orderBy,
 } from 'firebase/firestore';
 import { useAuthStore } from '@/store/auth-store';
-import { filterProfanity } from '@/lib/utils';
+import { filterProfanity, cn } from '@/lib/utils';
 
 
 /* ------------------------------------------------------------------ */
@@ -34,6 +37,10 @@ interface FriendData {
   photoURL?: string;
   chatId: string;
   createdAt?: unknown;
+  lastMessage?: string;
+  lastMessageFrom?: string;
+  lastMessageAt?: unknown;
+  unreadBy?: string[];
 }
 
 interface FriendRequest {
@@ -93,6 +100,8 @@ export default function FriendsPage() {
   const { user, profile } = useAuthStore();
 
   /* State */
+  const [friendProfiles, setFriendProfiles] = useState<FriendData[]>([]);
+  const [chatDataMap, setChatDataMap] = useState<Record<string, any>>({});
   const [friends, setFriends] = useState<FriendData[]>([]);
   const [activeChat, setActiveChat] = useState<{
     friendUid: string;
@@ -116,6 +125,8 @@ export default function FriendsPage() {
   const [incomingRequests, setIncomingRequests] = useState<FriendRequest[]>([]);
   const [outgoingRequests, setOutgoingRequests] = useState<FriendRequest[]>([]);
   const [blockedUsers, setBlockedUsers] = useState<string[]>([]);
+  const searchParams = useSearchParams();
+  const [isInitializingChat, setIsInitializingChat] = useState(!!searchParams.get('chatId'));
 
   /* Refs */
   const messagesUnsubRef = useRef<(() => void) | undefined>(undefined);
@@ -125,7 +136,7 @@ export default function FriendsPage() {
   const uid = user?.uid;
 
   /* ---------------------------------------------------------------- */
-  /*  Real-time friends list                                           */
+  /*  Real-time friends list profiles                                   */
   /* ---------------------------------------------------------------- */
 
   useEffect(() => {
@@ -144,7 +155,7 @@ export default function FriendsPage() {
         } catch { /* keep existing data */ }
         list.push(data);
       }
-      setFriends(list);
+      setFriendProfiles(list);
     }, (err) => console.error('[Friends] list listener error:', err));
     
     // Listen for blocked users
@@ -154,6 +165,87 @@ export default function FriendsPage() {
 
     return () => { unsub(); unsubBlocked(); };
   }, [uid]);
+
+  /* ---------------------------------------------------------------- */
+  /*  Real-time chats list for last messages                            */
+  /* ---------------------------------------------------------------- */
+
+  useEffect(() => {
+    if (!uid) return;
+    const q = query(collection(db, 'chats'), where('participants', 'array-contains', uid));
+    const unsub = onSnapshot(q, (snap) => {
+      const chatMap: Record<string, any> = {};
+      snap.docs.forEach(d => {
+        chatMap[d.id] = d.data();
+      });
+      console.log('[Friends] Chat listener updated. Total chats:', snap.docs.length, chatMap);
+      setChatDataMap(chatMap);
+    }, (err) => console.error('[Friends] chats listener error:', err));
+    return () => unsub();
+  }, [uid]);
+
+  /* ---------------------------------------------------------------- */
+  /*  Merge profiles and chats into friends list                        */
+  /* ---------------------------------------------------------------- */
+
+  useEffect(() => {
+    const merged = friendProfiles.map(friend => {
+      const chat = chatDataMap[friend.chatId];
+      if (chat) {
+        return {
+          ...friend,
+          lastMessage: chat.lastMessage,
+          lastMessageFrom: chat.lastMessageFrom,
+          lastMessageAt: chat.lastMessageAt,
+          unreadBy: chat.unreadBy || [],
+        };
+      }
+      return friend;
+    });
+
+    // Sort by latest message, then by username
+    merged.sort((a, b) => {
+      const aTime = a.lastMessageAt ? (a.lastMessageAt as any).seconds : 0;
+      const bTime = b.lastMessageAt ? (b.lastMessageAt as any).seconds : 0;
+      if (aTime !== bTime) {
+        return bTime - aTime;
+      }
+      return a.username.localeCompare(b.username);
+    });
+
+    console.log('[Friends] Merged friends list', merged);
+    setFriends(merged);
+  }, [friendProfiles, chatDataMap]);
+
+  // Handle direct chat redirection from URL (?chatId=...)
+  const router = useRouter();
+  useEffect(() => {
+    const targetChatId = searchParams.get('chatId');
+    if (!targetChatId) {
+      if (isInitializingChat) {
+        setTimeout(() => setIsInitializingChat(false), 60);
+      }
+      return;
+    }
+
+    if (friends.length > 0) {
+      const friend = friends.find(f => f.chatId === targetChatId);
+      if (friend) {
+        console.log('[Friends] Auto-opening chat from URL param:', targetChatId);
+        openChat(friend);
+        // Clean up the URL after opening
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete('chatId');
+        router.replace(`/friends${params.toString() ? `?${params.toString()}` : ''}`);
+        
+        // 60ms delay to let the state update before hiding the loader
+        setTimeout(() => setIsInitializingChat(false), 60);
+      } else {
+        // Friend not found in list (maybe un-friended?), clear loader with delay
+        setTimeout(() => setIsInitializingChat(false), 60);
+      }
+    }
+  }, [searchParams, friends, router]);
 
   /* ---------------------------------------------------------------- */
   /*  Real-time friend requests (pending only)                        */
@@ -201,6 +293,12 @@ export default function FriendsPage() {
 
     const unsub = onSnapshot(q, (snap) => {
       setMessages(snap.docs.map((d) => ({ id: d.id, ...d.data() } as ChatMessage)));
+      
+      // Mark as read when viewing active chat
+      updateDoc(doc(db, 'chats', activeChat.chatId), {
+        unreadBy: arrayRemove(uid)
+      }).catch((err) => console.error('[Chat] mark as read error:', err));
+
       setTimeout(() => {
         if (chatMessagesRef.current) {
           chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
@@ -244,42 +342,22 @@ export default function FriendsPage() {
       let targetUsername = '';
       let targetEmail = email;
 
-      // 1️⃣ Query usernames collection by email
+      // Query users collection directly by email
       try {
-        const usernamesQ = query(
-          collection(db, 'usernames'),
+        const usersQ = query(
+          collection(db, 'users'),
           where('email', '==', email),
           limit(1),
         );
-        const usernamesSnap = await getDocs(usernamesQ);
-        if (!usernamesSnap.empty) {
-          const d = usernamesSnap.docs[0].data();
-          targetUid = d.uid;
-          targetUsername = usernamesSnap.docs[0].id || d.username || email;
-          targetEmail = d.email || email;
+        const usersSnap = await getDocs(usersQ);
+        if (!usersSnap.empty) {
+          const userData = usersSnap.docs[0].data();
+          targetUid = userData.uid ?? usersSnap.docs[0].id;
+          targetUsername = userData.username || email;
+          targetEmail = userData.email || email;
         }
       } catch (e) {
-        console.error('[AddFriend] usernames query failed:', e);
-      }
-
-      // 2️⃣ Fallback: query users collection directly by email
-      if (!targetUid) {
-        try {
-          const usersQ = query(
-            collection(db, 'users'),
-            where('email', '==', email),
-            limit(1),
-          );
-          const usersSnap = await getDocs(usersQ);
-          if (!usersSnap.empty) {
-            const userData = usersSnap.docs[0].data();
-            targetUid = userData.uid ?? usersSnap.docs[0].id;
-            targetUsername = userData.username || email;
-            targetEmail = userData.email || email;
-          }
-        } catch (e) {
-          console.error('[AddFriend] users collection query failed:', e);
-        }
+        console.error('[AddFriend] users collection query failed:', e);
       }
 
       if (!targetUid) {
@@ -425,10 +503,7 @@ export default function FriendsPage() {
 
     setMessageText('');
     try {
-      // 1. Double check they haven't blocked us (read their blocked list if possible, or handle error)
-      // Since rules only allow owner to read /blocked, we can't easily check it directly without a Cloud Function.
-      // But we can let Firestore write it, and if they blocked us, they won't see it (or we could enforce it via rules if we restructure).
-      // For now, write the message.
+      // Write the message
       await addDoc(collection(db, 'chats', activeChat.chatId, 'messages'), {
         text: filteredText,
         fromUid: uid,
@@ -436,10 +511,37 @@ export default function FriendsPage() {
         fromUsername: profile.username || '',
         createdAt: serverTimestamp(),
       });
-    } catch (e) {
+
+      // Update parent chat document so friends list can show last message
+      await updateDoc(doc(db, 'chats', activeChat.chatId), {
+        lastMessage: filteredText,
+        lastMessageAt: serverTimestamp(),
+        unreadBy: [activeChat.friendUid],
+        lastMessageFrom: profile.username || '',
+      });
+
+      // Create a notification for the recipient
+      try {
+        const notifRef = await addDoc(collection(db, 'notifications'), {
+          type: 'message',
+          fromUid: uid,
+          toUid: activeChat.friendUid,
+          fromUsername: profile.username || profile.email || '',
+          message: filteredText,
+          chatId: activeChat.chatId,
+          createdAt: serverTimestamp(),
+        });
+        console.log('[SendMessage] Notification created:', notifRef.id);
+      } catch (notifErr: any) {
+        console.error('[SendMessage] Notification creation FAILED:', notifErr);
+        // Alert the user so we know exactly what is failing during testing
+        window.alert(`Notification failed: ${notifErr.message}`);
+      }
+    } catch (e: any) {
       console.error('[SendMessage] Failed:', e);
       setMessageText(text);
       setStatus("Couldn't send message.");
+      window.alert(`Message send failed: ${e.message}`);
     }
   };
 
@@ -595,7 +697,7 @@ export default function FriendsPage() {
 
   if (!user) {
     return (
-      <div className="flex gap-4 h-[calc(100vh-130px)] max-[900px]:flex-col max-[900px]:h-auto">
+      <div className="flex gap-4 h-[calc(100vh-230px)] max-[900px]:flex-col max-[900px]:h-auto">
         <div className="w-[300px] max-[900px]:w-full flex flex-col gap-3 bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[20px] p-5 overflow-hidden">
           <p className="text-[var(--text-light)] text-sm text-center py-4">Please sign in to use Friends &amp; Chat.</p>
         </div>
@@ -606,16 +708,20 @@ export default function FriendsPage() {
   /* ---------------------------------------------------------------- */
   /*  Render                                                           */
   /* ---------------------------------------------------------------- */
-
-  return (
-    <div className="flex gap-4 h-[calc(100vh-130px)] max-[900px]:flex-col max-[900px]:h-auto">
-      {/* ==================== LEFT PANEL ==================== */}
-      <div className="w-[300px] max-[900px]:w-full flex flex-col gap-3 bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[20px] p-5 overflow-hidden">
+return (
+  <div className="flex gap-4 h-[calc(100vh-230px)]">
+    {/* ==================== LEFT PANEL ==================== */}
+    <div 
+      className={cn(
+        "w-[300px] flex flex-col gap-3 bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[20px] p-5 overflow-hidden",
+        "max-[900px]:w-full transition-all duration-300",
+        activeChat ? "max-[900px]:hidden" : "max-[900px]:flex"
+      )}
+    >
         <h3 className="font-bold text-[var(--text-main)] text-base">Friends</h3>
-
         {/* Add friend */}
         <div className="flex gap-2">
-          <input
+           <input
             type="email"
             placeholder="Friend's email"
             value={friendEmail}
@@ -673,18 +779,19 @@ export default function FriendsPage() {
               </div>
               <div className="flex-1 min-w-0 flex flex-col">
                 <strong className="text-[var(--text-main)] text-sm font-semibold truncate">{friend.username}</strong>
-                <span className="text-[var(--text-light)] text-xs truncate">{friend.email}</span>
+                {friend.lastMessage ? (
+                  <span className={cn(
+                    "text-xs truncate transition-colors",
+                    (uid && friend.unreadBy?.includes(uid))
+                      ? "text-[var(--text-main)] font-bold" 
+                      : "text-[var(--text-light)]"
+                  )}>
+                    {friend.lastMessageFrom === profile?.username ? 'You' : friend.lastMessageFrom}: {friend.lastMessage}
+                  </span>
+                ) : (
+                  <span className="text-[var(--text-light)] text-xs italic opacity-50">No messages yet</span>
+                )}
               </div>
-              <button
-                type="button"
-                className="text-[var(--accent-color)] text-xs font-semibold px-3 py-1 rounded-[8px] bg-[rgba(16,185,129,0.1)] border border-[rgba(16,185,129,0.2)] hover:bg-[rgba(16,185,129,0.2)] transition-colors cursor-pointer"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  viewFriendProfile(friend);
-                }}
-              >
-                View
-              </button>
             </div>
           ))}
         </div>
@@ -769,23 +876,44 @@ export default function FriendsPage() {
       </div>
 
       {/* ==================== RIGHT PANEL ==================== */}
-      <div className="flex-1 flex flex-col bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[20px] overflow-hidden">
+      <div 
+        className={cn(
+          "flex-1 flex flex-col bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[20px] overflow-hidden transition-all duration-300",
+          !activeChat ? "max-[900px]:hidden" : "max-[900px]:flex"
+        )}
+      >
         {activeChat ? (
           <>
             {/* Chat header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-color)] font-semibold text-[var(--text-main)]">
-              <span>{activeChat.friendName}</span>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setActiveChat(null)}
+                  className="hidden max-[900px]:flex items-center justify-center w-8 h-8 rounded-full bg-[var(--bg-sidebar)] hover:bg-[var(--border-color)] transition-colors text-[var(--text-light)] cursor-pointer"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m15 18-6-6 6-6"/>
+                  </svg>
+                </button>
+                <span>{activeChat.friendName}</span>
+              </div>
               <button
                 type="button"
-                className="text-[var(--accent-color)] text-xs font-semibold px-3 py-1 rounded-[8px] bg-[rgba(16,185,129,0.1)] border border-[rgba(16,185,129,0.2)] hover:bg-[rgba(16,185,129,0.2)] transition-colors cursor-pointer"
+                className="flex items-center justify-center w-8 h-8 rounded-full bg-[rgba(16,185,129,0.1)] border border-[rgba(16,185,129,0.2)] text-[var(--accent-color)] hover:bg-[rgba(16,185,129,0.2)] transition-colors cursor-pointer"
                 onClick={() => {
                   const friend = friends.find(
                     (f) => f.uid === activeChat.friendUid,
                   );
                   if (friend) viewFriendProfile(friend);
                 }}
+                title="View Profile"
               >
-                View Profile
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 16v-4" />
+                  <path d="M12 8h.01" />
+                </svg>
               </button>
             </div>
 
@@ -942,6 +1070,14 @@ export default function FriendsPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+      
+      {/* ==================== LOADING OVERLAY ==================== */}
+      {isInitializingChat && (
+        <div className="fixed inset-0 z-[5000] flex flex-col items-center justify-center gap-4 bg-[#0f172a] backdrop-blur-md">
+          <div className="w-12 h-12 rounded-full border-4 border-white/10 border-t-emerald-500 animate-spin" />
+          <span className="text-sm text-slate-100 opacity-60">Opening Chat…</span>
         </div>
       )}
     </div>

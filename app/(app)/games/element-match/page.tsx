@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { elementsData } from '@/lib/data/elements-data';
 import styles from './page.module.css';
 
+import { ShareGameScore } from '@/components/game/ShareGameScore';
+
 type QuestionType = 'symbol-to-name' | 'name-to-symbol';
 
 interface Question {
@@ -221,6 +223,9 @@ export default function ElementMatchPage() {
           <div className={styles.gameOverScreen}>
             <h2 className={styles.gameOverTitle}>Game Over!</h2>
             <p className={styles.finalScore}>Final Score: {score}</p>
+            <div style={{ margin: '1rem 0', display: 'flex', justifyContent: 'center' }}>
+              <ShareGameScore score={score} gameName="Element Match" />
+            </div>
             <button className={styles.startBtn} onClick={startGame}>
               Play Again
             </button>

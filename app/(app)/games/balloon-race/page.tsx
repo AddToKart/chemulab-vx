@@ -15,6 +15,8 @@ import {
 import { useAuthStore } from '@/store/auth-store';
 import styles from './page.module.css';
 
+import { ShareGameScore } from '@/components/game/ShareGameScore';
+
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
@@ -622,6 +624,12 @@ export default function BalloonRacePage() {
             </div>
 
             <div className={styles.victoryActions}>
+              <div style={{ marginBottom: '1rem' }}>
+                <ShareGameScore 
+                  customMessage={`I inflated my balloon to a score of ${myPlayerNum === 1 ? gameData.p1Score : gameData.p2Score} in Balloon Race! 🎈`} 
+                  gameName="Balloon Race" 
+                />
+              </div>
               <button
                 className={`${styles.btn} ${styles.btnPrimary} ${styles.btnLg}`}
                 onClick={handlePlayAgain}

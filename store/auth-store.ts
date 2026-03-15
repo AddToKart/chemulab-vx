@@ -9,6 +9,9 @@ export interface UserProfile {
   emailVerified: boolean;
   photoURL?: string;
   photoSourceURL?: string;
+  bio?: string;
+  registrationDate?: any;
+  createdAt?: any;
 }
 
 interface AuthState {
