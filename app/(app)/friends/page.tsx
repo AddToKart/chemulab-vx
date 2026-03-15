@@ -3,6 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
+import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react';
+import { Smile, SmilePlus, Pin } from 'lucide-react';
 import { db } from '@/lib/firebase/config';
 import {
   doc,
@@ -62,6 +64,8 @@ interface ChatMessage {
   fromEmail: string;
   fromUsername: string;
   createdAt?: { seconds: number; nanoseconds: number } | null;
+  reactions?: Record<string, string[]>;
+  isPinned?: boolean;
 }
 
 interface ModalData {
@@ -111,8 +115,15 @@ export default function FriendsPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [friendEmail, setFriendEmail] = useState('');
   const [messageText, setMessageText] = useState('');
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [activeReactionMessageId, setActiveReactionMessageId] = useState<string | null>(null);
+  const [showFullReactionPicker, setShowFullReactionPicker] = useState(false);
+  const [showPinnedMessagesModal, setShowPinnedMessagesModal] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
   const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const reactionPickerRef = useRef<HTMLDivElement>(null);
 
   const setStatus = (msg: string) => {
     setStatusMsg(msg);
@@ -134,6 +145,25 @@ export default function FriendsPage() {
 
   /* Derived */
   const uid = user?.uid;
+
+  /* ---------------------------------------------------------------- */
+  /*  Click outside handler for emoji pickers                            */
+  /* ---------------------------------------------------------------- */
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
+        setShowEmojiPicker(false);
+      }
+      if (reactionPickerRef.current && !reactionPickerRef.current.contains(event.target as Node)) {
+        setActiveReactionMessageId(null);
+        setShowFullReactionPicker(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   /* ---------------------------------------------------------------- */
   /*  Real-time friends list profiles                                   */
@@ -217,35 +247,7 @@ export default function FriendsPage() {
     setFriends(merged);
   }, [friendProfiles, chatDataMap]);
 
-  // Handle direct chat redirection from URL (?chatId=...)
-  const router = useRouter();
-  useEffect(() => {
-    const targetChatId = searchParams.get('chatId');
-    if (!targetChatId) {
-      if (isInitializingChat) {
-        setTimeout(() => setIsInitializingChat(false), 60);
-      }
-      return;
-    }
 
-    if (friends.length > 0) {
-      const friend = friends.find(f => f.chatId === targetChatId);
-      if (friend) {
-        console.log('[Friends] Auto-opening chat from URL param:', targetChatId);
-        openChat(friend);
-        // Clean up the URL after opening
-        const params = new URLSearchParams(searchParams.toString());
-        params.delete('chatId');
-        router.replace(`/friends${params.toString() ? `?${params.toString()}` : ''}`);
-        
-        // 60ms delay to let the state update before hiding the loader
-        setTimeout(() => setIsInitializingChat(false), 60);
-      } else {
-        // Friend not found in list (maybe un-friended?), clear loader with delay
-        setTimeout(() => setIsInitializingChat(false), 60);
-      }
-    }
-  }, [searchParams, friends, router]);
 
   /* ---------------------------------------------------------------- */
   /*  Real-time friend requests (pending only)                        */
@@ -483,6 +485,43 @@ export default function FriendsPage() {
     });
   };
 
+  const router = useRouter();
+
+  // Handle direct chat redirection from URL (?chatId=...)
+  // Note: We define openChat above so it's accessible here
+  useEffect(() => {
+    const targetChatId = searchParams.get('chatId');
+    if (!targetChatId) {
+      if (isInitializingChat) {
+        setTimeout(() => setIsInitializingChat(false), 60);
+      }
+      return;
+    }
+
+    if (friends.length > 0) {
+      const friend = friends.find(f => f.chatId === targetChatId);
+      if (friend) {
+        console.log('[Friends] Auto-opening chat from URL param:', targetChatId);
+        // Set active chat directly instead of calling function to avoid state-in-effect warning
+        setActiveChat({
+          friendUid: friend.uid,
+          friendName: friend.username,
+          chatId: friend.chatId,
+        });
+        // Clean up the URL after opening
+        const params = new URLSearchParams(searchParams.toString());
+        params.delete('chatId');
+        router.replace(`/friends${params.toString() ? `?${params.toString()}` : ''}`);
+        
+        // 60ms delay to let the state update before hiding the loader
+        setTimeout(() => setIsInitializingChat(false), 60);
+      } else {
+        // Friend not found in list (maybe un-friended?), clear loader with delay
+        setTimeout(() => setIsInitializingChat(false), 60);
+      }
+    }
+  }, [searchParams, friends, router]);
+
   /* ---------------------------------------------------------------- */
   /*  Send message                                                     */
   /* ---------------------------------------------------------------- */
@@ -544,6 +583,50 @@ export default function FriendsPage() {
       window.alert(`Message send failed: ${e.message}`);
     }
   };
+
+  /* ---------------------------------------------------------------- */
+  /*  Message actions (reactions, pinning)                             */
+  /* ---------------------------------------------------------------- */
+
+  const handleToggleReaction = async (message: ChatMessage, emoji: string) => {
+    if (!uid || !activeChat) return;
+
+    const messageRef = doc(db, 'chats', activeChat.chatId, 'messages', message.id);
+    const currentReactions = message.reactions || {};
+    const existingReaction = currentReactions[emoji] || [];
+
+    const newReactions = { ...currentReactions };
+    
+    if (existingReaction.includes(uid)) {
+      // User is removing their reaction
+      newReactions[emoji] = existingReaction.filter((id) => id !== uid);
+      if (newReactions[emoji].length === 0) {
+        delete newReactions[emoji];
+      }
+    } else {
+      // User is adding a reaction
+      newReactions[emoji] = [...existingReaction, uid];
+    }
+
+    try {
+      await updateDoc(messageRef, { reactions: newReactions });
+    } catch (e) {
+      console.error("[Reaction] Failed to toggle reaction:", e);
+      // Optional: revert UI state on failure
+    }
+  };
+
+  const handlePinMessage = async (message: ChatMessage) => {
+    if (!activeChat) return;
+    const messageRef = doc(db, 'chats', activeChat.chatId, 'messages', message.id);
+    try {
+      await updateDoc(messageRef, { isPinned: !message.isPinned });
+    } catch (e) {
+      console.error("[Pin] Failed to pin message:", e);
+    }
+  };
+  
+  const PREDEFINED_REACTIONS = ['👍', '❤️', '😂', '😮', '😢'];
 
   /* ---------------------------------------------------------------- */
   /*  Report message                                                   */
@@ -898,23 +981,31 @@ return (
                 </button>
                 <span>{activeChat.friendName}</span>
               </div>
-              <button
-                type="button"
-                className="flex items-center justify-center w-8 h-8 rounded-full bg-[rgba(16,185,129,0.1)] border border-[rgba(16,185,129,0.2)] text-[var(--accent-color)] hover:bg-[rgba(16,185,129,0.2)] transition-colors cursor-pointer"
-                onClick={() => {
-                  const friend = friends.find(
-                    (f) => f.uid === activeChat.friendUid,
-                  );
-                  if (friend) viewFriendProfile(friend);
-                }}
-                title="View Profile"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 16v-4" />
-                  <path d="M12 8h.01" />
-                </svg>
-              </button>
+      <button
+                 type="button"
+                 className="flex items-center justify-center w-8 h-8 rounded-full bg-[rgba(16,185,129,0.1)] border border-[rgba(16,185,129,0.2)] text-[var(--accent-color)] hover:bg-[rgba(16,185,129,0.2)] transition-colors cursor-pointer"
+                 onClick={() => {
+                   const friend = friends.find(
+                     (f) => f.uid === activeChat.friendUid,
+                   );
+                   if (friend) viewFriendProfile(friend);
+                 }}
+                 title="View Profile"
+               >
+                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                   <circle cx="12" cy="12" r="10" />
+                   <path d="M12 16v-4" />
+                   <path d="M12 8h.01" />
+                 </svg>
+               </button>
+               <button
+                 type="button"
+                 className="flex items-center justify-center w-8 h-8 rounded-full bg-[rgba(16,185,129,0.1)] border border-[rgba(16,185,129,0.2)] text-[var(--accent-color)] hover:bg-[rgba(16,185,129,0.2)] transition-colors cursor-pointer"
+                 onClick={() => setShowPinnedMessagesModal(true)}
+                 title="View Pinned Messages"
+               >
+                 <Pin size={18} />
+               </button>
             </div>
 
             {/* Messages */}
@@ -937,11 +1028,101 @@ return (
                 return (
                   <div
                     key={msg.id}
-                    className={`flex flex-col max-w-[70%] group${msg.fromUid === uid ? ' self-end items-end' : ' self-start items-start'}`}
+                    className={`relative flex flex-col max-w-[70%] group${msg.fromUid === uid ? ' self-end items-end' : ' self-start items-start'}`}
                   >
-                    <div className={msg.fromUid === uid ? 'bg-[var(--accent-color)] text-white px-4 py-2.5 rounded-[16px] rounded-br-[4px] text-sm shadow-sm' : 'bg-[var(--bg-sidebar)] text-[var(--text-main)] border border-[var(--border-color)] px-4 py-2.5 rounded-[16px] rounded-bl-[4px] text-sm shadow-sm'}>
+                    <div className={cn(
+                      "relative text-sm shadow-sm",
+                      msg.fromUid === uid 
+                        ? 'bg-[var(--accent-color)] text-white px-4 py-2.5 rounded-[16px] rounded-br-[4px]' 
+                        : 'bg-[var(--bg-sidebar)] text-[var(--text-main)] border border-[var(--border-color)] px-4 py-2.5 rounded-[16px] rounded-bl-[4px]',
+                      msg.isPinned && 'ring-2 ring-amber-500/80' // Highlight for pinned messages
+                    )}>
+                      {msg.isPinned && <Pin size={12} className="absolute top-1.5 right-2.5 text-white/70" />}
                       {msg.text}
+                      
+                      {/* Reactions Display */}
+                      {msg.reactions && Object.keys(msg.reactions).length > 0 && (
+                        <div className="flex gap-1.5 mt-2">
+                          {Object.entries(msg.reactions).map(([emoji, uids]) => (
+                            uids.length > 0 && (
+                              <button
+                                key={emoji}
+                                onClick={() => handleToggleReaction(msg, emoji)}
+                                className={cn(
+                                  "flex items-center gap-1 text-xs rounded-full px-2 py-0.5 border transition-all",
+                                  uid && uids.includes(uid) 
+                                    ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300' 
+                                    : 'bg-black/20 border-white/20 hover:bg-black/40 text-white/80'
+                                )}
+                              >
+                                <span>{emoji}</span>
+                                <span className="font-semibold">{uids.length}</span>
+                              </button>
+                            )
+                          ))}
+                        </div>
+                      )}
                     </div>
+                    
+                    {/* Hover Actions Menu */}
+                    <div className="absolute top-1/2 -translate-y-1/2 flex items-center gap-1 p-1 rounded-full bg-slate-800/80 border border-slate-700 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10"
+                      style={msg.fromUid === uid ? { left: '-3.5rem' } : { right: '-3.5rem' }}
+                    >
+                        <button
+                          onClick={() => setActiveReactionMessageId(msg.id)}
+                          className="w-7 h-7 flex items-center justify-center rounded-full text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+                          title="React"
+                        >
+                          <SmilePlus size={16} />
+                        </button>
+                        <button
+                          onClick={() => handlePinMessage(msg)}
+                          className="w-7 h-7 flex items-center justify-center rounded-full text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
+                          title={msg.isPinned ? "Unpin" : "Pin"}
+                        >
+                          <Pin size={16} />
+                        </button>
+                    </div>
+
+                    {/* Reaction Picker Popover */}
+                    {activeReactionMessageId === msg.id && (
+                      <div ref={reactionPickerRef} className="absolute bottom-full mb-2 z-50">
+                          <div className="flex items-center gap-1 p-1.5 rounded-full bg-slate-800 border border-slate-700 shadow-lg">
+                            {PREDEFINED_REACTIONS.map(emoji => (
+                              <button
+                                key={emoji}
+                                onClick={() => {
+                                  handleToggleReaction(msg, emoji);
+                                  setActiveReactionMessageId(null);
+                                }}
+                                className="w-8 h-8 flex items-center justify-center rounded-full text-xl hover:bg-slate-700 transition-colors"
+                              >
+                                {emoji}
+                              </button>
+                            ))}
+                            <button
+                              onClick={() => setShowFullReactionPicker(true)}
+                              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-700 transition-colors text-slate-300"
+                            >
+                              <Smile size={20}/>
+                            </button>
+                          </div>
+                          {showFullReactionPicker && (
+                            <div className="absolute bottom-12 left-0 z-50 shadow-xl rounded-lg overflow-hidden border border-[var(--glass-border)]">
+                              <EmojiPicker
+                                onEmojiClick={(emojiData: EmojiClickData) => {
+                                  handleToggleReaction(msg, emojiData.emoji);
+                                  setActiveReactionMessageId(null);
+                                  setShowFullReactionPicker(false);
+                                }}
+                                theme={Theme.DARK}
+                                open={showFullReactionPicker}
+                              />
+                            </div>
+                          )}
+                      </div>
+                    )}
+
                     <div className="flex items-center gap-2 mt-1 px-1">
                       <span className="text-[var(--text-light)] text-[0.65rem]">
                         {msg.fromUsername}
@@ -962,7 +1143,27 @@ return (
             </div>
 
             {/* Input */}
-            <div className="flex gap-3 p-4 border-t border-[var(--border-color)]">
+            <div className="flex gap-3 p-4 border-t border-[var(--border-color)] relative">
+              <div className="relative flex items-center justify-center">
+                <button
+                  type="button"
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  className="text-[var(--text-light)] hover:text-[var(--text-main)] transition-colors p-2"
+                >
+                  <Smile size={24} />
+                </button>
+                {showEmojiPicker && (
+                  <div ref={emojiPickerRef} className="absolute bottom-12 left-0 z-50 shadow-xl rounded-lg overflow-hidden border border-[var(--glass-border)]">
+                    <EmojiPicker 
+                      onEmojiClick={(emojiData: EmojiClickData) => {
+                        setMessageText(prev => prev + emojiData.emoji);
+                        setShowEmojiPicker(false);
+                      }}
+                      theme={Theme.DARK} // Assuming dark theme based on CSS vars, you can change to auto or light
+                    />
+                  </div>
+                )}
+              </div>
               <input
                 type="text"
                 placeholder="Type a message..."
@@ -1073,8 +1274,46 @@ return (
         </div>
       )}
       
-      {/* ==================== LOADING OVERLAY ==================== */}
-      {isInitializingChat && (
+       {/* ==================== PINNED MESSAGES MODAL ==================== */}
+       {showPinnedMessagesModal && (
+         <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-[rgba(2,6,23,0.85)] backdrop-blur-[8px]" onClick={() => setShowPinnedMessagesModal(false)}>
+           <div className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-[28px] p-6 relative max-w-lg w-full max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
+             <div className="flex justify-between items-center mb-4">
+               <h3 className="text-xl font-bold text-[var(--text-main)]">Pinned Messages</h3>
+               <button onClick={() => setShowPinnedMessagesModal(false)} className="text-[var(--text-light)] hover:text-red-500 transition-colors">&times;</button>
+             </div>
+             <div className="flex-1 overflow-y-auto space-y-2">
+               {messages.filter(m => m.isPinned).length === 0 ? (
+                 <p className="text-[var(--text-light)] text-center py-8">No pinned messages in this chat.</p>
+               ) : (
+                 messages.filter(m => m.isPinned).map(msg => (
+                   <div key={msg.id} className="p-3 bg-[var(--bg-sidebar)] rounded-xl border border-[var(--border-color)]">
+                     <div className="flex justify-between items-start gap-2">
+                       <div className="flex-1 min-w-0">
+                         <span className="text-xs text-[var(--accent-color)] font-semibold">{msg.fromUsername}</span>
+                         <p className="text-sm text-[var(--text-main)] truncate">{msg.text}</p>
+                       </div>
+                       <button 
+                         onClick={() => handlePinMessage(msg)} 
+                         className="text-[var(--text-light)] hover:text-[var(--accent-color)] flex-shrink-0"
+                         title="Unpin"
+                       >
+                         <Pin size={16} className="fill-current" />
+                       </button>
+                     </div>
+                     <span className="text-[0.6rem] text-[var(--text-light)] mt-1 block">
+                       {msg.createdAt ? formatTime(msg.createdAt) : ''}
+                     </span>
+                   </div>
+                 ))
+               )}
+             </div>
+           </div>
+         </div>
+       )}
+       
+       {/* ==================== LOADING OVERLAY ==================== */}
+       {isInitializingChat && (
         <div className="fixed inset-0 z-[5000] flex flex-col items-center justify-center gap-4 bg-[#0f172a] backdrop-blur-md">
           <div className="w-12 h-12 rounded-full border-4 border-white/10 border-t-emerald-500 animate-spin" />
           <span className="text-sm text-slate-100 opacity-60">Opening Chat…</span>

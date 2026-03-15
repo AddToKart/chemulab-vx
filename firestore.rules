@@ -84,7 +84,9 @@ service cloud.firestore {
         allow read: if request.auth != null
                     && (request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants);
 
-        allow update, delete: if false;
+        allow update: if request.auth != null
+                       && (request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants);
+        allow delete: if false;
       }
     }
 
