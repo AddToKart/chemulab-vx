@@ -118,7 +118,6 @@ export default function FriendsPage() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [activeReactionMessageId, setActiveReactionMessageId] = useState<string | null>(null);
   const [showFullReactionPicker, setShowFullReactionPicker] = useState(false);
-  const [showPinnedMessagesModal, setShowPinnedMessagesModal] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
   const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -998,14 +997,6 @@ return (
                    <path d="M12 8h.01" />
                  </svg>
                </button>
-               <button
-                 type="button"
-                 className="flex items-center justify-center w-8 h-8 rounded-full bg-[rgba(16,185,129,0.1)] border border-[rgba(16,185,129,0.2)] text-[var(--accent-color)] hover:bg-[rgba(16,185,129,0.2)] transition-colors cursor-pointer"
-                 onClick={() => setShowPinnedMessagesModal(true)}
-                 title="View Pinned Messages"
-               >
-                 <Pin size={18} />
-               </button>
             </div>
 
             {/* Messages */}
@@ -1244,6 +1235,40 @@ return (
               </div>
             </div>
 
+            {/* Pinned Messages in Profile */}
+            <div className="mt-6 border-t border-[var(--border-color)] pt-4">
+               <h4 className="text-sm font-bold text-[var(--text-main)] mb-3 flex items-center gap-2">
+                 <Pin size={16} className="text-amber-500 fill-amber-500/20" />
+                 Pinned Messages
+               </h4>
+               <div className="max-h-[160px] overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                 {messages.filter(m => m.isPinned).length === 0 ? (
+                   <p className="text-xs text-[var(--text-light)] italic text-center py-2">No pinned messages.</p>
+                 ) : (
+                   messages.filter(m => m.isPinned).map(msg => (
+                     <div key={msg.id} className="p-2.5 bg-[rgba(16,185,129,0.05)] rounded-[12px] border border-[rgba(16,185,129,0.1)] group">
+                       <div className="flex justify-between items-start gap-2">
+                         <div className="flex-1 min-w-0">
+                           <span className="text-[10px] text-[var(--accent-color)] font-bold uppercase tracking-wider">{msg.fromUsername}</span>
+                           <p className="text-xs text-[var(--text-main)] line-clamp-2 leading-relaxed">{msg.text}</p>
+                         </div>
+                         <button 
+                           onClick={() => handlePinMessage(msg)} 
+                           className="text-[var(--text-light)] hover:text-red-500 transition-colors"
+                           title="Unpin"
+                         >
+                           <Pin size={12} className="fill-current" />
+                         </button>
+                       </div>
+                       <span className="text-[0.6rem] text-[var(--text-light)] mt-1 block">
+                        {msg.createdAt ? formatTime(msg.createdAt) : ''}
+                      </span>
+                     </div>
+                   ))
+                 )}
+               </div>
+            </div>
+
             <div className="flex gap-3 mt-6">
               {blockedUsers.includes(modalData.uid) ? (
                 <button
@@ -1274,44 +1299,6 @@ return (
         </div>
       )}
       
-       {/* ==================== PINNED MESSAGES MODAL ==================== */}
-       {showPinnedMessagesModal && (
-         <div className="fixed inset-0 z-[3000] flex items-center justify-center bg-[rgba(2,6,23,0.85)] backdrop-blur-[8px]" onClick={() => setShowPinnedMessagesModal(false)}>
-           <div className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-[28px] p-6 relative max-w-lg w-full max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
-             <div className="flex justify-between items-center mb-4">
-               <h3 className="text-xl font-bold text-[var(--text-main)]">Pinned Messages</h3>
-               <button onClick={() => setShowPinnedMessagesModal(false)} className="text-[var(--text-light)] hover:text-red-500 transition-colors">&times;</button>
-             </div>
-             <div className="flex-1 overflow-y-auto space-y-2">
-               {messages.filter(m => m.isPinned).length === 0 ? (
-                 <p className="text-[var(--text-light)] text-center py-8">No pinned messages in this chat.</p>
-               ) : (
-                 messages.filter(m => m.isPinned).map(msg => (
-                   <div key={msg.id} className="p-3 bg-[var(--bg-sidebar)] rounded-xl border border-[var(--border-color)]">
-                     <div className="flex justify-between items-start gap-2">
-                       <div className="flex-1 min-w-0">
-                         <span className="text-xs text-[var(--accent-color)] font-semibold">{msg.fromUsername}</span>
-                         <p className="text-sm text-[var(--text-main)] truncate">{msg.text}</p>
-                       </div>
-                       <button 
-                         onClick={() => handlePinMessage(msg)} 
-                         className="text-[var(--text-light)] hover:text-[var(--accent-color)] flex-shrink-0"
-                         title="Unpin"
-                       >
-                         <Pin size={16} className="fill-current" />
-                       </button>
-                     </div>
-                     <span className="text-[0.6rem] text-[var(--text-light)] mt-1 block">
-                       {msg.createdAt ? formatTime(msg.createdAt) : ''}
-                     </span>
-                   </div>
-                 ))
-               )}
-             </div>
-           </div>
-         </div>
-       )}
-       
        {/* ==================== LOADING OVERLAY ==================== */}
        {isInitializingChat && (
         <div className="fixed inset-0 z-[5000] flex flex-col items-center justify-center gap-4 bg-[#0f172a] backdrop-blur-md">

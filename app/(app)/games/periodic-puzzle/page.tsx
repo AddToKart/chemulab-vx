@@ -180,7 +180,7 @@ export default function PeriodicPuzzlePage() {
         setMessage('');
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     [selectedPiece, placed],
   );
 

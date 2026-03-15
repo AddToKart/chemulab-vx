@@ -150,5 +150,29 @@ service cloud.firestore {
       // Restrict read access to admins (optional, but good for privacy)
       allow read: if false; 
     }
+
+    // Reviews/Ratings: One review per user (document ID is userId)
+    match /reviews/{userId} {
+      // Only authenticated users with verified email can create their own review
+      allow create: if request.auth != null 
+                    && request.auth.token.email_verified == true
+                    && userId == request.auth.uid
+                    && request.resource.data.rating >= 1 
+                    && request.resource.data.rating <= 4
+                    && request.resource.data.rating is int;
+      
+      // Any authenticated user can read reviews
+      allow read: if request.auth != null;
+      
+      // Only the author can update their review
+      allow update: if request.auth != null 
+                    && request.auth.token.email_verified == true
+                    && userId == request.auth.uid
+                    && request.resource.data.rating >= 1 
+                    && request.resource.data.rating <= 4;
+      
+      // Only the author can delete their review
+      allow delete: if request.auth != null && userId == request.auth.uid;
+    }
   }
 }

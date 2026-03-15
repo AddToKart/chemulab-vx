@@ -8,7 +8,8 @@ export type ElementCategory =
   | 'post-transition'
   | 'transition'
   | 'lanthanide'
-  | 'actinide';
+  | 'actinide'
+  | 'unknown';
 
 export interface ElementData {
   atomic_number: number;
@@ -135,7 +136,7 @@ export const elementsData: ElementData[] = [
   { atomic_number: 114, symbol: 'Fl', name: 'Flerovium', atomic_mass: 289.0, category: 'post-transition' },
   { atomic_number: 115, symbol: 'Mc', name: 'Moscovium', atomic_mass: 288.0, category: 'post-transition' },
   { atomic_number: 116, symbol: 'Lv', name: 'Livermorium', atomic_mass: 293.0, category: 'post-transition' },
-  { atomic_number: 117, symbol: 'Ts', name: 'Tennessine', atomic_mass: 292.0, category: 'halogen' },
+  { atomic_number: 117, symbol: 'Ts', name: 'Tennessine', atomic_mass: 292.0, category: 'unknown' },
   { atomic_number: 118, symbol: 'Og', name: 'Oganesson', atomic_mass: 294.0, category: 'noble-gas' },
 ];
 
