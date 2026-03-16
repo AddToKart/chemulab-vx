@@ -1,32 +1,21 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 
 export function useTickingSound(timeLeft: number, isGameActive: boolean) {
   const audioContextRef = useRef<AudioContext | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Initialize audio context on first user interaction
+  // Initialize audio context immediately (not on user interaction)
   useEffect(() => {
-    const initAudio = () => {
-      if (!audioContextRef.current) {
+    if (!audioContextRef.current) {
+      try {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      } catch (error) {
+        console.warn('AudioContext not supported:', error);
       }
-      if (!isInitialized) {
-        setIsInitialized(true);
-      }
-    };
-
-    // Initialize on first click/touch
-    document.addEventListener('click', initAudio, { once: true });
-    document.addEventListener('touchstart', initAudio, { once: true });
-
-    return () => {
-      document.removeEventListener('click', initAudio);
-      document.removeEventListener('touchstart', initAudio);
-    };
-  }, [isInitialized]);
+    }
+  }, []);
 
   const getFrequency = (time: number): number => {
     if (time <= 5) return 1200; // Very fast beep
@@ -36,10 +25,26 @@ export function useTickingSound(timeLeft: number, isGameActive: boolean) {
   };
 
   const playTick = useCallback(() => {
-    if (!audioContextRef.current) return;
+    if (!audioContextRef.current) {
+      // Try to initialize if not already
+      try {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      } catch (error) {
+        return; // Audio not supported
+      }
+    }
+
+    const ctx = audioContextRef.current;
+    
+    // Resume audio context if suspended (required by browsers)
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => {
+        // Ignore resume errors
+        return;
+      });
+    }
 
     try {
-      const ctx = audioContextRef.current;
       const oscillator = ctx.createOscillator();
       const gainNode = ctx.createGain();
 
@@ -52,27 +57,31 @@ export function useTickingSound(timeLeft: number, isGameActive: boolean) {
 
       // Short beep duration
       const beepDuration = 0.1;
-      gainNode.gain.setValueAtTime(0.1, ctx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + beepDuration);
+      const currentTime = ctx.currentTime;
+      
+      gainNode.gain.setValueAtTime(0.1, currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, currentTime + beepDuration);
 
-      oscillator.start(ctx.currentTime);
-      oscillator.stop(ctx.currentTime + beepDuration);
+      oscillator.start(currentTime);
+      oscillator.stop(currentTime + beepDuration);
     } catch (error) {
       console.warn('Error playing ticking sound:', error);
     }
   }, [timeLeft]);
 
   useEffect(() => {
-    if (!isGameActive || !isInitialized) return;
+    if (!isGameActive) return;
 
     const shouldTick = timeLeft <= 15 && timeLeft > 0;
 
     if (shouldTick) {
       // Start ticking if not already running
       if (!intervalRef.current) {
+        // Play immediately and then every second
+        playTick();
         intervalRef.current = setInterval(() => {
           playTick();
-        }, 1000); // Tick every second
+        }, 1000);
       }
     } else {
       // Stop ticking
@@ -85,9 +94,10 @@ export function useTickingSound(timeLeft: number, isGameActive: boolean) {
     return () => {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
+        intervalRef.current = null;
       }
     };
-  }, [timeLeft, isGameActive, isInitialized, playTick]);
+  }, [timeLeft, isGameActive, playTick]);
 
   return { playTick };
 }
