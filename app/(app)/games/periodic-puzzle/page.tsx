@@ -7,7 +7,6 @@ import styles from './page.module.css';
 import { ShareGameScore } from '@/components/game/ShareGameScore';
 import DifficultySelector from '@/components/game/DifficultySelector';
 import TimerProgress from '@/components/game/TimerProgress';
-import { useTickingSound } from '@/lib/hooks/use-ticking-sound';
 import {
   DifficultyLevel,
   periodicPuzzleDifficulty,
@@ -168,9 +167,6 @@ export default function PeriodicPuzzlePage() {
 
   const getElementBySymbol = (symbol: string) =>
     puzzleElements.find((e) => e.symbol === symbol);
-
-  // Initialize ticking sound hook
-  useTickingSound(timeLeft, gameStarted);
 
   // Timer countdown effect for Advanced/Expert modes
   useEffect(() => {

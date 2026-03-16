@@ -1,6 +1,8 @@
 'use client';
 
+import { useEffect } from 'react';
 import styles from './timer-progress.module.css';
+import { useTickingSound } from '@/lib/hooks/use-ticking-sound';
 
 interface TimerProgressProps {
   timeLeft: number;
@@ -11,7 +13,10 @@ interface TimerProgressProps {
 export default function TimerProgress({
   timeLeft,
   totalTime,
+  isGameActive,
 }: TimerProgressProps) {
+  // Initialize ticking sound hook
+  useTickingSound(timeLeft, isGameActive);
   // Don't show timer if there's no time limit
   if (!totalTime) return null;
 

@@ -8,7 +8,6 @@ import styles from './page.module.css';
 import { ShareGameScore } from '@/components/game/ShareGameScore';
 import DifficultySelector from '@/components/game/DifficultySelector';
 import TimerProgress from '@/components/game/TimerProgress';
-import { useTickingSound } from '@/lib/hooks/use-ticking-sound';
 import {
   DifficultyLevel,
   whackAMoleDifficulty,
@@ -39,9 +38,6 @@ export default function WhackAMolePage() {
 
   // Get difficulty settings
   const difficultySettings: WhackAMoleSettings = whackAMoleDifficulty[difficulty];
-
-  // Initialize ticking sound hook
-  useTickingSound(timeLeft, isGameRunning);
 
   const gameIntervalRef = useRef<NodeJS.Timeout>(undefined);
   const moleIntervalRef = useRef<NodeJS.Timeout>(undefined);

@@ -8,7 +8,6 @@ import styles from './page.module.css';
 import { ShareGameScore } from '@/components/game/ShareGameScore';
 import DifficultySelector from '@/components/game/DifficultySelector';
 import TimerProgress from '@/components/game/TimerProgress';
-import { useTickingSound } from '@/lib/hooks/use-ticking-sound';
 import {
   DifficultyLevel,
   reactionQuizDifficulty,
@@ -39,9 +38,6 @@ export default function ReactionQuizPage() {
 
   // Get difficulty settings
   const difficultySettings: ReactionQuizSettings = reactionQuizDifficulty[difficulty];
-
-  // Initialize ticking sound hook
-  useTickingSound(timeLeft, isGameActive);
 
   // Timer countdown effect
   useEffect(() => {
