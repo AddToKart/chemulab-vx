@@ -1,13 +1,21 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { elementsData } from '@/lib/data/elements-data';
 import styles from './page.module.css';
 
 import { ShareGameScore } from '@/components/game/ShareGameScore';
+import DifficultySelector from '@/components/game/DifficultySelector';
+import TimerProgress from '@/components/game/TimerProgress';
+import { useTickingSound } from '@/lib/hooks/use-ticking-sound';
+import {
+  DifficultyLevel,
+  elementMatchDifficulty,
+  ElementMatchSettings,
+} from '@/lib/types/game-difficulty';
 
-type QuestionType = 'symbol-to-name' | 'name-to-symbol';
+type QuestionType = 'symbol-to-name' | 'name-to-symbol' | 'atomic-number' | 'category';
 
 interface Question {
   questionText: string;
@@ -27,50 +35,153 @@ export default function ElementMatchPage() {
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [feedbackText, setFeedbackText] = useState('');
   const [showNext, setShowNext] = useState(false);
+  const [difficulty, setDifficulty] = useState<DifficultyLevel>('intermediate');
+  const [timeLeft, setTimeLeft] = useState<number>(0);
+
+  // Get difficulty settings
+  const difficultySettings: ElementMatchSettings = elementMatchDifficulty[difficulty];
+
+  // Initialize ticking sound hook
+  useTickingSound(timeLeft, isGameActive);
+
+  // Timer countdown effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    const settings = elementMatchDifficulty[difficulty];
+
+    if (isGameActive && settings.timePerQuestion) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTimeLeft(settings.timePerQuestion);
+      interval = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            // Time's up - treat as wrong answer
+            if (question) {
+              setStreak(0);
+              setFeedbackText(`Time's up! The answer was ${question.correctAnswer}`);
+              setLives((prevLives) => {
+                const newLives = prevLives - 1;
+                if (newLives <= 0) {
+                  setIsGameActive(false);
+                  setGameOver(true);
+                  setShowNext(false);
+                }
+                return newLives;
+              });
+              setShowNext(true);
+              setSelectedAnswer('TIME_UP');
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isGameActive, difficulty, question]);
 
   const generateQuestion = useCallback((): Question => {
+    // Get current difficulty settings
+    const settings = elementMatchDifficulty[difficulty];
+    
+    // Filter elements based on difficulty
+    const filteredElements = elementsData.filter(
+      (el) => el.atomic_number <= settings.maxAtomicNumber
+    );
+
     const correctElement =
-      elementsData[Math.floor(Math.random() * elementsData.length)];
+      filteredElements[Math.floor(Math.random() * filteredElements.length)];
+
+    // Select question type based on difficulty settings
+    const questionTypes = settings.questionTypes;
     const questionType: QuestionType =
-      Math.random() < 0.5 ? 'symbol-to-name' : 'name-to-symbol';
+      questionTypes[Math.floor(Math.random() * questionTypes.length)];
 
-    const correctAnswer =
-      questionType === 'symbol-to-name'
-        ? correctElement.name
-        : correctElement.symbol;
-    const highlightText =
-      questionType === 'symbol-to-name'
-        ? correctElement.symbol
-        : correctElement.name;
-    const questionText =
-      questionType === 'symbol-to-name'
-        ? 'What element has the symbol'
-        : 'What is the symbol for';
+    let correctAnswer: string;
+    let highlightText: string;
+    let questionText: string;
 
-    // Generate 3 distractors
+    switch (questionType) {
+      case 'symbol-to-name':
+        correctAnswer = correctElement.name;
+        highlightText = correctElement.symbol;
+        questionText = 'What element has the symbol';
+        break;
+      case 'name-to-symbol':
+        correctAnswer = correctElement.symbol;
+        highlightText = correctElement.name;
+        questionText = 'What is the symbol for';
+        break;
+      case 'atomic-number':
+        correctAnswer = correctElement.name;
+        highlightText = correctElement.atomic_number.toString();
+        questionText = 'What element has atomic number';
+        break;
+      case 'category':
+        correctAnswer = correctElement.name;
+        highlightText = correctElement.category;
+        questionText = 'What element belongs to the category';
+        break;
+    }
+
+    // Generate distractors based on difficulty
     const distractors: string[] = [];
     const usedValues = new Set<string>([correctAnswer]);
 
-    while (distractors.length < 3) {
-      let distractor: string;
-      const correctIdx = elementsData.indexOf(correctElement);
+    const numOptions = difficultySettings.options - 1; // -1 for correct answer
 
-      if (Math.random() < 0.8) {
-        // 80% chance: pick neighbor within ±5 atomic number
-        const offset = Math.floor(Math.random() * 11) - 5; // -5 to +5
+    while (distractors.length < numOptions) {
+      let distractor: string;
+      const correctIdx = filteredElements.indexOf(correctElement);
+
+      // Higher chance of similar elements for harder difficulties
+      const neighborChance = difficulty === 'expert' ? 0.9 : difficulty === 'advanced' ? 0.85 : 0.8;
+
+      if (Math.random() < neighborChance) {
+        // Pick neighbor within ±5 atomic number (tighter range for expert)
+        const range = difficulty === 'expert' ? 3 : 5;
+        const offset = Math.floor(Math.random() * (range * 2 + 1)) - range;
         const neighborIdx = Math.max(
           0,
-          Math.min(elementsData.length - 1, correctIdx + offset)
+          Math.min(filteredElements.length - 1, correctIdx + offset)
         );
-        const neighbor = elementsData[neighborIdx];
-        distractor =
-          questionType === 'symbol-to-name' ? neighbor.name : neighbor.symbol;
+        const neighbor = filteredElements[neighborIdx];
+
+        switch (questionType) {
+          case 'symbol-to-name':
+            distractor = neighbor.name;
+            break;
+          case 'name-to-symbol':
+            distractor = neighbor.symbol;
+            break;
+          case 'atomic-number':
+            distractor = neighbor.name;
+            break;
+          case 'category':
+            distractor = neighbor.name;
+            break;
+        }
       } else {
-        // 20% chance: random element
+        // Random element
         const randomEl =
-          elementsData[Math.floor(Math.random() * elementsData.length)];
-        distractor =
-          questionType === 'symbol-to-name' ? randomEl.name : randomEl.symbol;
+          filteredElements[Math.floor(Math.random() * filteredElements.length)];
+        switch (questionType) {
+          case 'symbol-to-name':
+            distractor = randomEl.name;
+            break;
+          case 'name-to-symbol':
+            distractor = randomEl.symbol;
+            break;
+          case 'atomic-number':
+            distractor = randomEl.name;
+            break;
+          case 'category':
+            distractor = randomEl.name;
+            break;
+        }
       }
 
       if (!usedValues.has(distractor)) {
@@ -93,19 +204,21 @@ export default function ElementMatchPage() {
       options,
       type: questionType,
     };
-  }, []);
+  }, [difficulty]);
 
   const startGame = useCallback(() => {
+    const settings = elementMatchDifficulty[difficulty];
     setScore(0);
     setStreak(0);
-    setLives(3);
+    setLives(settings.lives);
     setIsGameActive(true);
     setGameOver(false);
     setSelectedAnswer(null);
     setFeedbackText('');
     setShowNext(false);
     setQuestion(generateQuestion());
-  }, [generateQuestion]);
+    setTimeLeft(settings.timePerQuestion || 0);
+  }, [generateQuestion, difficulty]);
 
   const handleAnswer = useCallback(
     (answer: string) => {
@@ -115,7 +228,10 @@ export default function ElementMatchPage() {
       setShowNext(true);
 
       if (answer === question.correctAnswer) {
-        const points = 10 + streak * 2;
+        // Apply scoring multiplier to all points including streak bonus
+        const settings = elementMatchDifficulty[difficulty];
+        const basePoints = 10 + streak * 2;
+        const points = Math.round(basePoints * settings.scoringMultiplier);
         setScore((prev) => prev + points);
         setStreak((prev) => prev + 1);
         setFeedbackText(`Correct! +${points} points`);
@@ -135,7 +251,7 @@ export default function ElementMatchPage() {
         });
       }
     },
-    [question, selectedAnswer, streak]
+    [question, selectedAnswer, streak, difficulty]
   );
 
   const nextQuestion = useCallback(() => {
@@ -143,7 +259,11 @@ export default function ElementMatchPage() {
     setFeedbackText('');
     setShowNext(false);
     setQuestion(generateQuestion());
-  }, [generateQuestion]);
+    const settings = elementMatchDifficulty[difficulty];
+    if (settings.timePerQuestion) {
+      setTimeLeft(settings.timePerQuestion);
+    }
+  }, [generateQuestion, difficulty]);
 
   const getOptionClass = (option: string): string => {
     if (selectedAnswer === null) return styles.optionBtn;
@@ -171,6 +291,10 @@ export default function ElementMatchPage() {
               Match element symbols to their names and test your chemistry
               knowledge!
             </p>
+            <DifficultySelector
+              onSelect={setDifficulty}
+              selected={difficulty}
+            />
             <button className={styles.startBtn} onClick={startGame}>
               Start Game
             </button>
@@ -179,12 +303,18 @@ export default function ElementMatchPage() {
 
         {isGameActive && question && (
           <>
+            <TimerProgress
+              timeLeft={timeLeft}
+              totalTime={difficultySettings.timePerQuestion || 0}
+              isGameActive={isGameActive}
+            />
+
             <div className={styles.scoreBoard}>
               <span>Score: {score}</span>
               <span>Streak: {streak}</span>
               <span>
                 Lives: {'❤️'.repeat(lives)}
-                {'🖤'.repeat(3 - lives)}
+                {'🖤'.repeat(difficultySettings.lives - lives)}
               </span>
             </div>
 

@@ -1,11 +1,19 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { reactionsData } from '@/lib/data/reactions-data';
 import styles from './page.module.css';
 
 import { ShareGameScore } from '@/components/game/ShareGameScore';
+import DifficultySelector from '@/components/game/DifficultySelector';
+import TimerProgress from '@/components/game/TimerProgress';
+import { useTickingSound } from '@/lib/hooks/use-ticking-sound';
+import {
+  DifficultyLevel,
+  reactionQuizDifficulty,
+  ReactionQuizSettings,
+} from '@/lib/types/game-difficulty';
 
 interface Question {
   reactants: string;
@@ -26,20 +34,84 @@ export default function ReactionQuizPage() {
   const [feedbackText, setFeedbackText] = useState('');
   const [showNext, setShowNext] = useState(false);
   const [showName, setShowName] = useState(false);
+  const [difficulty, setDifficulty] = useState<DifficultyLevel>('intermediate');
+  const [timeLeft, setTimeLeft] = useState<number>(0);
+
+  // Get difficulty settings
+  const difficultySettings: ReactionQuizSettings = reactionQuizDifficulty[difficulty];
+
+  // Initialize ticking sound hook
+  useTickingSound(timeLeft, isGameActive);
+
+  // Timer countdown effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    const settings = reactionQuizDifficulty[difficulty];
+
+    if (isGameActive && settings.timePerQuestion) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTimeLeft(settings.timePerQuestion);
+      interval = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            // Time's up - treat as wrong answer
+            if (question) {
+              setStreak(0);
+              setFeedbackText(`Time's up! The answer was ${showName ? question.correctAnswer.name : question.correctAnswer.formula}`);
+              setLives((prevLives) => {
+                const newLives = prevLives - 1;
+                if (newLives <= 0) {
+                  setIsGameActive(false);
+                  setGameOver(true);
+                  setShowNext(false);
+                }
+                return newLives;
+              });
+              setShowNext(true);
+              setSelectedAnswer('TIME_UP');
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isGameActive, difficulty, question, showName]);
 
   const generateQuestion = useCallback((): Question => {
+    const settings = reactionQuizDifficulty[difficulty];
+    
+    // Filter reactions based on difficulty
+    const filteredReactions =
+      difficulty === 'beginner'
+        ? reactionsData.slice(0, 5) // First 5 simple reactions
+        : reactionsData;
+
     const correctReaction =
-      reactionsData[Math.floor(Math.random() * reactionsData.length)];
+      filteredReactions[Math.floor(Math.random() * filteredReactions.length)];
 
     const correctAnswer = { formula: correctReaction.products, name: correctReaction.productsName };
 
-    // Generate 3 distractors from other reactions' products
+    // Generate distractors based on difficulty
     const distractors: { formula: string; name: string }[] = [];
     const usedValues = new Set<string>([correctAnswer.formula]);
 
-    while (distractors.length < 3) {
-      const randomReaction =
-        reactionsData[Math.floor(Math.random() * reactionsData.length)];
+    const numOptions = settings.options - 1; // -1 for correct answer
+
+    while (distractors.length < numOptions) {
+      let randomReaction;
+      if (difficulty === 'expert') {
+        // For expert, pick from similar reactions (same type)
+        // Simplified: just pick random but closer in formula length
+        randomReaction = filteredReactions[Math.floor(Math.random() * filteredReactions.length)];
+      } else {
+        randomReaction = filteredReactions[Math.floor(Math.random() * filteredReactions.length)];
+      }
+
       const distractor = { formula: randomReaction.products, name: randomReaction.productsName };
 
       if (!usedValues.has(distractor.formula)) {
@@ -62,19 +134,22 @@ export default function ReactionQuizPage() {
       reactionName: correctReaction.name,
       options,
     };
-  }, []);
+  }, [difficulty]);
 
   const startGame = useCallback(() => {
+    const settings = reactionQuizDifficulty[difficulty];
     setScore(0);
     setStreak(0);
-    setLives(3);
+    setLives(settings.lives);
     setIsGameActive(true);
     setGameOver(false);
     setSelectedAnswer(null);
     setFeedbackText('');
     setShowNext(false);
     setQuestion(generateQuestion());
-  }, [generateQuestion]);
+    setShowName(settings.displayMode === 'name');
+    setTimeLeft(settings.timePerQuestion || 0);
+  }, [generateQuestion, difficulty]);
 
   const handleAnswer = useCallback(
     (answer: string) => {
@@ -84,7 +159,10 @@ export default function ReactionQuizPage() {
       setShowNext(true);
 
       if (answer === question.correctAnswer.formula) {
-        const points = 10 + streak * 2;
+        // Apply scoring multiplier to all points including streak bonus
+        const settings = reactionQuizDifficulty[difficulty];
+        const basePoints = 10 + streak * 2;
+        const points = Math.round(basePoints * settings.scoringMultiplier);
         setScore((prev) => prev + points);
         setStreak((prev) => prev + 1);
         setFeedbackText(`Correct! +${points} points`);
@@ -104,7 +182,7 @@ export default function ReactionQuizPage() {
         });
       }
     },
-    [question, selectedAnswer, streak, showName]
+    [question, selectedAnswer, streak, showName, difficulty]
   );
 
   const nextQuestion = useCallback(() => {
@@ -112,7 +190,11 @@ export default function ReactionQuizPage() {
     setFeedbackText('');
     setShowNext(false);
     setQuestion(generateQuestion());
-  }, [generateQuestion]);
+    const settings = reactionQuizDifficulty[difficulty];
+    if (settings.timePerQuestion) {
+      setTimeLeft(settings.timePerQuestion);
+    }
+  }, [generateQuestion, difficulty]);
 
   const getOptionClass = (option: string): string => {
     if (selectedAnswer === null) return styles.optionBtn;
@@ -140,6 +222,10 @@ export default function ReactionQuizPage() {
               Identify the products of chemical reactions and test your
               chemistry knowledge!
             </p>
+            <DifficultySelector
+              onSelect={setDifficulty}
+              selected={difficulty}
+            />
             <button className={styles.startBtn} onClick={startGame}>
               Start Game
             </button>
@@ -148,28 +234,40 @@ export default function ReactionQuizPage() {
 
         {isGameActive && question && (
           <>
+            <TimerProgress
+              timeLeft={timeLeft}
+              totalTime={difficultySettings.timePerQuestion || 0}
+              isGameActive={isGameActive}
+            />
+
             <div className={styles.scoreBoard}>
               <span>Score: {score}</span>
               <span>Streak: {streak}</span>
               <span>
                 Lives: {'❤️'.repeat(lives)}
-                {'🖤'.repeat(3 - lives)}
+                {'🖤'.repeat(difficultySettings.lives - lives)}
               </span>
             </div>
 
             <div className={styles.questionBox}>
-              <div className={styles.toggleContainer}>
-                <span className={!showName ? styles.activeToggle : ''}>Formula</span>
-                <button 
-                  className={styles.toggleBtn} 
-                  onClick={() => setShowName(!showName)}
-                  aria-pressed={showName}
-                >
-                  <div className={`${styles.toggleKnob} ${showName ? styles.toggleKnobActive : ''}`} />
-                </button>
-                <span className={showName ? styles.activeToggle : ''}>Name</span>
-              </div>
-              <p>What are the products of this reaction?</p>
+              {difficultySettings.displayMode === 'toggle' && (
+                <div className={styles.toggleContainer}>
+                  <span className={!showName ? styles.activeToggle : ''}>Formula</span>
+                  <button 
+                    className={styles.toggleBtn} 
+                    onClick={() => setShowName(!showName)}
+                    aria-pressed={showName}
+                  >
+                    <div className={`${styles.toggleKnob} ${showName ? styles.toggleKnobActive : ''}`} />
+                  </button>
+                  <span className={showName ? styles.activeToggle : ''}>Name</span>
+                </div>
+              )}
+              <p>
+                {difficulty === 'expert' 
+                  ? 'What are the products of this reaction?'
+                  : 'What are the products of this reaction?'}
+              </p>
               <p className={styles.reactionEquation}>
                 {showName ? `${question.reactantsName} \u2192 ?` : `${question.reactants} \u2192 ?`}
               </p>

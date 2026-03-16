@@ -1,0 +1,83 @@
+.difficultySelector {
+  margin: 20px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.label {
+  font-weight: 600;
+  font-size: 1.1em;
+  color: var(--text-foreground, #333);
+}
+
+.dropdown {
+  width: 200px;
+  padding: 12px 16px;
+  font-size: 1em;
+  border: 2px solid var(--border-color, #ccc);
+  border-radius: 8px;
+  background: var(--bg-card, #fff);
+  color: var(--text-foreground, #333);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+  padding-right: 40px;
+}
+
+.dropdown:hover:not(:disabled) {
+  border-color: var(--primary, #3b82f6);
+  transform: translateY(-1px);
+}
+
+.dropdown:focus {
+  outline: none;
+  border-color: var(--primary, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.dropdown:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Dark mode support */
+:global([data-theme="dark"]) .difficultySelector {
+  --text-foreground: #e5e7eb;
+  --border-color: #4b5563;
+  --bg-card: #1f2937;
+}
+
+:global([data-theme="dark"]) .label {
+  color: #e5e7eb;
+}
+
+:global([data-theme="dark"]) .dropdown {
+  background-color: #1f2937;
+  color: #e5e7eb;
+  border-color: #4b5563;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e5e7eb' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+}
+
+:global([data-theme="dark"]) .dropdown:hover:not(:disabled) {
+  border-color: var(--primary, #3b82f6);
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+  .dropdown {
+    width: 180px;
+    padding: 10px 14px;
+    font-size: 0.95em;
+  }
+  
+  .label {
+    font-size: 1em;
+  }
+}

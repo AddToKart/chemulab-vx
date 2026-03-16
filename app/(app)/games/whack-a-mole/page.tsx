@@ -6,14 +6,14 @@ import { elementsData } from '@/lib/data/elements-data';
 import styles from './page.module.css';
 
 import { ShareGameScore } from '@/components/game/ShareGameScore';
-
-const HEAVY_METALS = ['Pb', 'Hg', 'Cd', 'As', 'Tl', 'Cr', 'U', 'Pu', 'Ra', 'Po'];
-const TOTAL_HOLES = 16;
-const GAME_DURATION = 30;
-const MOLE_INTERVAL = 1200;
-const MIN_MOLES = 3;
-const MAX_MOLES = 5;
-const CLICK_FEEDBACK_MS = 200;
+import DifficultySelector from '@/components/game/DifficultySelector';
+import TimerProgress from '@/components/game/TimerProgress';
+import { useTickingSound } from '@/lib/hooks/use-ticking-sound';
+import {
+  DifficultyLevel,
+  whackAMoleDifficulty,
+  WhackAMoleSettings,
+} from '@/lib/types/game-difficulty';
 
 interface Hole {
   symbol: string | null;
@@ -21,8 +21,8 @@ interface Hole {
   clickState: 'none' | 'correct' | 'wrong';
 }
 
-function createEmptyHoles(): Hole[] {
-  return Array.from({ length: TOTAL_HOLES }, () => ({
+function createEmptyHoles(totalHoles: number): Hole[] {
+  return Array.from({ length: totalHoles }, () => ({
     symbol: null,
     isHeavyMetal: false,
     clickState: 'none',
@@ -31,10 +31,17 @@ function createEmptyHoles(): Hole[] {
 
 export default function WhackAMolePage() {
   const [score, setScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(GAME_DURATION);
+  const [timeLeft, setTimeLeft] = useState(30);
   const [isGameRunning, setIsGameRunning] = useState(false);
   const [gameOver, setGameOver] = useState(false);
-  const [holes, setHoles] = useState<Hole[]>(createEmptyHoles);
+  const [holes, setHoles] = useState<Hole[]>([]);
+  const [difficulty, setDifficulty] = useState<DifficultyLevel>('intermediate');
+
+  // Get difficulty settings
+  const difficultySettings: WhackAMoleSettings = whackAMoleDifficulty[difficulty];
+
+  // Initialize ticking sound hook
+  useTickingSound(timeLeft, isGameRunning);
 
   const gameIntervalRef = useRef<NodeJS.Timeout>(undefined);
   const moleIntervalRef = useRef<NodeJS.Timeout>(undefined);
@@ -56,10 +63,12 @@ export default function WhackAMolePage() {
   }, []);
 
   const popMoles = useCallback(() => {
-    const newHoles = createEmptyHoles();
-    const moleCount = Math.floor(Math.random() * (MAX_MOLES - MIN_MOLES + 1)) + MIN_MOLES;
+    const settings = whackAMoleDifficulty[difficulty];
+    const newHoles = createEmptyHoles(settings.holeCount);
+    const [minMoles, maxMoles] = settings.molesPerPop;
+    const moleCount = Math.floor(Math.random() * (maxMoles - minMoles + 1)) + minMoles;
 
-    const availableIndices = Array.from({ length: TOTAL_HOLES }, (_, i) => i);
+    const availableIndices = Array.from({ length: settings.holeCount }, (_, i) => i);
     for (let i = availableIndices.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [availableIndices[i], availableIndices[j]] = [availableIndices[j], availableIndices[i]];
@@ -71,28 +80,30 @@ export default function WhackAMolePage() {
       const symbol = allSymbols[Math.floor(Math.random() * allSymbols.length)];
       newHoles[idx] = {
         symbol,
-        isHeavyMetal: HEAVY_METALS.includes(symbol),
+        isHeavyMetal: settings.heavyMetals.includes(symbol),
         clickState: 'none',
       };
     }
 
     setHoles(newHoles);
-  }, [allSymbols]);
+  }, [allSymbols, difficulty]);
 
   const endGame = useCallback(() => {
+    const settings = whackAMoleDifficulty[difficulty];
     clearAllIntervals();
     setIsGameRunning(false);
     setGameOver(true);
-    setHoles(createEmptyHoles());
-  }, [clearAllIntervals]);
+    setHoles(createEmptyHoles(settings.holeCount));
+  }, [clearAllIntervals, difficulty]);
 
   const startGame = useCallback(() => {
+    const settings = whackAMoleDifficulty[difficulty];
     clearAllIntervals();
     setScore(0);
-    setTimeLeft(GAME_DURATION);
+    setTimeLeft(settings.duration);
     setGameOver(false);
     setIsGameRunning(true);
-    setHoles(createEmptyHoles());
+    setHoles(createEmptyHoles(settings.holeCount));
 
     // Start mole popping
     // Small delay so state is settled before first pop
@@ -102,7 +113,7 @@ export default function WhackAMolePage() {
 
     moleIntervalRef.current = setInterval(() => {
       popMoles();
-    }, MOLE_INTERVAL);
+    }, settings.moleInterval);
 
     // Start countdown timer
     gameIntervalRef.current = setInterval(() => {
@@ -113,11 +124,12 @@ export default function WhackAMolePage() {
         return prev - 1;
       });
     }, 1000);
-  }, [clearAllIntervals, popMoles]);
+  }, [clearAllIntervals, popMoles, difficulty]);
 
   // Watch for time running out
   useEffect(() => {
     if (isGameRunning && timeLeft <= 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       endGame();
     }
   }, [timeLeft, isGameRunning, endGame]);
@@ -138,10 +150,15 @@ export default function WhackAMolePage() {
 
       const isCorrect = hole.isHeavyMetal;
 
+      // Apply scoring multiplier
+      const settings = whackAMoleDifficulty[difficulty];
+      const basePoints = isCorrect ? settings.heavyMetalPoints : settings.safeElementPoints;
+      const points = Math.round(basePoints * settings.scoringMultiplier);
+
       if (isCorrect) {
-        setScore((prev) => prev + 10);
+        setScore((prev) => prev + points);
       } else {
-        setScore((prev) => prev - 5);
+        setScore((prev) => prev + points); // Points can be negative
       }
 
       // Show visual feedback
@@ -166,17 +183,17 @@ export default function WhackAMolePage() {
           return updated;
         });
         clickTimeoutRefs.current.delete(index);
-      }, CLICK_FEEDBACK_MS);
+      }, settings.moleInterval / 2); // Use half of mole interval for feedback
 
       // Track timeout for cleanup
       const existing = clickTimeoutRefs.current.get(index);
       if (existing) clearTimeout(existing);
       clickTimeoutRefs.current.set(index, timeout);
     },
-    [isGameRunning, holes],
+    [isGameRunning, holes, difficulty]
   );
 
-  const timerPercent = (timeLeft / GAME_DURATION) * 100;
+  const timerPercent = (timeLeft / whackAMoleDifficulty[difficulty].duration) * 100;
 
   const getHoleClassName = (hole: Hole): string => {
     const classes = [styles.moleHole];
@@ -203,8 +220,34 @@ export default function WhackAMolePage() {
       <div className={styles.gameArea}>
         <h1 className={styles.title}>Whack-a-Mole: Heavy Metals</h1>
 
+        {!isGameRunning && !gameOver && (
+          <div className={styles.startScreen}>
+            <div className={styles.instructions}>
+              <p>
+                <strong>Click on the heavy metals</strong> ({whackAMoleDifficulty[difficulty].heavyMetals.join(', ')}) to score points!
+              </p>
+              <p>
+                +{whackAMoleDifficulty[difficulty].heavyMetalPoints} points for each heavy metal caught. {whackAMoleDifficulty[difficulty].safeElementPoints > 0 ? '+' : ''}{whackAMoleDifficulty[difficulty].safeElementPoints} points for clicking a safe element.
+              </p>
+            </div>
+            <DifficultySelector
+              onSelect={setDifficulty}
+              selected={difficulty}
+            />
+            <button className={styles.startBtn} onClick={startGame}>
+              Start Game
+            </button>
+          </div>
+        )}
+
         {isGameRunning && (
           <>
+            <TimerProgress
+              timeLeft={timeLeft}
+              totalTime={whackAMoleDifficulty[difficulty].duration}
+              isGameActive={isGameRunning}
+            />
+
             <div className={styles.scoreBoard}>
               <span>Score: {score}</span>
               <span>Time: {timeLeft}s</span>
@@ -216,40 +259,19 @@ export default function WhackAMolePage() {
                 style={{ width: `${timerPercent}%` }}
               />
             </div>
+
+            <div className={styles.moleGrid}>
+              {holes.map((hole, index) => (
+                <div
+                  key={index}
+                  className={getHoleClassName(hole)}
+                  onClick={() => handleClick(index)}
+                >
+                  {hole.symbol ?? ''}
+                </div>
+              ))}
+            </div>
           </>
-        )}
-
-        {!isGameRunning && !gameOver && (
-          <div className={styles.instructions}>
-            <p>
-              <strong>Click on the heavy metals</strong> (Pb, Hg, Cd, As, Tl,
-              Cr, U, Pu, Ra, Po) to score points!
-            </p>
-            <p>
-              +10 points for each heavy metal caught. -5 points for clicking a
-              safe element.
-            </p>
-          </div>
-        )}
-
-        {isGameRunning && (
-          <div className={styles.moleGrid}>
-            {holes.map((hole, index) => (
-              <div
-                key={index}
-                className={getHoleClassName(hole)}
-                onClick={() => handleClick(index)}
-              >
-                {hole.symbol ?? ''}
-              </div>
-            ))}
-          </div>
-        )}
-
-        {!isGameRunning && !gameOver && (
-          <button className={styles.startBtn} onClick={startGame}>
-            Start Game
-          </button>
         )}
 
         {gameOver && (
