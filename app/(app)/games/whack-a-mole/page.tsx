@@ -189,8 +189,6 @@ export default function WhackAMolePage() {
     [isGameRunning, holes, difficulty]
   );
 
-  const timerPercent = (timeLeft / whackAMoleDifficulty[difficulty].duration) * 100;
-
   const getHoleClassName = (hole: Hole): string => {
     const classes = [styles.moleHole];
 
@@ -246,14 +244,6 @@ export default function WhackAMolePage() {
 
             <div className={styles.scoreBoard}>
               <span>Score: {score}</span>
-              <span>Time: {timeLeft}s</span>
-            </div>
-
-            <div className={styles.timerBar}>
-              <div
-                className={styles.timerFill}
-                style={{ width: `${timerPercent}%` }}
-              />
             </div>
 
             <div className={styles.moleGrid}>
