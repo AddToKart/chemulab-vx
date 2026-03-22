@@ -39,6 +39,10 @@ export default function LabPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [chamberElements, setChamberElements] = useState<LabElement[]>([]);
   const [result, setResult] = useState<LabElement | null>(null);
+  const [successReaction, setSuccessReaction] = useState<{
+    product: LabElement;
+    reactionType: string;
+  } | null>(null);
   const [selectedElement, setSelectedElement] = useState<LabElement | null>(null);
   const [mobileSection, setMobileSection] = useState<'lab' | 'elements' | 'inventory'>('lab');
   const [toast, setToast] = useState<{ message: string; error?: boolean } | null>(null);
@@ -111,6 +115,10 @@ export default function LabPage() {
   const showToast = useCallback((message: string, error = false) => {
     setToast({ message, error });
     setTimeout(() => setToast(null), 3000);
+  }, []);
+
+  const closeSuccessModal = useCallback(() => {
+    setSuccessReaction(null);
   }, []);
 
   /* ---------- chamber helpers ---------- */
@@ -212,20 +220,27 @@ export default function LabPage() {
       return;
     }
 
-    const result = attemptCombination(chamberElements);
-    if (result.kind === 'partial') {
-      showToast(result.hint, true);
+    const combination = attemptCombination(chamberElements);
+    if (combination.kind === 'invalid_missing') {
+      showToast(combination.message, true);
       return;
     }
-    if (result.kind === 'none') {
-      showToast('No known reaction for this combination of elements.', true);
+    if (combination.kind === 'invalid_extra') {
+      showToast(combination.message, true);
       return;
     }
-    const combinedResult = result.product;
-    setResult(combinedResult);
-    setChamberElements([]);
+    if (combination.kind === 'invalid_unknown') {
+      showToast(combination.message, true);
+      return;
+    }
 
-    showToast(`Successfully created ${combinedResult.name}!`);
+    const combinedResult = combination.product;
+    setResult(combinedResult);
+    setSuccessReaction({
+      product: combinedResult,
+      reactionType: combination.reactionType,
+    });
+    setChamberElements([]);
 
     // Check if already discovered
     if (discoveries.some((d) => d.symbol === combinedResult.symbol)) {
@@ -240,6 +255,19 @@ export default function LabPage() {
       type: combinedResult.type,
     });
   }, [chamberElements, discoveries, addDiscovery, showToast]);
+
+  useEffect(() => {
+    if (!successReaction) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setSuccessReaction(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [successReaction]);
 
   /* ---------- export ---------- */
   const handleExport = useCallback(() => {
@@ -731,6 +759,72 @@ export default function LabPage() {
             <div className="flex items-center gap-3">
               {!toast.error && <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />}
               {toast.message}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ---- Successful Reaction Modal ---- */}
+      {successReaction && createPortal(
+        <div
+          className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={closeSuccessModal}
+        >
+          <div
+            className="w-full max-w-md rounded-[28px] border border-emerald-500/25 bg-[var(--bg-card)] p-8 shadow-2xl animate-in zoom-in-95 fade-in duration-200"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.24em] text-emerald-500">
+                  Successful Combination
+                </p>
+                <h3 className="mt-2 text-2xl font-black tracking-tight text-[var(--text-main)]">
+                  {successReaction.product.name}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={closeSuccessModal}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-black/5 text-[var(--text-light)] transition-colors hover:bg-red-500 hover:text-white dark:bg-white/10"
+                aria-label="Close successful reaction modal"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div
+              className="mt-6 rounded-3xl p-6 text-center text-white shadow-xl"
+              style={{ backgroundColor: successReaction.product.color }}
+            >
+              <p className="text-5xl font-black leading-none tracking-tighter">
+                {successReaction.product.symbol}
+              </p>
+              <p className="mt-3 text-xs font-black uppercase tracking-[0.24em] text-white/80">
+                New Reaction Result
+              </p>
+            </div>
+
+            <div className="mt-6 grid gap-4">
+              <div className="rounded-2xl border border-white/10 bg-black/5 p-4 dark:bg-white/5">
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[var(--text-light)]">
+                  Reaction Type
+                </p>
+                <p className="mt-2 text-lg font-bold text-[var(--text-main)]">
+                  {successReaction.reactionType}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={closeSuccessModal}
+                className="rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-black uppercase tracking-[0.18em] text-white shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.98]"
+              >
+                Continue
+              </button>
             </div>
           </div>
         </div>,
