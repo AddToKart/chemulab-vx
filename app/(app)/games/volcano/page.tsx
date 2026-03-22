@@ -16,6 +16,8 @@ import { useAuthStore } from '@/store/auth-store';
 import styles from './page.module.css';
 
 import { ShareGameScore } from '@/components/game/ShareGameScore';
+import { GameTutorial } from '@/components/game/GameTutorial';
+import { gameTutorials } from '@/lib/data/game-tutorials';
 
 // --------------- Types ---------------
 
@@ -484,6 +486,7 @@ export default function VolcanoPage() {
             <p className={styles.subtitle}>
               A cooperative multiplayer chemistry game! Collect all ingredients to make the volcano erupt!
             </p>
+            <GameTutorial tutorial={gameTutorials.volcano} accentColor="#ef4444" className="mb-6" />
 
             <div className={styles.lobbyOptions}>
               {/* Create Room */}
@@ -543,6 +546,7 @@ export default function VolcanoPage() {
           <div className={`${styles.screen} ${styles.waitingScreen}`}>
             <h1 className={styles.title}>🌋 Waiting for Player 2</h1>
             <p className={styles.waitingTitle}>Share this room code with your friend:</p>
+            <GameTutorial tutorial={gameTutorials.volcano} accentColor="#ef4444" className="mb-6" />
 
             <div className={styles.roomCodeTag}>{currentGame.roomCode}</div>
 

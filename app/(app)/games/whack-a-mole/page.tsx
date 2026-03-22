@@ -6,8 +6,10 @@ import { elementsData } from '@/lib/data/elements-data';
 import styles from './page.module.css';
 
 import { ShareGameScore } from '@/components/game/ShareGameScore';
+import { GameTutorial } from '@/components/game/GameTutorial';
 import DifficultySelector from '@/components/game/DifficultySelector';
 import TimerProgress from '@/components/game/TimerProgress';
+import { gameTutorials } from '@/lib/data/game-tutorials';
 import {
   DifficultyLevel,
   whackAMoleDifficulty,
@@ -216,6 +218,7 @@ export default function WhackAMolePage() {
 
         {!isGameRunning && !gameOver && (
           <div className={styles.startScreen}>
+            <GameTutorial tutorial={gameTutorials.whackAMole} accentColor="#22c55e" />
             <div className={styles.instructions}>
               <p>
                 <strong>Click on the heavy metals</strong> ({whackAMoleDifficulty[difficulty].heavyMetals.join(', ')}) to score points!

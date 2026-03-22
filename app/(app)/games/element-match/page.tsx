@@ -6,8 +6,10 @@ import { elementsData } from '@/lib/data/elements-data';
 import styles from './page.module.css';
 
 import { ShareGameScore } from '@/components/game/ShareGameScore';
+import { GameTutorial } from '@/components/game/GameTutorial';
 import DifficultySelector from '@/components/game/DifficultySelector';
 import TimerProgress from '@/components/game/TimerProgress';
+import { gameTutorials } from '@/lib/data/game-tutorials';
 import {
   DifficultyLevel,
   elementMatchDifficulty,
@@ -287,6 +289,7 @@ export default function ElementMatchPage() {
               Match element symbols to their names and test your chemistry
               knowledge!
             </p>
+            <GameTutorial tutorial={gameTutorials.elementMatch} accentColor="#0ea5e9" />
             <DifficultySelector
               onSelect={setDifficulty}
               selected={difficulty}

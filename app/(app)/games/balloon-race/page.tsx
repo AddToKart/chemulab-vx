@@ -16,6 +16,8 @@ import { useAuthStore } from '@/store/auth-store';
 import styles from './page.module.css';
 
 import { ShareGameScore } from '@/components/game/ShareGameScore';
+import { GameTutorial } from '@/components/game/GameTutorial';
+import { gameTutorials } from '@/lib/data/game-tutorials';
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -397,6 +399,7 @@ export default function BalloonRacePage() {
         {/* ---- LOBBY ---- */}
         {screen === 'lobby' && (
           <div className={styles.gameScreen}>
+            <GameTutorial tutorial={gameTutorials.balloonRace} accentColor="#f59e0b" className="mb-6" />
             <div className={styles.lobbyOptions}>
               {/* Create */}
               <div className={styles.lobbyCard}>
@@ -452,6 +455,7 @@ export default function BalloonRacePage() {
         {screen === 'waiting' && gameData && (
           <div className={`${styles.gameScreen} ${styles.waitingScreen}`}>
             <h2 className={styles.waitingTitle}>Waiting for opponent&hellip;</h2>
+            <GameTutorial tutorial={gameTutorials.balloonRace} accentColor="#f59e0b" className="mb-6" />
             <div className={styles.roomCodeTag}>{gameData.id}</div>
             <p className={styles.waitingDots}>
               Share this code with a friend <span>.</span><span>.</span><span>.</span>

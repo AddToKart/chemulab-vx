@@ -17,7 +17,15 @@ export interface ElementData {
   name: string;
   atomic_mass: number;
   category: ElementCategory;
+  imageUrl?: string;
 }
+
+const getElementImageSlug = (name: string): string =>
+  name
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 
 export const elementsData: ElementData[] = [
   { atomic_number: 1, symbol: 'H', name: 'Hydrogen', atomic_mass: 1.008, category: 'nonmetal' },
@@ -138,7 +146,10 @@ export const elementsData: ElementData[] = [
   { atomic_number: 116, symbol: 'Lv', name: 'Livermorium', atomic_mass: 293.0, category: 'post-transition' },
   { atomic_number: 117, symbol: 'Ts', name: 'Tennessine', atomic_mass: 292.0, category: 'unknown' },
   { atomic_number: 118, symbol: 'Og', name: 'Oganesson', atomic_mass: 294.0, category: 'noble-gas' },
-];
+].map((element) => ({
+  ...element,
+  imageUrl: `https://images-of-elements.com/s/${getElementImageSlug(element.name)}.jpg`,
+}));
 
 /** Grid positions for elements in the main 18-column grid. */
 export const mainGridPositions: Record<number, { row: number; col: number }> = {

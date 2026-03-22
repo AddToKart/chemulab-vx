@@ -6,8 +6,10 @@ import { reactionsData } from '@/lib/data/reactions-data';
 import styles from './page.module.css';
 
 import { ShareGameScore } from '@/components/game/ShareGameScore';
+import { GameTutorial } from '@/components/game/GameTutorial';
 import DifficultySelector from '@/components/game/DifficultySelector';
 import TimerProgress from '@/components/game/TimerProgress';
+import { gameTutorials } from '@/lib/data/game-tutorials';
 import {
   DifficultyLevel,
   reactionQuizDifficulty,
@@ -218,6 +220,7 @@ export default function ReactionQuizPage() {
               Identify the products of chemical reactions and test your
               chemistry knowledge!
             </p>
+            <GameTutorial tutorial={gameTutorials.reactionQuiz} accentColor="#8b5cf6" />
             <DifficultySelector
               onSelect={setDifficulty}
               selected={difficulty}

@@ -16,6 +16,8 @@ import { useAuthStore } from '@/store/auth-store';
 import styles from './page.module.css';
 
 import { ShareGameScore } from '@/components/game/ShareGameScore';
+import { GameTutorial } from '@/components/game/GameTutorial';
+import { gameTutorials } from '@/lib/data/game-tutorials';
 
 /* ─── Ingredient data ─── */
 
@@ -408,33 +410,36 @@ export default function FoamRacePage() {
       )}
 
       {user && (
-        <div className={styles.lobbyOptions}>
-          <div className={styles.lobbyCard}>
-            <h2>Create Game</h2>
-            <p>Start a new room and invite a friend.</p>
-            <button className={styles.btnPrimary} onClick={createGame}>
-              Create Room
-            </button>
-          </div>
-
-          <div className={styles.lobbyCard}>
-            <h2>Join Game</h2>
-            <p>Enter a room code to join an existing game.</p>
-            <div className={styles.lobbyInputGroup}>
-              <input
-                type="text"
-                placeholder="ROOM CODE"
-                maxLength={5}
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                className={styles.codeInput}
-              />
-              <button className={styles.btnPrimary} onClick={joinGame}>
-                Join Room
+        <>
+          <GameTutorial tutorial={gameTutorials.foamRace} accentColor="#10b981" className="mb-6" />
+          <div className={styles.lobbyOptions}>
+            <div className={styles.lobbyCard}>
+              <h2>Create Game</h2>
+              <p>Start a new room and invite a friend.</p>
+              <button className={styles.btnPrimary} onClick={createGame}>
+                Create Room
               </button>
             </div>
+
+            <div className={styles.lobbyCard}>
+              <h2>Join Game</h2>
+              <p>Enter a room code to join an existing game.</p>
+              <div className={styles.lobbyInputGroup}>
+                <input
+                  type="text"
+                  placeholder="ROOM CODE"
+                  maxLength={5}
+                  value={joinCode}
+                  onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                  className={styles.codeInput}
+                />
+                <button className={styles.btnPrimary} onClick={joinGame}>
+                  Join Room
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {error && <p className={styles.errorText}>{error}</p>}
@@ -445,6 +450,7 @@ export default function FoamRacePage() {
     <div className={styles.screen}>
       <h1 className={styles.title}>Waiting for Opponent...</h1>
       <p className={styles.subtitle}>Share this room code with a friend:</p>
+      <GameTutorial tutorial={gameTutorials.foamRace} accentColor="#10b981" className="mb-6" />
       <div className={styles.roomCodeDisplay}>{gameData?.roomCode}</div>
       <p className={styles.subtitle}>Waiting for Player 2 to join...</p>
       <button className={styles.btnOutline} onClick={leaveGame}>

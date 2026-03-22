@@ -5,8 +5,10 @@ import Link from 'next/link';
 import styles from './page.module.css';
 
 import { ShareGameScore } from '@/components/game/ShareGameScore';
+import { GameTutorial } from '@/components/game/GameTutorial';
 import DifficultySelector from '@/components/game/DifficultySelector';
 import TimerProgress from '@/components/game/TimerProgress';
+import { gameTutorials } from '@/lib/data/game-tutorials';
 import {
   DifficultyLevel,
   periodicPuzzleDifficulty,
@@ -410,6 +412,7 @@ export default function PeriodicPuzzlePage() {
               Drag element symbols from the tray into their correct positions on the periodic table.
               {difficulty === 'expert' && ' Includes periods 1-6!'}
             </p>
+            <GameTutorial tutorial={gameTutorials.periodicPuzzle} accentColor="#f59e0b" />
             <DifficultySelector
               onSelect={setDifficulty}
               selected={difficulty}

@@ -16,6 +16,8 @@ import { useAuthStore } from '@/store/auth-store';
 import styles from './page.module.css';
 
 import { ShareGameScore } from '@/components/game/ShareGameScore';
+import { GameTutorial } from '@/components/game/GameTutorial';
+import { gameTutorials } from '@/lib/data/game-tutorials';
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -356,6 +358,7 @@ export default function PHChallengePage() {
             <p className={styles.subtitle}>
               Pick ingredients to reach the target pH — closest wins!
             </p>
+            <GameTutorial tutorial={gameTutorials.phChallenge} accentColor="#6366f1" className="mb-6" />
 
             <div className={styles.lobbyOptions}>
               {/* Create */}
@@ -399,6 +402,7 @@ export default function PHChallengePage() {
           <div className={styles.screen}>
             <h2 className={styles.title}>Waiting for opponent…</h2>
             <p className={styles.subtitle}>Share this code with a friend:</p>
+            <GameTutorial tutorial={gameTutorials.phChallenge} accentColor="#6366f1" className="mb-6" />
             <div className={styles.roomCodeTag}>{gameData.roomCode}</div>
             <div className={styles.waitingDots}>
               <span className={styles.dot} />

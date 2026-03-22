@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useState, useCallback, useRef, useMemo } from 'react';
 import {
   elementsData,
@@ -18,13 +19,22 @@ export default function ElementsPage() {
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [bookmarkFilter, setBookmarkFilter] = useState<ElementCategory | 'all' | 'reactive-nonmetals'>('all');
   const [selectedBookmark, setSelectedBookmark] = useState<ElementData | null>(null);
+  const [isElementImageVisible, setIsElementImageVisible] = useState(false);
+  const [didElementImageFail, setDidElementImageFail] = useState(false);
 
   const { bookmarks, isBookmarked, toggleBookmark } = useBookmarks();
 
-  const handleElementClick = useCallback((el: ElementData) => setSelectedElement(el), []);
-  const closeModal = useCallback(() => setSelectedElement(null), []);
+  const handleElementClick = useCallback((el: ElementData) => {
+    setIsElementImageVisible(false);
+    setDidElementImageFail(false);
+    setSelectedElement(el);
+  }, []);
+  const closeModal = useCallback(() => {
+    setIsElementImageVisible(false);
+    setDidElementImageFail(false);
+    setSelectedElement(null);
+  }, []);
   const handleBookmarkClick = useCallback((el: ElementData) => setSelectedBookmark(el), []);
-  const closeBookmarkDetail = useCallback(() => setSelectedBookmark(null), []);
   const speakingRef = useRef(false);
 
   const speakElementName = useCallback((name: string) => {
@@ -215,10 +225,24 @@ export default function ElementsPage() {
               ×
             </button>
 
-            <div className="flex items-center gap-6 mb-8">
-              <div className="w-[70px] h-[70px] bg-muted flex items-center justify-center text-[2rem] font-extrabold rounded-2xl shadow-sm border border-border text-foreground">
-                {selectedElement.symbol}
-              </div>
+            <div className="flex items-center gap-6 mb-6">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDidElementImageFail(false);
+                  setIsElementImageVisible((current) => !current);
+                }}
+                aria-label={`${isElementImageVisible ? 'Hide' : 'Show'} image for ${selectedElement.name}`}
+                aria-pressed={isElementImageVisible}
+                title={`${isElementImageVisible ? 'Hide' : 'Show'} image for ${selectedElement.name}`}
+                className="group relative flex h-[82px] w-[82px] shrink-0 flex-col items-center justify-center rounded-2xl border border-border bg-muted text-foreground shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <span className="text-[2rem] font-extrabold leading-none">{selectedElement.symbol}</span>
+                <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground transition-colors group-hover:text-primary">
+                  {isElementImageVisible ? 'Hide' : 'Image'}
+                </span>
+              </button>
               <div className="flex items-center gap-3 flex-1 min-w-0">
                 <h2 className="m-0 text-[2rem] font-extrabold text-foreground tracking-[-0.02em] truncate">
                   {selectedElement.name}
@@ -260,6 +284,40 @@ export default function ElementsPage() {
                 </button>
               </div>
             </div>
+
+            {isElementImageVisible && (
+              <div className="mb-6 overflow-hidden rounded-2xl border border-border bg-muted/40">
+                {selectedElement.imageUrl && !didElementImageFail ? (
+                  <div className="relative">
+                    <Image
+                      key={selectedElement.atomic_number}
+                      src={selectedElement.imageUrl}
+                      alt={`Sample image of ${selectedElement.name}`}
+                      width={960}
+                      height={640}
+                      unoptimized
+                      className="h-64 w-full object-cover"
+                      onError={() => setDidElementImageFail(true)}
+                    />
+                    <div className="border-t border-border bg-card/80 px-4 py-3 text-xs text-muted-foreground">
+                      Reference image from images-of-elements.com
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex min-h-64 flex-col items-center justify-center gap-3 px-6 py-8 text-center">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-dashed border-border bg-card text-2xl font-bold text-muted-foreground">
+                      {selectedElement.symbol}
+                    </div>
+                    <div>
+                      <p className="text-base font-semibold text-foreground">Image unavailable</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        No sample image could be loaded for {selectedElement.name} right now.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="relative">
               <div className="grid gap-5 relative z-[1]">
