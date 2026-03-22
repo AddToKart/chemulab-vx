@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useAuthStore } from '@/store/auth-store';
 import { cn } from '@/lib/utils';
@@ -12,6 +12,8 @@ import {
 import { elementsData } from '@/lib/data/elements-data';
 import type { Discovery } from '@/lib/firebase/discoveries';
 import { useLabDiscoveries } from '@/lib/hooks/use-lab-discoveries';
+import { useIdle } from '@/lib/hooks/use-idle';
+import Image from 'next/image';
 
 const ELEMENT_DETAILS_BY_SYMBOL = new Map(
   elementsData.map((element) => [element.symbol, element]),
@@ -29,10 +31,9 @@ export default function LabPage() {
     importDiscoveries,
   } = useLabDiscoveries(uid);
 
-  /* ---------- helpers ---------- */
-  const getElementExtraData = (symbol: string) => {
-    return ELEMENT_DETAILS_BY_SYMBOL.get(symbol);
-  };
+  /* ---------- refs ---------- */
+  const importRef = useRef<HTMLInputElement>(null);
+  const chamberRef = useRef<HTMLDivElement>(null);
 
   /* ---------- state ---------- */
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,8 +42,60 @@ export default function LabPage() {
   const [selectedElement, setSelectedElement] = useState<LabElement | null>(null);
   const [mobileSection, setMobileSection] = useState<'lab' | 'elements' | 'inventory'>('lab');
   const [toast, setToast] = useState<{ message: string; error?: boolean } | null>(null);
+  
+  // Hint system state
+  const isIdle = useIdle(10000); // 10 seconds
+  const [hintDismissed, setHintDismissed] = useState(false);
+  const [hintVisible, setHintVisible] = useState(false);
+  const [chamberCoords, setChamberCoords] = useState({ top: 0, left: 0, width: 0 });
 
-  const importRef = useRef<HTMLInputElement>(null);
+  /* ---------- derived state ---------- */
+  const showHint = hintVisible && !loading && chamberElements.length === 0;
+
+  /* ---------- callbacks ---------- */
+  const updateCoords = useCallback(() => {
+    if (chamberRef.current) {
+      const rect = chamberRef.current.getBoundingClientRect();
+      setChamberCoords({
+        top: rect.top,
+        left: rect.left,
+        width: rect.width,
+      });
+    }
+  }, []);
+
+  /* ---------- effects ---------- */
+  // Update coords for portal positioning
+  useEffect(() => {
+    if (showHint) {
+      updateCoords();
+      window.addEventListener('resize', updateCoords);
+      window.addEventListener('scroll', updateCoords, true);
+      return () => {
+        window.removeEventListener('resize', updateCoords);
+        window.removeEventListener('scroll', updateCoords, true);
+      };
+    }
+  }, [showHint, updateCoords]);
+
+  // Trigger hint when idle
+  useEffect(() => {
+    if (isIdle && chamberElements.length === 0 && !hintDismissed) {
+      setHintVisible(true);
+    }
+  }, [isIdle, chamberElements.length, hintDismissed]);
+
+  // Dismiss hint if something is added
+  useEffect(() => {
+    if (chamberElements.length > 0) {
+      setHintVisible(false);
+    }
+  }, [chamberElements.length]);
+
+  /* ---------- helpers ---------- */
+  const getElementExtraData = (symbol: string) => {
+    return ELEMENT_DETAILS_BY_SYMBOL.get(symbol);
+  };
 
   /* ---------- filtered elements ---------- */
   const filteredElements = searchTerm
@@ -398,7 +451,7 @@ export default function LabPage() {
       {/* ---- Crafting Area ---- */}
       <div
         className={cn(
-          'flex-1 flex flex-col items-center justify-between glass-panel p-10 max-[640px]:p-6 shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-700 group/craft',
+          'flex-1 flex flex-col items-center justify-between glass-panel p-10 max-[640px]:p-6 shadow-2xl relative animate-in zoom-in-95 duration-700 group/craft',
           'max-[1180px]:order-1',
           mobileSection === 'lab' ? 'max-[1180px]:flex' : 'max-[1180px]:hidden',
           'min-[1181px]:flex',
@@ -417,6 +470,7 @@ export default function LabPage() {
 
           {/* ─── Single Reaction Chamber ─── */}
           <div
+            ref={chamberRef}
             className={cn(
               'group w-full max-w-lg min-h-[200px] flex flex-col border-2 border-dashed rounded-3xl cursor-pointer transition-all duration-200 bg-black/5 dark:bg-white/5 shadow-inner',
               chamberElements.length > 0
@@ -620,6 +674,52 @@ export default function LabPage() {
           </button>
         </div>
       </div>
+
+      {/* ---- Popoy Hint Portal ---- */}
+      {showHint && typeof document !== 'undefined' && createPortal(
+        <div 
+          className="fixed z-[9999] pointer-events-none"
+          style={{
+            top: Math.max(140, chamberCoords.top - 80), // Keep it below the TopBar (80px) with some margin
+            left: chamberCoords.left + chamberCoords.width / 2,
+            transform: 'translateX(-50%)',
+          }}
+        >
+          <div className="relative group/hint pointer-events-auto animate-in fade-in zoom-in-95 slide-in-from-bottom-4 duration-500">
+            <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl px-5 py-3 rounded-2xl border-2 border-emerald-500/30 shadow-[0_20px_50px_rgba(0,0,0,0.3),0_0_20px_rgba(16,185,129,0.2)] flex items-center gap-4 min-w-[340px]">
+              <div className="w-12 h-12 shrink-0 rounded-full overflow-hidden border-2 border-emerald-500/30 bg-emerald-500/10 shadow-lg">
+                <Image 
+                  src="/img/jepoy.png" 
+                  alt="Popoy" 
+                  width={48} 
+                  height={48} 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center justify-between gap-3 mb-1">
+                  <p className="text-[11px] font-black text-emerald-500 uppercase tracking-[0.2em] leading-none">Popoy Assistant</p>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setHintVisible(false);
+                      setHintDismissed(true);
+                    }}
+                    className="h-6 w-6 flex items-center justify-center rounded-xl bg-black/5 dark:bg-white/10 hover:bg-red-500 hover:text-white transition-all cursor-pointer text-sm font-bold text-[var(--text-light)] shadow-sm"
+                    aria-label="Dismiss hint"
+                  >
+                    &times;
+                  </button>
+                </div>
+                <p className="text-[13px] font-bold text-[var(--text-main)] italic leading-snug">"Try dragging elements into the reaction chamber!"</p>
+              </div>
+            </div>
+            {/* Speech bubble tail */}
+            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-5 h-5 bg-white/95 dark:bg-slate-900/95 border-r-2 border-b-2 border-emerald-500/30 rotate-45" />
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* ---- Toast (portalled to body to escape overflow-x-hidden stacking context) ---- */}
       {toast && createPortal(
