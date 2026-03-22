@@ -17,6 +17,7 @@ import styles from './page.module.css';
 
 import { ShareGameScore } from '@/components/game/ShareGameScore';
 import { GameTutorial } from '@/components/game/GameTutorial';
+import GameRating from '@/components/game/GameRating';
 import { gameTutorials } from '@/lib/data/game-tutorials';
 
 /* ------------------------------------------------------------------ */
@@ -544,6 +545,7 @@ export default function PHChallengePage() {
                 Back to Lobby
               </button>
             </div>
+            <GameRating gameId="ph-challenge" gameName="pH Challenge" />
           </div>
         )}
       </div>

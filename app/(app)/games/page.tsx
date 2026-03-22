@@ -1,40 +1,76 @@
+'use client';
+
 import Link from 'next/link';
+import { StarRating } from '@/components/ui/star-rating';
+import { useAllGameRatings } from '@/lib/hooks/useGameRatings';
 
-const singlePlayerGames = [
-  { href: '/games/element-match', emoji: '🧪', title: 'Element Match', description: 'Match symbols to element names', cta: 'Play Now', color: '#0ea5e9' },
-  { href: '/games/reaction-quiz', emoji: '⚗️', title: 'Reaction Quiz', description: 'Predict the products of reactions', cta: 'Start Quiz', color: '#8b5cf6' },
-  { href: '/games/whack-a-mole', emoji: '⚖️', title: 'Whack-a-Mole', description: 'Catch the heavy metals!', cta: 'Enter Arena', color: '#22c55e' },
-  { href: '/games/periodic-puzzle', emoji: '🧩', title: 'Periodic Puzzle', description: 'Assemble the table', cta: 'Solve Puzzle', color: '#f59e0b' },
+interface Game {
+  id: string;
+  href: string;
+  emoji: string;
+  title: string;
+  description: string;
+  cta: string;
+  color: string;
+}
+
+const singlePlayerGames: Game[] = [
+  { id: 'element-match', href: '/games/element-match', emoji: '🧪', title: 'Element Match', description: 'Match symbols to element names', cta: 'Play Now', color: '#0ea5e9' },
+  { id: 'reaction-quiz', href: '/games/reaction-quiz', emoji: '⚗️', title: 'Reaction Quiz', description: 'Predict the products of reactions', cta: 'Start Quiz', color: '#8b5cf6' },
+  { id: 'whack-a-mole', href: '/games/whack-a-mole', emoji: '⚖️', title: 'Whack-a-Mole', description: 'Catch the heavy metals!', cta: 'Enter Arena', color: '#22c55e' },
+  { id: 'periodic-puzzle', href: '/games/periodic-puzzle', emoji: '🧩', title: 'Periodic Puzzle', description: 'Assemble the table', cta: 'Solve Puzzle', color: '#f59e0b' },
 ];
 
-const multiplayerGames = [
-  { href: '/games/volcano', emoji: '🌋', title: 'Volcano Race', description: '2-player ingredient race!', cta: 'Duel Start', color: '#ef4444' },
-  { href: '/games/foam-race', emoji: '🐘', title: 'Elephant Toothpaste', description: 'Fast-paced foam race!', cta: 'Race Now', color: '#10b981' },
-  { href: '/games/balloon-race', emoji: '🎈', title: 'Balloon Race', description: 'Inflate balloons with CO₂!', cta: 'Inflate', color: '#f59e0b' },
-  { href: '/games/ph-challenge', emoji: '🌈', title: 'pH Challenge', description: 'Color-changing reaction!', cta: 'Challenge', color: '#6366f1' },
+const multiplayerGames: Game[] = [
+  { id: 'volcano', href: '/games/volcano', emoji: '🌋', title: 'Volcano Race', description: '2-player ingredient race!', cta: 'Duel Start', color: '#ef4444' },
+  { id: 'foam-race', href: '/games/foam-race', emoji: '🐘', title: 'Elephant Toothpaste', description: 'Fast-paced foam race!', cta: 'Race Now', color: '#10b981' },
+  { id: 'balloon-race', href: '/games/balloon-race', emoji: '🎈', title: 'Balloon Race', description: 'Inflate balloons with CO₂!', cta: 'Inflate', color: '#f59e0b' },
+  { id: 'ph-challenge', href: '/games/ph-challenge', emoji: '🌈', title: 'pH Challenge', description: 'Color-changing reaction!', cta: 'Challenge', color: '#6366f1' },
 ];
 
-function GamesGrid({ games }: { games: typeof singlePlayerGames }) {
+function GamesGrid({ games }: { games: Game[] }) {
+  const { gameRatings } = useAllGameRatings();
+
   return (
     <div className="grid grid-cols-4 gap-4 max-[1100px]:grid-cols-2 max-[600px]:grid-cols-1">
-      {games.map((game) => (
-        <Link
-          key={game.href}
-          href={game.href}
-          className="flex flex-col gap-2 p-6 rounded-[20px] border-l-4 bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] hover:translate-y-[-4px] hover:shadow-[var(--shadow-lg)] transition-all duration-300 group"
-          style={{
-            background: `linear-gradient(135deg, ${game.color}15 0%, var(--bg-card) 100%)`,
-            borderLeftColor: game.color,
-          }}
-        >
-          <div className="text-[2.5rem] leading-none">{game.emoji}</div>
-          <strong className="text-[var(--text-main)] font-bold text-base">{game.title}</strong>
-          <div className="text-[var(--text-light)] text-sm leading-snug flex-1">{game.description}</div>
-          <span className="text-sm font-semibold mt-2 group-hover:translate-x-1 transition-transform inline-block" style={{ color: game.color }}>
-            {game.cta} →
-          </span>
-        </Link>
-      ))}
+      {games.map((game) => {
+        const rating = gameRatings[game.id];
+        const hasRatings = rating && rating.totalRatings > 0;
+
+        return (
+          <Link
+            key={game.href}
+            href={game.href}
+            className="flex flex-col gap-2 p-6 rounded-[20px] border-l-4 bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] hover:translate-y-[-4px] hover:shadow-[var(--shadow-lg)] transition-all duration-300 group"
+            style={{
+              background: `linear-gradient(135deg, ${game.color}15 0%, var(--bg-card) 100%)`,
+              borderLeftColor: game.color,
+            }}
+          >
+            <div className="text-[2.5rem] leading-none">{game.emoji}</div>
+            <strong className="text-[var(--text-main)] font-bold text-base">{game.title}</strong>
+            <div className="text-[var(--text-light)] text-sm leading-snug flex-1">{game.description}</div>
+
+            {/* Rating Display */}
+            {hasRatings ? (
+              <div className="flex items-center gap-2 mt-1">
+                <StarRating rating={rating.averageRating} readonly size="sm" />
+                <span className="text-xs text-[var(--text-light)]">
+                  {rating.averageRating.toFixed(1)} ({rating.totalRatings})
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs text-[var(--text-light)] italic">No ratings yet</span>
+              </div>
+            )}
+
+            <span className="text-sm font-semibold mt-1 group-hover:translate-x-1 transition-transform inline-block" style={{ color: game.color }}>
+              {game.cta} →
+            </span>
+          </Link>
+        );
+      })}
     </div>
   );
 }

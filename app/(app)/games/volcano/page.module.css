@@ -49,14 +49,18 @@
 .gameArea {
   max-width: 95%;
   width: 1000px;
-  margin: 40px auto;
+  margin: 20px auto;
   background: var(--surface);
-  padding: 40px;
+  padding: 20px;
   border-radius: 24px;
   text-align: center;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.05);
   position: relative;
-  min-height: 600px;
+  height: calc(100vh - 140px);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   overflow: hidden;
   color: var(--text-main);
 }
@@ -454,21 +458,27 @@
 /* Game layout */
 .gameLayout {
   display: flex;
-  gap: 30px;
-  align-items: flex-start;
+  gap: 20px;
+  align-items: stretch;
   justify-content: center;
-  flex-wrap: wrap;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .gameLeft {
   flex: 1;
-  min-width: 280px;
+  min-width: 250px;
   max-width: 350px;
+  overflow-y: auto;
+  padding-right: 5px;
 }
 
 .gameRight {
   flex: 1.5;
-  min-width: 350px;
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Ingredient grid */
@@ -547,18 +557,19 @@
 
 /* Volcano container */
 .volcanoContainer {
-  margin: 20px auto;
+  margin: 0 auto;
   position: relative;
-  height: 440px;
+  flex: 1;
   width: 100%;
   display: flex;
   justify-content: center;
   align-items: flex-end;
   background: rgba(0, 0, 0, 0.1);
   border-radius: 24px;
-  padding: 20px;
+  padding: 10px;
   overflow: visible;
   transition: all 0.3s ease;
+  min-height: 200px;
 }
 
 :global([data-theme="dark"]) .volcanoContainer {

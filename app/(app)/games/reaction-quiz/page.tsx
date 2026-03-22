@@ -9,6 +9,7 @@ import { ShareGameScore } from '@/components/game/ShareGameScore';
 import { GameTutorial } from '@/components/game/GameTutorial';
 import DifficultySelector from '@/components/game/DifficultySelector';
 import TimerProgress from '@/components/game/TimerProgress';
+import GameRating from '@/components/game/GameRating';
 import { gameTutorials } from '@/lib/data/game-tutorials';
 import {
   DifficultyLevel,
@@ -305,6 +306,7 @@ export default function ReactionQuizPage() {
             <button className={styles.playAgainBtn} onClick={startGame}>
               Play Again
             </button>
+            <GameRating gameId="reaction-quiz" gameName="Reaction Quiz" />
           </div>
         )}
       </div>

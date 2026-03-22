@@ -17,6 +17,7 @@ import styles from './page.module.css';
 
 import { ShareGameScore } from '@/components/game/ShareGameScore';
 import { GameTutorial } from '@/components/game/GameTutorial';
+import GameRating from '@/components/game/GameRating';
 import { gameTutorials } from '@/lib/data/game-tutorials';
 
 /* ─── Ingredient data ─── */
@@ -619,6 +620,9 @@ export default function FoamRacePage() {
             <button className={styles.btnPrimary} onClick={playAgain}>
             Play Again
             </button>
+            <div className="w-full">
+              <GameRating gameId="foam-race" gameName="Elephant Toothpaste" />
+            </div>
         </div>
       </div>
     );

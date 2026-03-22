@@ -185,24 +185,68 @@ service cloud.firestore {
     // Reviews/Ratings: One review per user (document ID is userId)
     match /reviews/{userId} {
       // Only authenticated users with verified email can create their own review
-      allow create: if request.auth != null 
+      allow create: if request.auth != null
                     && request.auth.token.email_verified == true
                     && userId == request.auth.uid
-                    && request.resource.data.rating >= 1 
+                    && request.resource.data.rating >= 1
                     && request.resource.data.rating <= 4
                     && request.resource.data.rating is int;
-      
+
       // Any authenticated user can read reviews
       allow read: if request.auth != null;
-      
+
       // Only the author can update their review
-      allow update: if request.auth != null 
+      allow update: if request.auth != null
                     && request.auth.token.email_verified == true
                     && userId == request.auth.uid
-                    && request.resource.data.rating >= 1 
+                    && request.resource.data.rating >= 1
                     && request.resource.data.rating <= 4;
-      
+
       // Only the author can delete their review
+      allow delete: if request.auth != null && userId == request.auth.uid;
+    }
+
+    // Game Ratings: One rating per user per game
+    match /gameRatings/{gameId}/ratings/{userId} {
+      // Anyone can read game ratings so aggregate stars can be shown publicly.
+      allow read: if true;
+
+      // Only authenticated users with verified email can create their own rating.
+      allow create: if request.auth != null
+                    && request.auth.token.email_verified == true
+                    && userId == request.auth.uid
+                    && request.resource.data.keys().hasOnly([
+                      'gameId',
+                      'rating',
+                      'createdAt',
+                      'updatedAt'
+                    ])
+                    && request.resource.data.gameId == gameId
+                    && request.resource.data.rating >= 1
+                    && request.resource.data.rating <= 5
+                    && request.resource.data.rating is int
+                    && request.resource.data.createdAt is timestamp
+                    && request.resource.data.updatedAt is timestamp;
+
+      // Only the author can update their rating.
+      allow update: if request.auth != null
+                    && request.auth.token.email_verified == true
+                    && userId == request.auth.uid
+                    && request.resource.data.keys().hasOnly([
+                      'gameId',
+                      'rating',
+                      'createdAt',
+                      'updatedAt'
+                    ])
+                    && request.resource.data.gameId == resource.data.gameId
+                    && request.resource.data.gameId == gameId
+                    && request.resource.data.rating >= 1
+                    && request.resource.data.rating <= 5
+                    && request.resource.data.rating is int
+                    && request.resource.data.createdAt == resource.data.createdAt
+                    && request.resource.data.updatedAt is timestamp;
+
+      // Only the author can delete their rating.
       allow delete: if request.auth != null && userId == request.auth.uid;
     }
   }

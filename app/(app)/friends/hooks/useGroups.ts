@@ -151,9 +151,14 @@ export function useGroups() {
     try {
       await removeMemberFromGroup(activeGroupChat.id, memberUid, memberUsername);
       setStatus(`${memberUsername} removed.`);
-    } catch (e) { 
-      console.error('[RemoveMember] Failed:', e); 
-      setStatus('Failed to remove member.');
+    } catch (e: unknown) {
+      const errorCode = (e as { code?: string })?.code;
+      console.error('[RemoveMember] Failed:', e);
+      if (errorCode === 'permission-denied') {
+        setStatus('Permission denied. Make sure you are a member of this group.');
+      } else {
+        setStatus('Failed to remove member.');
+      }
       throw e;
     }
   };
@@ -163,9 +168,14 @@ export function useGroups() {
     try {
       await promoteToAdmin(activeGroupChat.id, memberUid);
       setStatus(`${memberUsername} promoted to admin.`);
-    } catch (e) { 
-      console.error('[PromoteToAdmin] Failed:', e); 
-      setStatus('Failed to promote.');
+    } catch (e: unknown) {
+      const errorCode = (e as { code?: string })?.code;
+      console.error('[PromoteToAdmin] Failed:', e);
+      if (errorCode === 'permission-denied') {
+        setStatus('Permission denied. Only creators can promote members.');
+      } else {
+        setStatus('Failed to promote.');
+      }
       throw e;
     }
   };
@@ -175,9 +185,14 @@ export function useGroups() {
     try {
       await demoteFromAdmin(activeGroupChat.id, memberUid);
       setStatus(`${memberUsername} is now a member.`);
-    } catch (e) { 
-      console.error('[DemoteFromAdmin] Failed:', e); 
-      setStatus('Failed to remove admin role.');
+    } catch (e: unknown) {
+      const errorCode = (e as { code?: string })?.code;
+      console.error('[DemoteFromAdmin] Failed:', e);
+      if (errorCode === 'permission-denied') {
+        setStatus('Permission denied. Only creators can demote admins.');
+      } else {
+        setStatus('Failed to remove admin role.');
+      }
       throw e;
     }
   };

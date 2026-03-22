@@ -17,6 +17,7 @@ import styles from './page.module.css';
 
 import { ShareGameScore } from '@/components/game/ShareGameScore';
 import { GameTutorial } from '@/components/game/GameTutorial';
+import GameRating from '@/components/game/GameRating';
 import { gameTutorials } from '@/lib/data/game-tutorials';
 
 /* ------------------------------------------------------------------ */
@@ -643,6 +644,9 @@ export default function BalloonRacePage() {
               <Link href="/games" className={`${styles.btn} ${styles.btnOutline}`}>
                 Back to Games
               </Link>
+            </div>
+            <div className="w-full">
+              <GameRating gameId="balloon-race" gameName="Balloon Race" />
             </div>
           </div>
         )}

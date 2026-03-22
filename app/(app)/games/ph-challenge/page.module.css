@@ -28,18 +28,28 @@
 .gameArea {
   max-width: 95%;
   width: 1000px;
-  margin: 20px auto;
+  margin: 0 auto;
   background: #ffffff;
-  padding: 40px;
+  padding: 20px;
   border-radius: 24px;
   text-align: center;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+  height: calc(100vh - 140px);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow-y: auto;
 }
 
 /* ===================== Screens ===================== */
 
 .screen {
   animation: screenIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 @keyframes screenIn {
@@ -57,16 +67,16 @@
 /* ===================== Typography ===================== */
 
 .title {
-  font-size: 2.4em;
+  font-size: 2em;
   font-weight: 800;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   color: #1e1b4b;
 }
 
 .subtitle {
-  font-size: 1.15em;
+  font-size: 1.1em;
   color: #64748b;
-  margin-bottom: 30px;
+  margin-bottom: 16px;
 }
 
 /* ===================== Lobby ===================== */
@@ -75,7 +85,9 @@
   display: flex;
   gap: 30px;
   max-width: 800px;
-  margin: 50px auto;
+  margin: 20px auto;
+  flex: 1;
+  align-items: center;
 }
 
 .lobbyCard {
@@ -269,8 +281,9 @@
   display: flex;
   justify-content: space-around;
   align-items: flex-end;
-  height: 300px;
-  margin: 40px 0;
+  flex: 1;
+  min-height: 200px;
+  margin: 20px 0;
 }
 
 .beakerWrapper {

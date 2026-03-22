@@ -8,6 +8,7 @@ import { ShareGameScore } from '@/components/game/ShareGameScore';
 import { GameTutorial } from '@/components/game/GameTutorial';
 import DifficultySelector from '@/components/game/DifficultySelector';
 import TimerProgress from '@/components/game/TimerProgress';
+import GameRating from '@/components/game/GameRating';
 import { gameTutorials } from '@/lib/data/game-tutorials';
 import {
   DifficultyLevel,
@@ -398,7 +399,7 @@ export default function PeriodicPuzzlePage() {
 
   /* ── Render ── */
   return (
-    <>
+    <div className={styles.container}>
       <Link href="/games" className={styles.backLink}>
         &larr; Back to Games
       </Link>
@@ -506,16 +507,21 @@ export default function PeriodicPuzzlePage() {
                     {message}
                 </div>
                 {results && (
+                  <>
                     <ShareGameScore 
                         customMessage={`I placed ${Object.values(results).filter(r => r === 'correct').length} elements correctly in Periodic Puzzle! 🧩`}
                         gameName="Periodic Puzzle" 
                     />
+                    <div className="w-full">
+                      <GameRating gameId="periodic-puzzle" gameName="Periodic Puzzle" />
+                    </div>
+                  </>
                 )}
               </div>
             )}
           </>
         )}
       </div>
-    </>
+    </div>
   );
 }

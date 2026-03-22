@@ -28,14 +28,21 @@
   border-radius: 10px;
   text-align: center;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  height: calc(100vh - 140px);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
 }
 
 /* Start Screen */
 .startScreen {
-  padding: 40px 20px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  flex: 1;
+  justify-content: center;
 }
 
 .title {
@@ -95,6 +102,9 @@
   grid-template-columns: 1fr 1fr;
   gap: 15px;
   margin-bottom: 20px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .optionBtn {

@@ -323,10 +323,20 @@ export default function FriendsPage() {
         onPromoteToAdmin={handlePromoteToAdmin}
         onDemoteFromAdmin={handleDemoteFromAdmin}
         onRemoveMember={handleRemoveMemberFromGroup}
-        onUpdateGroup={(name, desc, avatar) => {
+        onUpdateGroup={async (name, desc, avatar) => {
           if (activeGroupChat) {
-            updateGroupInfo(activeGroupChat.id, { name, description: desc, avatar });
-            setShowGroupModal(false);
+            try {
+              await updateGroupInfo(activeGroupChat.id, { name, description: desc, avatar });
+              setShowGroupModal(false);
+            } catch (e: unknown) {
+              const errorCode = (e as { code?: string })?.code;
+              console.error('[UpdateGroup] Failed:', e);
+              if (errorCode === 'permission-denied') {
+                alert('Permission denied. You must be a member of the group to update it.');
+              } else {
+                alert('Failed to update group. Please try again.');
+              }
+            }
           }
         }}
         getUserGroupRole={getUserGroupRole}

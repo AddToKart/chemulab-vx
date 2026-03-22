@@ -17,6 +17,7 @@ import styles from './page.module.css';
 
 import { ShareGameScore } from '@/components/game/ShareGameScore';
 import { GameTutorial } from '@/components/game/GameTutorial';
+import GameRating from '@/components/game/GameRating';
 import { gameTutorials } from '@/lib/data/game-tutorials';
 
 // --------------- Types ---------------
@@ -743,6 +744,7 @@ export default function VolcanoPage() {
                     🏠 Back to Lobby
                   </button>
                 </div>
+                <GameRating gameId="volcano" gameName="Volcano Race" />
               </div>
             )}
           </div>

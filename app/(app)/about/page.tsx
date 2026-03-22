@@ -16,7 +16,7 @@ import {
   serverTimestamp,
   FieldValue,
 } from 'firebase/firestore';
-import { User, Clock, MessageSquare, User as UserIcon } from 'lucide-react';
+import { Clock, MessageSquare, User as UserIcon } from 'lucide-react';
 import { StarRating } from '@/components/ui/star-rating';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -69,7 +69,7 @@ export default function AboutPage() {
     ? reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length 
     : 0;
 
-  const ratingCounts = [1, 2, 3, 4].map(rating => ({
+  const ratingCounts = [1, 2, 3, 4, 5].map(rating => ({
     rating,
     count: reviews.filter(r => r.rating === rating).length,
     percentage: reviews.length > 0 ? (reviews.filter(r => r.rating === rating).length / reviews.length) * 100 : 0,
@@ -297,11 +297,11 @@ export default function AboutPage() {
               {averageRating.toFixed(1)}
             </div>
             <div className="text-[var(--text-light)] text-sm">
-              out of 4.0
+              out of 5.0
             </div>
           </div>
           <div className="flex-1">
-            <StarRating rating={Math.round(averageRating)} readonly size="lg" />
+            <StarRating rating={averageRating} readonly size="lg" />
             <div className="text-[var(--text-light)] text-sm mt-1">
               {reviews.length} {reviews.length === 1 ? 'review' : 'reviews'}
             </div>
