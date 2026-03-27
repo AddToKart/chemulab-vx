@@ -712,7 +712,7 @@ export default function LabPage() {
       {/* ---- Popoy Hint Portal ---- */}
       {showHint && typeof document !== 'undefined' && createPortal(
         <div 
-          className="fixed z-[9999] pointer-events-none"
+          className="fixed z-[1100] pointer-events-none"
           style={{
             top: Math.max(140, chamberCoords.top - 80), // Keep it below the TopBar (80px) with some margin
             left: chamberCoords.left + chamberCoords.width / 2,
