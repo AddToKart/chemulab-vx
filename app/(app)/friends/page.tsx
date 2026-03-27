@@ -145,8 +145,8 @@ export default function FriendsPage() {
 
   if (!user) {
     return (
-      <div className="flex gap-4 h-[calc(100vh-230px)] max-[900px]:flex-col max-[900px]:h-auto">
-        <div className="w-[300px] max-[900px]:w-full flex flex-col gap-3 bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[20px] p-5 overflow-hidden">
+      <div className="flex flex-col gap-4 xl:h-[calc(100dvh-11rem)] xl:flex-row">
+        <div className="flex w-full flex-col gap-3 overflow-hidden rounded-[20px] border border-[var(--glass-border)] bg-[var(--bg-card)] p-5 backdrop-blur-[40px] xl:w-[20rem] xl:min-w-[20rem]">
           <p className="text-[var(--text-light)] text-sm text-center py-4">Please sign in to use Friends &amp; Chat.</p>
         </div>
       </div>
@@ -154,12 +154,12 @@ export default function FriendsPage() {
   }
 
   return (
-    <div className="flex gap-4 h-[calc(100vh-230px)]">
+    <div className="flex flex-col gap-4 xl:h-[calc(100dvh-11rem)] xl:flex-row">
       {/* LEFT PANEL */}
       <div className={cn(
-        "w-[300px] flex flex-col gap-3 bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[20px] p-5 overflow-hidden",
-        "max-[900px]:w-full transition-all duration-300",
-        (activeChat || activeGroupChat) ? "max-[900px]:hidden" : "max-[900px]:flex"
+        "flex w-full flex-col gap-3 overflow-hidden rounded-[20px] border border-[var(--glass-border)] bg-[var(--bg-card)] p-4 backdrop-blur-[40px] transition-all duration-300 sm:p-5 xl:w-[20rem] xl:min-w-[20rem]",
+        "max-xl:max-h-[calc(100dvh-10rem)]",
+        (activeChat || activeGroupChat) ? "max-xl:hidden" : "max-xl:flex"
       )}>
         <div className="flex gap-1 bg-[var(--bg-sidebar)] rounded-[12px] p-1">
           <button type="button" onClick={() => setActiveTab('friends')} className={cn(
@@ -222,8 +222,8 @@ export default function FriendsPage() {
 
       {/* RIGHT PANEL */}
       <div className={cn(
-        "flex-1 flex flex-col bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[20px] overflow-hidden transition-all duration-300",
-        (!activeChat && !activeGroupChat) ? "max-[900px]:hidden" : "max-[900px]:flex"
+        "flex min-h-[26rem] flex-1 flex-col overflow-hidden rounded-[20px] border border-[var(--glass-border)] bg-[var(--bg-card)] backdrop-blur-[40px] transition-all duration-300 xl:min-h-0",
+        (!activeChat && !activeGroupChat) ? "max-xl:hidden" : "max-xl:flex"
       )}>
         {activeGroupChat ? (
           <GroupChatView

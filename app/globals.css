@@ -56,6 +56,8 @@
 
   --header-height: 64px;
   --sidebar-width: 280px;
+  --shell-gutter: clamp(0.75rem, 2vw, 1.5rem);
+  --content-max-width: 1680px;
 
   /* shadcn/ui mapped to CheMuLab's emerald+cyan palette */
   --radius: 0.75rem;
@@ -177,6 +179,11 @@
   box-sizing: border-box;
 }
 
+html {
+  width: 100%;
+  overflow-x: hidden;
+}
+
 body {
   font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
   background: #0f172a;
@@ -190,6 +197,18 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+}
+
+body,
+#__next {
+  width: 100%;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
 }
 
 /* Removed heavy background glow effects to keep design clean */
@@ -576,6 +595,17 @@ h6 {
 
 .element-cell:hover::after {
   opacity: 0.3;
+}
+
+@media (max-width: 900px) {
+  .element-cell {
+    padding: 4px;
+    font-size: 11px;
+  }
+
+  .element-cell:hover {
+    transform: translateY(-2px) scale(1.06);
+  }
 }
 
 .element-cell .el-num {

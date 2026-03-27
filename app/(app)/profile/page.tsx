@@ -304,8 +304,8 @@ export default function ProfilePage() {
   return (
     <section className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-2">
-        <h1 className="text-[2rem] font-extrabold text-[var(--text-main)] tracking-tight">Profile</h1>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-[2rem] font-extrabold tracking-tight text-[var(--text-main)]">Profile</h1>
         <button
           className="bg-[var(--bg-sidebar)] border border-[var(--border-color)] text-[var(--text-main)] font-semibold px-6 py-2.5 rounded-[12px] hover:border-[var(--accent-color)] transition-all cursor-pointer"
           onClick={handleOpenEdit}
@@ -315,8 +315,8 @@ export default function ProfilePage() {
       </div>
 
       {/* Profile Card */}
-      <div className="bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[28px] p-8">
-        <div className="flex items-center gap-6">
+      <div className="rounded-[28px] border border-[var(--glass-border)] bg-[var(--bg-card)] p-5 backdrop-blur-[40px] sm:p-8">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
           <div className="relative shrink-0">
             <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-[var(--accent-color)]/30 ring-2 ring-[var(--accent-color)]/20 shadow-xl">
               <Image
@@ -346,8 +346,8 @@ export default function ProfilePage() {
       </div>
 
       {/* Progress Section */}
-      <div className="bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[28px] p-8 space-y-4">
-        <div className="flex items-center justify-between mb-2">
+      <div className="space-y-4 rounded-[28px] border border-[var(--glass-border)] bg-[var(--bg-card)] p-5 backdrop-blur-[40px] sm:p-8">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-bold text-[var(--text-main)]">Progress Tracker</h2>
           <span className={cn(
             "text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full border",
@@ -369,7 +369,7 @@ export default function ProfilePage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 gap-4 mt-4 max-[600px]:grid-cols-1">
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <div className="bg-[var(--bg-sidebar)] rounded-[16px] p-5 border border-[var(--border-color)] hover:border-[var(--accent-color)]/30 transition-colors group">
             <h3 className="text-xs font-semibold text-[var(--text-light)] uppercase tracking-wide mb-2 group-hover:text-[var(--accent-color)] transition-colors">Discoveries</h3>
             <p className="text-2xl font-extrabold text-[var(--text-main)] flex items-baseline gap-1">
@@ -403,7 +403,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Discoveries Section */}
-      <div className="bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[28px] p-8 space-y-4">
+      <div className="space-y-4 rounded-[28px] border border-[var(--glass-border)] bg-[var(--bg-card)] p-5 backdrop-blur-[40px] sm:p-8">
         <h2 className="text-lg font-bold text-[var(--text-main)] mb-4">
           Discoveries ({progress.completedDiscoveries} / {CANONICAL_TOTAL_ELEMENTS})
         </h2>
@@ -423,7 +423,7 @@ export default function ProfilePage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3 max-[768px]:grid-cols-1">
+          <div className="grid gap-3 md:grid-cols-2">
             {discoveries.map((d) => (
               <div 
                 key={d.symbol} 
@@ -451,8 +451,8 @@ export default function ProfilePage() {
 
       {/* Edit Profile Modal */}
       {showEditModal && (
-        <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-[rgba(2,6,23,0.85)] backdrop-blur-[8px]" onClick={handleBackdropClick}>
-          <div className="w-full max-w-[480px] bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-[28px] p-8 relative max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-[rgba(2,6,23,0.85)] p-4 backdrop-blur-[8px]" onClick={handleBackdropClick}>
+          <div className="relative max-h-[calc(100dvh-2rem)] w-full max-w-[480px] overflow-y-auto rounded-[28px] border border-[var(--glass-border)] bg-[var(--bg-card)] p-5 sm:p-8">
             <button
               className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-[var(--bg-sidebar)] border border-[var(--border-color)] rounded-full text-[var(--text-light)] hover:bg-red-500 hover:text-white hover:rotate-90 transition-all duration-200 cursor-pointer"
               onClick={handleCloseEdit}
@@ -461,7 +461,7 @@ export default function ProfilePage() {
             </button>
 
             {/* Modal Header with avatar preview */}
-            <div className="flex items-center gap-5 mb-6">
+            <div className="mb-6 flex items-center gap-4 sm:gap-5">
               <div className="w-[70px] h-[70px] rounded-full overflow-hidden border-4 border-[var(--accent-color)]/40">
                 <Image
                   src={editPreviewAvatar}
@@ -481,7 +481,7 @@ export default function ProfilePage() {
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-light)]">Profile Picture URL</label>
 
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
                   <input
                     type="text"
                     className="flex-1 bg-[var(--bg-sidebar)] border border-[var(--border-color)] rounded-[12px] px-4 py-2.5 text-[var(--text-main)] placeholder:text-[var(--text-light)] focus:outline-none focus:border-[var(--accent-color)] transition-colors text-sm"
@@ -560,7 +560,7 @@ export default function ProfilePage() {
             )}
 
             {/* Actions */}
-            <div className="flex gap-3 mt-6">
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <button
                 className="flex-1 bg-[var(--accent-color)] text-white font-semibold px-6 py-2.5 rounded-[12px] hover:opacity-90 disabled:opacity-50 transition-opacity cursor-pointer"
                 onClick={handleSave}
@@ -581,8 +581,8 @@ export default function ProfilePage() {
 
       {/* Crop Modal */}
       {cropImageSrc && (
-        <div className="fixed inset-0 z-[2500] flex flex-col items-center justify-center bg-[rgba(2,6,23,0.92)] backdrop-blur-[10px]">
-          <div className="w-full max-w-[500px] flex flex-col bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-[28px] overflow-hidden">
+        <div className="fixed inset-0 z-[2500] flex flex-col items-center justify-center bg-[rgba(2,6,23,0.92)] p-4 backdrop-blur-[10px]">
+          <div className="flex w-full max-w-[500px] flex-col overflow-hidden rounded-[28px] border border-[var(--glass-border)] bg-[var(--bg-card)]">
             <div className="px-6 pt-5 pb-3">
               <h3 className="text-lg font-bold text-[var(--text-main)]">Crop Profile Picture</h3>
               <p className="text-xs text-[var(--text-light)] mt-1">Drag to reposition. Scroll or use slider to zoom.</p>

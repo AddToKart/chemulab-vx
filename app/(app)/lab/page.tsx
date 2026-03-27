@@ -14,6 +14,8 @@ import type { Discovery } from '@/lib/firebase/discoveries';
 import { useLabDiscoveries } from '@/lib/hooks/use-lab-discoveries';
 import { useIdle } from '@/lib/hooks/use-idle';
 import Image from 'next/image';
+import { NotebookModal } from '@/components/lab/NotebookModal';
+
 
 const ELEMENT_DETAILS_BY_SYMBOL = new Map(
   elementsData.map((element) => [element.symbol, element]),
@@ -44,17 +46,17 @@ export default function LabPage() {
     reactionType: string;
   } | null>(null);
   const [selectedElement, setSelectedElement] = useState<LabElement | null>(null);
-  const [mobileSection, setMobileSection] = useState<'lab' | 'elements' | 'inventory'>('lab');
+  const [mobileSection, setMobileSection] = useState<'lab' | 'inventory'>('lab');
   const [toast, setToast] = useState<{ message: string; error?: boolean } | null>(null);
+  const [notebookModalOpen, setNotebookModalOpen] = useState(false);
   
   // Hint system state
   const isIdle = useIdle(10000); // 10 seconds
   const [hintDismissed, setHintDismissed] = useState(false);
-  const [hintVisible, setHintVisible] = useState(false);
   const [chamberCoords, setChamberCoords] = useState({ top: 0, left: 0, width: 0 });
 
   /* ---------- derived state ---------- */
-  const showHint = hintVisible && !loading && chamberElements.length === 0;
+  const showHint = !loading && chamberElements.length === 0 && !hintDismissed && isIdle;
 
   /* ---------- callbacks ---------- */
   const updateCoords = useCallback(() => {
@@ -81,20 +83,6 @@ export default function LabPage() {
       };
     }
   }, [showHint, updateCoords]);
-
-  // Trigger hint when idle
-  useEffect(() => {
-    if (isIdle && chamberElements.length === 0 && !hintDismissed) {
-      setHintVisible(true);
-    }
-  }, [isIdle, chamberElements.length, hintDismissed]);
-
-  // Dismiss hint if something is added
-  useEffect(() => {
-    if (chamberElements.length > 0) {
-      setHintVisible(false);
-    }
-  }, [chamberElements.length]);
 
   /* ---------- helpers ---------- */
   const getElementExtraData = (symbol: string) => {
@@ -410,19 +398,18 @@ export default function LabPage() {
 
   /* ---------- render ---------- */
   return (
-    <div className="flex gap-8 h-[calc(100vh-130px)] max-[1180px]:flex-col max-[1180px]:h-auto pb-6">
-      <div className="hidden max-[1180px]:sticky max-[1180px]:top-20 max-[1180px]:z-20 max-[1180px]:block">
-        <div className="glass-panel p-2">
-          <div className="grid grid-cols-3 gap-2">
+    <div className="flex flex-col gap-5 pb-6 xl:h-[calc(100dvh-10rem)] xl:flex-row">
+      <div className="sticky top-[4.5rem] md:top-20 z-30 block xl:hidden">
+        <div className="glass-panel p-2 bg-white/90 dark:bg-[#0a0f1c]/90 backdrop-blur-2xl border-b border-white/5 shadow-md">
+          <div className="grid grid-cols-2 gap-2">
             {[
-              { id: 'elements', label: 'Elements' },
-              { id: 'lab', label: 'Lab' },
+              { id: 'lab', label: 'Lab Workspace' },
               { id: 'inventory', label: 'Inventory' },
             ].map((section) => (
               <button
                 key={section.id}
                 type="button"
-                onClick={() => setMobileSection(section.id as 'lab' | 'elements' | 'inventory')}
+                onClick={() => setMobileSection(section.id as 'lab' | 'inventory')}
                 className={cn(
                   'rounded-xl px-3 py-2.5 text-xs font-black uppercase tracking-[0.14em] transition-colors',
                   mobileSection === section.id
@@ -441,10 +428,10 @@ export default function LabPage() {
       {/* ---- Elements Panel ---- */}
       <div
         className={cn(
-          'w-[420px] flex flex-col gap-5 glass-panel p-6 shadow-xl flex-shrink-0 animate-in slide-in-from-left-5 duration-500',
-          'max-[1180px]:w-full max-[1180px]:order-2 max-[1180px]:max-h-[520px]',
-          mobileSection === 'elements' ? 'max-[1180px]:flex' : 'max-[1180px]:hidden',
-          'min-[1181px]:flex',
+          'flex w-full flex-col gap-5 glass-panel p-5 shadow-xl animate-in slide-in-from-left-5 duration-500 sm:p-6 xl:w-[min(24rem,26vw)] xl:min-w-[20rem] xl:max-w-[26rem]',
+          'max-xl:max-h-[32rem]',
+          mobileSection === 'lab' ? 'max-xl:flex order-2' : 'max-xl:hidden',
+          'xl:flex xl:order-1',
         )}
       >
         <div className="space-y-1.5">
@@ -469,7 +456,7 @@ export default function LabPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 overflow-y-auto pr-2">
+        <div className="grid grid-cols-1 gap-3 overflow-y-auto pr-2 xl:min-h-0">
           {filteredElements.map((el) =>
             renderElementCard(el, selectedElement?.symbol === el.symbol),
           )}
@@ -479,15 +466,14 @@ export default function LabPage() {
       {/* ---- Crafting Area ---- */}
       <div
         className={cn(
-          'flex-1 flex flex-col items-center justify-between glass-panel p-10 max-[640px]:p-6 shadow-2xl relative animate-in zoom-in-95 duration-700 group/craft',
-          'max-[1180px]:order-1',
-          mobileSection === 'lab' ? 'max-[1180px]:flex' : 'max-[1180px]:hidden',
-          'min-[1181px]:flex',
+          'group/craft relative flex min-h-[32rem] flex-1 flex-col items-center justify-start overflow-y-auto custom-scrollbar glass-panel p-6 shadow-2xl animate-in zoom-in-95 duration-700 sm:p-8 xl:min-h-0 xl:p-10',
+          mobileSection === 'lab' ? 'max-xl:flex order-1' : 'max-xl:hidden',
+          'xl:flex xl:order-2',
         )}
       >
         <div className="absolute inset-0 bg-emerald-500/[0.02] dark:bg-emerald-500/[0.05] pointer-events-none" />
 
-        <div className="relative z-10 w-full flex flex-col items-center gap-10">
+        <div className="relative z-10 flex w-full flex-col items-center gap-8 sm:gap-10">
           <div className="text-center space-y-2">
             <h2 className="text-3xl font-black tracking-tighter text-[var(--text-main)] uppercase">The Laboratory</h2>
             <div className="h-1 w-12 bg-emerald-500 mx-auto rounded-full" />
@@ -496,23 +482,29 @@ export default function LabPage() {
             </p>
           </div>
 
-          {/* ─── Single Reaction Chamber ─── */}
+          {/* ─── Single Reaction Chamber (Beaker Style) ─── */}
           <div
             ref={chamberRef}
             className={cn(
-              'group w-full max-w-lg min-h-[200px] flex flex-col border-2 border-dashed rounded-3xl cursor-pointer transition-all duration-200 bg-black/5 dark:bg-white/5 shadow-inner',
+              'group relative w-full max-w-[360px] min-h-[300px] flex flex-col justify-end border-x-4 border-b-4 border-t-0 rounded-b-[3rem] cursor-pointer transition-all duration-300 shadow-2xl backdrop-blur-sm bg-gradient-to-b from-white/5 to-white/15 dark:from-white/5 dark:to-white/[0.05]',
               chamberElements.length > 0
-                ? 'border-emerald-500/40 bg-emerald-500/5'
-                : 'border-white/20 hover:border-emerald-500/50 hover:bg-emerald-500/5',
+                ? 'border-emerald-500/40'
+                : 'border-white/20 hover:border-emerald-500/40',
             )}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDropToChamber}
             onClick={handleChamberClick}
           >
+            {/* Rim/Lip */}
+            <div className={cn(
+              "absolute -top-1.5 -left-[4px] -right-[4px] h-3 rounded-full border-2",
+              chamberElements.length > 0 ? "border-emerald-500/40 bg-emerald-500/5" : "border-white/20 bg-white/5"
+            )} />
+
             {chamberElements.length === 0 ? (
               /* ── Empty state ── */
-              <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center text-muted-foreground/50 group-hover:text-emerald-500/70 transition-colors duration-200 p-8">
+              <div className="flex-1 w-full flex flex-col items-center justify-center gap-3 text-center text-muted-foreground/50 group-hover:text-emerald-500/70 transition-colors duration-200 p-8">
                 <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-dashed border-current">
                   <span className="text-3xl font-light">+</span>
                 </div>
@@ -523,7 +515,7 @@ export default function LabPage() {
               </div>
             ) : (
               /* ── Filled state — element pills ── */
-              <div className="p-5 flex flex-col gap-4">
+              <div className="w-full p-5 flex flex-col gap-4 animate-in slide-in-from-bottom-4 duration-500">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-500">
                     Reaction Chamber — {chamberElements.length} element{chamberElements.length !== 1 ? 's' : ''}
@@ -578,7 +570,7 @@ export default function LabPage() {
           </div>
 
           <button
-            className="group relative overflow-hidden bg-[var(--accent-gradient)] text-white font-black uppercase tracking-widest px-12 py-4 rounded-2xl text-sm cursor-pointer transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:grayscale disabled:cursor-not-allowed shadow-[0_10px_30px_rgba(16,185,129,0.3)] hover:shadow-[0_15px_40px_rgba(16,185,129,0.4)]"
+            className="group relative w-full max-w-[22rem] overflow-hidden rounded-2xl bg-[var(--accent-gradient)] px-6 py-4 text-sm font-black uppercase tracking-[0.22em] text-white shadow-[0_10px_30px_rgba(16,185,129,0.3)] transition-all duration-300 hover:scale-105 hover:shadow-[0_15px_40px_rgba(16,185,129,0.4)] active:scale-95 disabled:cursor-not-allowed disabled:grayscale disabled:opacity-30 sm:px-12 cursor-pointer"
             disabled={chamberElements.length === 0}
             onClick={handleCombine}
           >
@@ -587,9 +579,9 @@ export default function LabPage() {
           </button>
         </div>
 
-        <div className="relative z-10 w-full mt-8 flex flex-col items-center gap-4">
+        <div className="relative z-10 mt-8 flex w-full flex-col items-center gap-4">
           <div className="w-px h-12 bg-gradient-to-b from-emerald-500/50 to-transparent" />
-          <div className={`w-48 h-48 max-[600px]:w-36 max-[600px]:h-36 flex flex-col text-center items-center justify-center border-2 border-dashed border-white/10 rounded-3xl transition-all duration-700 bg-black/5 dark:bg-white/5 ${result ? 'scale-110 shadow-2xl border-emerald-500/30' : 'opacity-50'}`}>
+          <div className={`flex h-36 w-36 flex-col items-center justify-center rounded-3xl border-2 border-dashed border-white/10 bg-black/5 text-center transition-all duration-700 dark:bg-white/5 sm:h-48 sm:w-48 ${result ? 'scale-110 border-emerald-500/30 shadow-2xl' : 'opacity-50'}`}>
             {result ? (
               <div className="group relative w-full h-full flex flex-col items-center justify-center rounded-3xl text-white p-6 shadow-2xl overflow-hidden animate-in zoom-in-75 duration-500" style={{ backgroundColor: result.color }}>
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.3),transparent)]" />
@@ -612,16 +604,27 @@ export default function LabPage() {
       {/* ---- Discoveries Panel ---- */}
       <div
         className={cn(
-          'w-[320px] flex flex-col gap-5 glass-panel p-6 shadow-xl flex-shrink-0 animate-in slide-in-from-right-5 duration-500',
-          'max-[1180px]:w-full max-[1180px]:order-3 max-[1180px]:min-h-[400px]',
-          mobileSection === 'inventory' ? 'max-[1180px]:flex' : 'max-[1180px]:hidden',
-          'min-[1181px]:flex',
+          'flex w-full flex-col gap-5 glass-panel p-5 shadow-xl animate-in slide-in-from-right-5 duration-500 sm:p-6 xl:order-3 xl:w-[min(20rem,24vw)] xl:min-w-[18rem]',
+          'max-xl:min-h-[24rem]',
+          mobileSection === 'inventory' ? 'max-xl:flex' : 'max-xl:hidden',
+          'xl:flex',
         )}
       >
         <div className="space-y-1">
-          <h3 className="font-bold text-[var(--text-main)] text-xl tracking-tight flex items-center justify-between">
+          <h3 className="flex flex-wrap items-center justify-between gap-2 text-xl font-bold tracking-tight text-[var(--text-main)]">
             Inventory
             {saving && <span className="text-[10px] bg-emerald-500/10 text-emerald-500 px-2 py-0.5 rounded-full font-bold animate-pulse">Syncing</span>}
+            <button
+              type="button"
+              onClick={() => setNotebookModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-black/5 dark:bg-white/5 border border-white/10 rounded-full text-[11px] font-bold uppercase tracking-widest text-[var(--text-light)] hover:bg-emerald-500/10 hover:text-emerald-500 hover:border-emerald-500/30 transition-all cursor-pointer"
+              title="Open Lab Notebook"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+              Notebook
+            </button>
           </h3>
           <p className="text-xs text-[var(--text-light)] font-medium">{discoveries.length} Compounds Found</p>
         </div>
@@ -671,7 +674,7 @@ export default function LabPage() {
         )}
 
         {/* Export / Import controls */}
-        <div className="flex gap-3 mt-auto pt-5 border-t border-white/10">
+        <div className="mt-auto flex flex-col gap-3 border-t border-white/10 pt-5 sm:flex-row">
           <button
             className="flex-1 h-11 flex items-center justify-center gap-2 bg-black/10 dark:bg-white/10 border border-white/10 rounded-xl text-[var(--text-main)] hover:bg-emerald-500/10 hover:border-emerald-500/30 hover:text-emerald-500 transition-all cursor-pointer shadow-sm group"
             onClick={handleExport}
@@ -714,7 +717,7 @@ export default function LabPage() {
           }}
         >
           <div className="relative group/hint pointer-events-auto animate-in fade-in zoom-in-95 slide-in-from-bottom-4 duration-500">
-            <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl px-5 py-3 rounded-2xl border-2 border-emerald-500/30 shadow-[0_20px_50px_rgba(0,0,0,0.3),0_0_20px_rgba(16,185,129,0.2)] flex items-center gap-4 min-w-[340px]">
+            <div className="flex w-[min(22rem,calc(100vw-2rem))] items-center gap-4 rounded-2xl border-2 border-emerald-500/30 bg-white/95 px-4 py-3 shadow-[0_20px_50px_rgba(0,0,0,0.3),0_0_20px_rgba(16,185,129,0.2)] backdrop-blur-xl sm:w-auto sm:min-w-[340px] sm:px-5 dark:bg-slate-900/95">
               <div className="w-12 h-12 shrink-0 rounded-full overflow-hidden border-2 border-emerald-500/30 bg-emerald-500/10 shadow-lg">
                 <Image 
                   src="/img/jepoy.png" 
@@ -730,7 +733,6 @@ export default function LabPage() {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      setHintVisible(false);
                       setHintDismissed(true);
                     }}
                     className="h-6 w-6 flex items-center justify-center rounded-xl bg-black/5 dark:bg-white/10 hover:bg-red-500 hover:text-white transition-all cursor-pointer text-sm font-bold text-[var(--text-light)] shadow-sm"
@@ -739,7 +741,7 @@ export default function LabPage() {
                     &times;
                   </button>
                 </div>
-                <p className="text-[13px] font-bold text-[var(--text-main)] italic leading-snug">"Try dragging elements into the reaction chamber!"</p>
+                <p className="text-[13px] font-bold text-[var(--text-main)] italic leading-snug">&quot;Try dragging elements into the reaction chamber!&quot;</p>
               </div>
             </div>
             {/* Speech bubble tail */}
@@ -830,6 +832,7 @@ export default function LabPage() {
         </div>,
         document.body
       )}
+      <NotebookModal isOpen={notebookModalOpen} onClose={() => setNotebookModalOpen(false)} uid={uid} />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { reactionsData } from '@/lib/data/reactions-data';
 import styles from './page.module.css';
@@ -38,6 +38,7 @@ export default function ReactionQuizPage() {
   const [showName, setShowName] = useState(false);
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('intermediate');
   const [timeLeft, setTimeLeft] = useState<number>(0);
+  const autoAdvanceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get difficulty settings
   const difficultySettings: ReactionQuizSettings = reactionQuizDifficulty[difficulty];
@@ -47,14 +48,14 @@ export default function ReactionQuizPage() {
     let interval: NodeJS.Timeout | null = null;
     const settings = reactionQuizDifficulty[difficulty];
 
-    if (isGameActive && settings.timePerQuestion) {
+    if (isGameActive && settings.timePerQuestion && selectedAnswer === null) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setTimeLeft(settings.timePerQuestion);
       interval = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
-            // Time's up - treat as wrong answer
-            if (question) {
+            // Time's up - treat as wrong answer (only if no answer selected)
+            if (question && selectedAnswer === null) {
               setStreak(0);
               setFeedbackText(`Time's up! The answer was ${showName ? question.correctAnswer.name : question.correctAnswer.formula}`);
               setLives((prevLives) => {
@@ -79,7 +80,7 @@ export default function ReactionQuizPage() {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isGameActive, difficulty, question, showName]);
+  }, [isGameActive, difficulty, question, showName, selectedAnswer]);
 
   const generateQuestion = useCallback((): Question => {
     const settings = reactionQuizDifficulty[difficulty];
@@ -185,6 +186,11 @@ export default function ReactionQuizPage() {
   );
 
   const nextQuestion = useCallback(() => {
+    // Clear any pending auto-advance timeout
+    if (autoAdvanceTimeoutRef.current) {
+      clearTimeout(autoAdvanceTimeoutRef.current);
+      autoAdvanceTimeoutRef.current = null;
+    }
     setSelectedAnswer(null);
     setFeedbackText('');
     setShowNext(false);
@@ -194,6 +200,25 @@ export default function ReactionQuizPage() {
       setTimeLeft(settings.timePerQuestion);
     }
   }, [generateQuestion, difficulty]);
+
+  // Auto-advance effect: move to next question after 1 second delay
+  useEffect(() => {
+    if (showNext && isGameActive && !gameOver) {
+      // Clear any existing timeout
+      if (autoAdvanceTimeoutRef.current) {
+        clearTimeout(autoAdvanceTimeoutRef.current);
+      }
+      // Auto-advance after 1 second
+      autoAdvanceTimeoutRef.current = setTimeout(() => {
+        nextQuestion();
+      }, 1000);
+    }
+    return () => {
+      if (autoAdvanceTimeoutRef.current) {
+        clearTimeout(autoAdvanceTimeoutRef.current);
+      }
+    };
+  }, [showNext, isGameActive, gameOver, nextQuestion]);
 
   const getOptionClass = (option: string): string => {
     if (selectedAnswer === null) return styles.optionBtn;
@@ -288,11 +313,7 @@ export default function ReactionQuizPage() {
 
             <div className={styles.feedback}>{feedbackText}</div>
 
-            {showNext && (
-              <button className={styles.nextBtn} onClick={nextQuestion}>
-                Next Question
-              </button>
-            )}
+
           </>
         )}
 

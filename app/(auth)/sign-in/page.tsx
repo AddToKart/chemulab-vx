@@ -6,9 +6,12 @@ import { login, register, forgotPassword } from '@/lib/firebase/auth';
 import { useAuthStore } from '@/store/auth-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { cn } from '@/lib/utils';
 
 type FormMode = 'login' | 'register' | 'forgot';
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
 
 export default function SignInPage() {
   const router = useRouter();
@@ -49,8 +52,8 @@ export default function SignInPage() {
       await login(loginEmail, loginPassword);
       setSuccess('Login successful! Redirecting...');
       setTimeout(() => router.replace('/'), 500);
-    } catch (err: any) {
-      setError(err.message || 'Login failed. Please try again.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Login failed. Please try again.'));
     } finally { setSubmitting(false); }
   };
 
@@ -67,8 +70,8 @@ export default function SignInPage() {
       const result = await register(regUsername.toLowerCase().trim(), regEmail, regPassword);
       setSuccess(result.emailSent ? result.message : 'Account created! You can now log in.');
       setRegUsername(''); setRegEmail(''); setRegPassword(''); setRegConfirm('');
-    } catch (err: any) {
-      setError(err.message || 'Registration failed. Please try again.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Registration failed. Please try again.'));
     } finally { setSubmitting(false); }
   };
 
@@ -81,8 +84,8 @@ export default function SignInPage() {
       await forgotPassword(forgotEmail);
       setSuccess('Password reset email sent! Please check your inbox.');
       setForgotEmail('');
-    } catch (err: any) {
-      setError(err.message || 'Failed to send reset email. Please try again.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to send reset email. Please try again.'));
     } finally { setSubmitting(false); }
   };
 
@@ -105,7 +108,7 @@ export default function SignInPage() {
         { top: '70%', left: '75%', emoji: '🧫', size: '3.8rem', dur: '4.5s', op: 0.5, reverse: true },
         { top: '40%', left: '85%', emoji: '🧬', size: '3rem', dur: '5.5s', op: 0.4 },
       ].map((f, i) => (
-        <div key={i} className="absolute z-[1] pointer-events-none" style={{ top: f.top, left: f.left }}>
+        <div key={i} className="absolute z-[1] hidden pointer-events-none sm:block" style={{ top: f.top, left: f.left }}>
           <span
             className="flex items-center justify-center"
             style={{ fontSize: f.size, opacity: f.op, animation: `emojiFloat ${f.dur} ease-in-out infinite${f.reverse ? ' reverse' : ''}` }}
@@ -116,8 +119,8 @@ export default function SignInPage() {
       ))}
 
       {/* Auth card */}
-      <div className="relative z-[2] flex items-center justify-center min-h-screen p-5">
-        <div className="w-full max-w-[440px] bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[32px] p-10 shadow-2xl text-[var(--text-main)] animate-[slideUp_0.6s_cubic-bezier(0.175,0.885,0.32,1.275)] relative overflow-hidden">
+      <div className="relative z-[2] flex min-h-screen items-center justify-center p-4 sm:p-5">
+        <div className="relative w-full max-w-[440px] overflow-hidden rounded-[32px] border border-[var(--glass-border)] bg-[var(--bg-card)] p-6 text-[var(--text-main)] shadow-2xl animate-[slideUp_0.6s_cubic-bezier(0.175,0.885,0.32,1.275)] backdrop-blur-[40px] sm:p-8 lg:p-10">
           {/* Top shimmer line */}
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
 

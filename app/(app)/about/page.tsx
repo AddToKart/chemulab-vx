@@ -250,7 +250,7 @@ export default function AboutPage() {
       <h1 className="text-[2rem] font-extrabold text-[var(--text-main)] mb-6 tracking-tight">About CheMuLab</h1>
 
       {/* About Section */}
-      <section className="bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[28px] p-10 relative overflow-hidden shadow-[var(--shadow-md)]">
+      <section className="relative overflow-hidden rounded-[28px] border border-[var(--glass-border)] bg-[var(--bg-card)] p-6 shadow-[var(--shadow-md)] backdrop-blur-[40px] sm:p-8 lg:p-10">
         <span className="absolute top-5 right-10 text-[3rem] opacity-20 pointer-events-none select-none animate-bounce">🧪</span>
         <span className="absolute top-[4.5rem] right-[3.5rem] text-[2rem] opacity-15 pointer-events-none select-none">⚛️</span>
 
@@ -259,7 +259,7 @@ export default function AboutPage() {
           CheMuLab remains the ultimate interactive chemistry learning platform that bridges the gap between complex science and engaging education. Whether you are a student, a teacher, or a lifelong learner, this is your reactive playground.
         </p>
 
-        <div className="grid grid-cols-2 gap-5 mb-8 max-[700px]:grid-cols-1">
+        <div className="mb-8 grid gap-5 md:grid-cols-2">
           {[
             { icon: '⚗️', title: 'Interactive Lab', desc: 'Begin experimenting with high-fidelity chemical reactions in your personal workspace. Discover hundreds of unique combinations.', accent: 'rgba(16,185,129,0.15)', border: 'rgba(16,185,129,0.3)' },
             { icon: '📖', title: 'Element Database', desc: 'Explore a comprehensive, high-detail periodic table. Learn about atomic properties, history, and usage of every element.', accent: 'rgba(14,165,233,0.15)', border: 'rgba(14,165,233,0.3)' },
@@ -278,7 +278,7 @@ export default function AboutPage() {
           ))}
         </div>
 
-        <div className="bg-gradient-to-r from-[rgba(16,185,129,0.1)] to-[rgba(14,165,233,0.1)] border border-[rgba(16,185,129,0.2)] rounded-[20px] p-8 mb-8">
+        <div className="mb-8 rounded-[20px] border border-[rgba(16,185,129,0.2)] bg-gradient-to-r from-[rgba(16,185,129,0.1)] to-[rgba(14,165,233,0.1)] p-6 sm:p-8">
           <h3 className="font-bold text-[var(--text-main)] text-xl mb-3">Our Mission</h3>
           <p className="text-[var(--text-light)] leading-relaxed">
             To provide a state-of-the-art educational environment that transforms the way people perceive science through a fusion of premium design, agentic technology, and scientific rigor.
@@ -287,11 +287,11 @@ export default function AboutPage() {
       </section>
 
       {/* Rating Section */}
-      <section className="mt-8 bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] rounded-[28px] p-10 relative overflow-hidden shadow-[var(--shadow-md)]">
+      <section className="relative mt-8 overflow-hidden rounded-[28px] border border-[var(--glass-border)] bg-[var(--bg-card)] p-6 shadow-[var(--shadow-md)] backdrop-blur-[40px] sm:p-8 lg:p-10">
         <h2 className="text-[1.5rem] font-bold text-[var(--text-main)] mb-6">Rate CheMuLab</h2>
 
         {/* Average Rating Display */}
-        <div className="flex items-center gap-6 mb-8 p-6 bg-[var(--bg-sidebar)] rounded-[20px] border border-[var(--border-color)]">
+        <div className="mb-8 grid gap-6 rounded-[20px] border border-[var(--border-color)] bg-[var(--bg-sidebar)] p-5 lg:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)] lg:items-center lg:p-6">
           <div className="text-center">
             <div className="text-[3rem] font-bold text-[var(--accent-color)]">
               {averageRating.toFixed(1)}
@@ -300,14 +300,14 @@ export default function AboutPage() {
               out of 5.0
             </div>
           </div>
-          <div className="flex-1">
+          <div className="min-w-0">
             <StarRating rating={averageRating} readonly size="lg" />
             <div className="text-[var(--text-light)] text-sm mt-1">
               {reviews.length} {reviews.length === 1 ? 'review' : 'reviews'}
             </div>
           </div>
           {/* Rating Distribution */}
-          <div className="flex-1 space-y-2">
+          <div className="min-w-0 space-y-2">
             {ratingCounts.map(({ rating, count, percentage }) => (
               <div key={rating} className="flex items-center gap-2">
                 <span className="text-xs text-[var(--text-light)] w-4">{rating}</span>
@@ -344,7 +344,7 @@ export default function AboutPage() {
           ) : (
             <div className="space-y-4">
               {/* Star Rating Input */}
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
                 <label className="text-[var(--text-light)] text-sm">Your Rating:</label>
                 <StarRating 
                   rating={selectedRating} 
@@ -371,7 +371,7 @@ export default function AboutPage() {
 
               {/* Visibility Controls */}
               <div className="flex flex-col gap-3">
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
                   <div className="flex items-center gap-2">
                     <Switch 
                       checked={isAnonymous} 
@@ -402,7 +402,7 @@ export default function AboutPage() {
 
                 {/* Advanced Options (Indented, no border) */}
                 {!isAnonymous && showAdvanced && (
-                  <div className="ml-6 space-y-3">
+                  <div className="ml-0 space-y-3 sm:ml-6">
                     <div className="flex items-center gap-2">
                       <Switch 
                         checked={visibility.showUsername} 
@@ -441,7 +441,7 @@ export default function AboutPage() {
               )}
 
               {/* Submit/Delete Buttons */}
-              <div className="flex gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row">
                 <Button
                   onClick={handleSubmitReview}
                   disabled={isSubmitting || selectedRating === 0}

@@ -65,7 +65,7 @@ export default function PopoyChatbot() {
       <button
         onClick={() => setIsOpen((prev) => !prev)}
         aria-label="Toggle Popoy AI chat"
-        className="fixed bottom-6 right-6 w-14 h-14 rounded-full cursor-pointer hover:scale-110 transition-all duration-300 z-[1500] overflow-hidden p-0 glass-panel border-emerald-500/30"
+        className="fixed bottom-4 right-4 z-[1500] h-14 w-14 overflow-hidden rounded-full border-emerald-500/30 p-0 transition-all duration-300 hover:scale-110 glass-panel sm:bottom-6 sm:right-6"
       >
         <Image src="/img/jepoy.png" alt="Popoy" width={56} height={56} className="w-full h-full object-cover" />
       </button>
@@ -73,7 +73,7 @@ export default function PopoyChatbot() {
       {/* Chat window */}
       {isOpen && (
         <div
-          className="fixed bottom-24 right-6 w-[360px] max-w-[calc(100vw-3rem)] h-[520px] max-h-[calc(100vh-8rem)] flex flex-col rounded-[24px] z-[1400] overflow-hidden animate-in slide-in-from-bottom-5 fade-in duration-300 glass-panel"
+          className="fixed bottom-20 right-3 z-[1400] flex h-[min(32rem,calc(100dvh-6.5rem))] w-[min(22rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-[24px] animate-in slide-in-from-bottom-5 fade-in duration-300 glass-panel sm:bottom-24 sm:right-6 sm:w-[360px] sm:max-w-[calc(100vw-3rem)]"
         >
           {/* Header */}
           <div

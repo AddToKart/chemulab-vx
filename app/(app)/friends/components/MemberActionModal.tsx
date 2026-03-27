@@ -68,7 +68,7 @@ export function MemberActionModal({
       className="fixed inset-0 z-[3000] flex items-center justify-center bg-[rgba(2,6,23,0.85)] backdrop-blur-[8px]"
       onClick={(e) => { if (e.target === e.currentTarget && !isLoading) onClose(); }}
     >
-      <div className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-[24px] p-6 w-[400px] max-[450px]:w-[90%] relative">
+      <div className="relative w-full max-w-[400px] rounded-[24px] border border-[var(--glass-border)] bg-[var(--bg-card)] p-5 sm:p-6">
         <button
           type="button"
           className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-[var(--bg-sidebar)] border border-[var(--border-color)] rounded-full text-[var(--text-light)] hover:bg-red-500 hover:text-white hover:rotate-90 transition-all duration-200 cursor-pointer z-10"

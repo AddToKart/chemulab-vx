@@ -209,7 +209,7 @@ export default function WhackAMolePage() {
   };
 
   return (
-    <div>
+    <div className={styles.container}>
       <Link href="/games" className={styles.backLink}>
         &larr; Back to Games
       </Link>

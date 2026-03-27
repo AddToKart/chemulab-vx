@@ -6,22 +6,37 @@ import { usePathname } from 'next/navigation';
 import { useThemeStore } from '@/store/theme-store';
 import { useAuthStore } from '@/store/auth-store';
 import { db } from '@/lib/firebase/config';
-import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot, 
-  doc, 
-  getDoc, 
-  updateDoc, 
-  deleteDoc, 
-  writeBatch, 
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  doc,
+  getDoc,
+  deleteDoc,
+  writeBatch,
   serverTimestamp,
 } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 
 interface TopBarProps {
   onToggleSidebar: () => void;
+}
+
+interface FriendRequestNotification {
+  id: string;
+  fromUid: string;
+  fromEmail: string;
+  fromUsername?: string;
+  chatId: string;
+  acceptedAt?: unknown;
+}
+
+interface ChatNotification {
+  id: string;
+  fromUsername?: string;
+  message?: string;
+  chatId: string;
 }
 
 export default function TopBar({ onToggleSidebar }: TopBarProps) {
@@ -33,8 +48,8 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
   const user = useAuthStore((s) => s.user);
   const [scrolled, setScrolled] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [requests, setRequests] = useState<any[]>([]);
-  const [unreadChats, setUnreadChats] = useState<any[]>([]);
+  const [requests, setRequests] = useState<FriendRequestNotification[]>([]);
+  const [unreadChats, setUnreadChats] = useState<ChatNotification[]>([]);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -42,17 +57,19 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Listen for friend requests
   useEffect(() => {
     if (!user?.uid) return;
     const q = query(collection(db, 'friendRequests'), where('toUid', '==', user.uid));
     const unsub = onSnapshot(q, (snap) => {
-      setRequests(snap.docs.map(d => ({ id: d.id, ...d.data() })).filter((r: any) => !r.acceptedAt));
+      setRequests(
+        snap.docs
+          .map((d) => ({ id: d.id, ...d.data() }) as FriendRequestNotification)
+          .filter((request) => !request.acceptedAt)
+      );
     });
     return () => unsub();
   }, [user?.uid]);
 
-  // Listen for unread message notifications
   useEffect(() => {
     if (!user?.uid) return;
     const q = query(
@@ -61,18 +78,17 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
     );
     const unsub = onSnapshot(q, (snap) => {
       console.log('[TopBar] Notifications snap:', snap.docs.length, 'docs');
-      setUnreadChats(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      setUnreadChats(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as ChatNotification));
     }, (err) => {
       console.error('[TopBar] Notifications listener error:', err);
     });
     return () => unsub();
   }, [user?.uid]);
 
-  // Click outside to close notifications
   useEffect(() => {
     if (!isNotificationsOpen) return;
     const handleOutside = (e: MouseEvent) => {
-      if (!(e.target as HTMLElement).closest('[data-notifications-dropdown]') && 
+      if (!(e.target as HTMLElement).closest('[data-notifications-dropdown]') &&
           !(e.target as HTMLElement).closest('[data-notifications-trigger]')) {
         setIsNotificationsOpen(false);
       }
@@ -89,7 +105,7 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
     }
   };
 
-  const handleAccept = async (req: any) => {
+  const handleAccept = async (req: FriendRequestNotification) => {
     if (!user?.uid || !profile) return;
     try {
       const senderSnap = await getDoc(doc(db, 'users', req.fromUid));
@@ -119,7 +135,7 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
     }
   };
 
-  const handleDecline = async (req: any) => {
+  const handleDecline = async (req: FriendRequestNotification) => {
     try {
       await deleteDoc(doc(db, 'friendRequests', req.id));
     } catch (e) {
@@ -137,29 +153,27 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
   return (
     <header
       className={cn(
-        'fixed top-4 left-4 right-4 z-[1100] h-16',
-        'flex items-center justify-between px-6',
-        'bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60',
+        'fixed left-3 right-3 top-3 z-[1300] min-h-16 sm:left-4 sm:right-4 sm:top-4',
+        'flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-3 py-3 sm:px-4 lg:px-6',
+        'bg-background/95 text-foreground shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/60',
         'border border-border rounded-2xl',
-        'shadow-sm text-foreground',
         'transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]',
-        scrolled && 'shadow-md border-b',
+        scrolled && 'border-b shadow-md',
       )}
     >
-      {/* Left */}
-      <div className="flex items-center gap-4">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-4">
         <button
           data-sidebar-toggle
           onClick={onToggleSidebar}
           aria-label="Toggle sidebar"
-          className="flex items-center justify-center w-9 h-9 rounded-xl border border-border bg-card text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground hover:scale-105 transition-all duration-200 cursor-pointer"
+          className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-sm transition-all duration-200 hover:scale-105 hover:bg-accent hover:text-accent-foreground cursor-pointer"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" />
           </svg>
         </button>
 
-        <Link href="/" className="flex items-center gap-2 no-underline hover:scale-[1.02] transition-transform duration-200">
+        <Link href="/" className="flex min-w-0 items-center gap-2 no-underline transition-transform duration-200 hover:scale-[1.02]">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="url(#chemGradientTB)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <defs>
               <linearGradient id="chemGradientTB" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -171,35 +185,33 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
             <path d="M14 9.3a6.5 6.5 0 1 1-4 0" /><path d="M5.52 16h12.96" />
           </svg>
           <span
-            className="text-2xl font-extrabold tracking-[-0.04em] bg-gradient-to-r from-cyan-500 to-emerald-500 bg-clip-text text-transparent"
+            className="max-[380px]:hidden truncate bg-gradient-to-r from-cyan-500 to-emerald-500 bg-clip-text text-xl font-extrabold tracking-[-0.04em] text-transparent sm:text-2xl"
             style={{ backgroundSize: '200% auto', animation: 'shimmer 4s linear infinite' }}
           >
             CheMuLab
           </span>
         </Link>
 
-        {/* Breadcrumbs (md+) */}
-        <div className="hidden md:flex items-center ml-4 pl-4 border-l border-border text-sm text-muted-foreground font-medium">
+        <div className="ml-4 hidden items-center border-l border-border pl-4 text-sm font-medium text-muted-foreground xl:flex">
           {breadcrumbs.map((crumb, idx) => (
             <span key={idx} className="flex items-center">
-              {idx > 0 && <span className="opacity-40 mx-2 text-xs">/</span>}
+              {idx > 0 && <span className="mx-2 text-xs opacity-40">/</span>}
               {crumb}
             </span>
           ))}
         </div>
       </div>
 
-      {/* Right */}
-      <div className="flex items-center gap-3">
+      <div className="ml-auto flex items-center gap-2 sm:gap-3">
         <button
           onClick={toggleTheme}
           aria-label="Toggle Dark Mode"
-          className="relative w-10 h-10 rounded-full border border-border bg-card shadow-sm flex items-center justify-center cursor-pointer overflow-hidden hover:-translate-y-0.5 hover:rotate-[15deg] hover:shadow-md hover:border-primary transition-all duration-300"
+          className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:rotate-[15deg] hover:border-primary hover:shadow-md cursor-pointer"
         >
-          <span className={cn('absolute text-lg transition-all duration-500', theme === 'light' ? 'opacity-100 scale-100 rotate-0' : 'opacity-0 scale-50 rotate-180')}>
+          <span className={cn('absolute text-lg transition-all duration-500', theme === 'light' ? 'rotate-0 scale-100 opacity-100' : 'rotate-180 scale-50 opacity-0')}>
             ☀️
           </span>
-          <span className={cn('absolute text-lg transition-all duration-500', theme === 'dark' ? 'opacity-100 scale-100 rotate-0' : 'opacity-0 scale-50 rotate-180')}>
+          <span className={cn('absolute text-lg transition-all duration-500', theme === 'dark' ? 'rotate-0 scale-100 opacity-100' : 'rotate-180 scale-50 opacity-0')}>
             🌙
           </span>
         </button>
@@ -211,10 +223,10 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
                 data-notifications-trigger
                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
                 className={cn(
-                  "flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200 cursor-pointer relative",
-                  isNotificationsOpen 
-                    ? "bg-primary text-white shadow-lg scale-105" 
-                    : "text-muted-foreground hover:text-primary hover:bg-muted hover:scale-110"
+                  'relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 cursor-pointer',
+                  isNotificationsOpen
+                    ? 'scale-105 bg-primary text-white shadow-lg'
+                    : 'text-muted-foreground hover:scale-110 hover:bg-muted hover:text-primary'
                 )}
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -222,20 +234,19 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
                   <path d="M13.73 21a2 2 0 0 1-3.46 0" />
                 </svg>
                 {(requests.length > 0 || unreadChats.length > 0) && (
-                  <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-background animate-pulse" />
+                  <span className="absolute right-2 top-2 h-2 w-2 rounded-full border border-background bg-red-500 animate-pulse" />
                 )}
               </button>
 
-              {/* Dropdown Menu */}
               {isNotificationsOpen && (
-                <div 
+                <div
                   data-notifications-dropdown
-                  className="absolute right-0 mt-3 w-80 bg-card/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden z-[1200] animate-[slideDown_0.2s_ease-out]"
+                  className="absolute right-0 mt-3 z-[1400] w-[min(22rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-border bg-card/95 shadow-2xl backdrop-blur-xl animate-[slideDown_0.2s_ease-out] sm:w-80"
                 >
-                  <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-                    <h3 className="font-bold text-sm">Notifications</h3>
+                  <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                    <h3 className="text-sm font-bold">Notifications</h3>
                     {(requests.length > 0 || unreadChats.length > 0) && (
-                      <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
                         {requests.length + unreadChats.length} NEW
                       </span>
                     )}
@@ -243,39 +254,38 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
 
                   <div className="max-h-[320px] overflow-y-auto">
                     {requests.length === 0 && unreadChats.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center py-10 px-6 text-center">
-                        <div className="p-3 bg-muted rounded-full mb-3 opacity-50">
+                      <div className="flex flex-col items-center justify-center px-6 py-10 text-center">
+                        <div className="mb-3 rounded-full bg-muted p-3 opacity-50">
                           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                             <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                           </svg>
                         </div>
                         <p className="text-sm text-muted-foreground">All caught up!</p>
-                        <p className="text-xs text-muted-foreground mt-1">No new notifications or messages.</p>
+                        <p className="mt-1 text-xs text-muted-foreground">No new notifications or messages.</p>
                       </div>
                     ) : (
-                      <div className="p-2 space-y-1">
-                        {/* Friend Requests */}
+                      <div className="space-y-1 p-2">
                         {requests.map((req) => (
-                          <div key={req.id} className="p-3 bg-muted/40 hover:bg-muted/80 rounded-xl transition-colors border border-transparent hover:border-border/50">
+                          <div key={req.id} className="rounded-xl border border-transparent bg-muted/40 p-3 transition-colors hover:border-border/50 hover:bg-muted/80">
                             <div className="flex gap-3">
-                              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 border border-primary/20 text-blue-500 text-lg">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10 text-lg text-blue-500">
                                 👋
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-xs font-semibold text-foreground leading-tight">
+                                <p className="text-xs font-semibold leading-tight text-foreground">
                                   <span className="text-primary">{req.fromUsername}</span>
                                   <span className="font-normal text-muted-foreground"> sent you a friend request.</span>
                                 </p>
-                                <div className="flex gap-2 mt-2">
+                                <div className="mt-2 flex gap-2">
                                   <button
                                     onClick={() => handleAccept(req)}
-                                    className="flex-1 h-8 bg-emerald-500 text-white text-[11px] font-bold rounded-lg hover:bg-emerald-600 transition-colors shadow-sm cursor-pointer"
+                                    className="h-8 flex-1 rounded-lg bg-emerald-500 text-[11px] font-bold text-white shadow-sm transition-colors hover:bg-emerald-600 cursor-pointer"
                                   >
                                     Accept
                                   </button>
                                   <button
                                     onClick={() => handleDecline(req)}
-                                    className="flex-1 h-8 bg-muted text-foreground border border-border text-[11px] font-bold rounded-lg hover:bg-accent transition-colors cursor-pointer"
+                                    className="h-8 flex-1 rounded-lg border border-border bg-muted text-[11px] font-bold text-foreground transition-colors hover:bg-accent cursor-pointer"
                                   >
                                     Decline
                                   </button>
@@ -285,39 +295,38 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
                           </div>
                         ))}
 
-                        {/* Unread Message Notifications */}
                         {unreadChats.map((notif) => (
-                          <div 
-                            key={notif.id} 
-                            className="p-3 bg-muted/40 hover:bg-muted/80 rounded-xl transition-colors border border-transparent hover:border-border/50"
+                          <div
+                            key={notif.id}
+                            className="rounded-xl border border-transparent bg-muted/40 p-3 transition-colors hover:border-border/50 hover:bg-muted/80"
                           >
-                            <div className="flex gap-3 items-center">
-                              <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 border border-blue-500/20 text-blue-500 text-lg">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-blue-500/20 bg-blue-500/10 text-lg text-blue-500">
                                 💬
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-xs font-semibold text-foreground leading-tight">
+                                <p className="text-xs font-semibold leading-tight text-foreground">
                                   <span className="text-primary">{notif.fromUsername || 'Someone'}</span>
                                   <span className="font-normal text-muted-foreground"> sent you a message:</span>
                                 </p>
-                                <p className="text-xs text-muted-foreground truncate mt-1 italic">
+                                <p className="mt-1 truncate text-xs italic text-muted-foreground">
                                   &quot;{notif.message}&quot;
                                 </p>
                               </div>
-                              <div className="flex gap-1.5 shrink-0">
-                                <Link 
+                              <div className="flex shrink-0 gap-1.5">
+                                <Link
                                   href={`/friends?chatId=${notif.chatId}`}
                                   onClick={() => {
                                     handleDismissNotification(notif.id);
                                     setIsNotificationsOpen(false);
                                   }}
-                                  className="h-7 px-2.5 bg-primary/10 text-primary text-[10px] font-bold rounded-lg hover:bg-primary/20 transition-colors cursor-pointer no-underline flex items-center"
+                                  className="flex h-7 items-center rounded-lg bg-primary/10 px-2.5 text-[10px] font-bold text-primary no-underline transition-colors hover:bg-primary/20 cursor-pointer"
                                 >
                                   View
                                 </Link>
                                 <button
                                   onClick={() => handleDismissNotification(notif.id)}
-                                  className="h-7 w-7 bg-muted text-muted-foreground border border-border text-xs rounded-lg hover:bg-accent transition-colors cursor-pointer flex items-center justify-center"
+                                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-muted text-xs text-muted-foreground transition-colors hover:bg-accent cursor-pointer"
                                 >
                                   ✕
                                 </button>
@@ -332,7 +341,7 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
                   <Link
                     href="/friends"
                     onClick={() => setIsNotificationsOpen(false)}
-                    className="block w-full py-3 bg-muted/50 hover:bg-muted text-center text-xs font-bold text-primary transition-colors border-t border-border no-underline"
+                    className="block w-full border-t border-border bg-muted/50 py-3 text-center text-xs font-bold text-primary no-underline transition-colors hover:bg-muted"
                   >
                     View All Friends & Activity
                   </Link>
@@ -341,9 +350,9 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
             </div>
             <Link
               href="/profile"
-              className="hidden md:block w-9 h-9 rounded-full overflow-hidden border-2 border-border hover:border-primary hover:scale-105 shadow-sm transition-all duration-200"
+              className="hidden h-9 w-9 overflow-hidden rounded-full border-2 border-border shadow-sm transition-all duration-200 hover:scale-105 hover:border-primary md:block"
             >
-              <img src={profile.photoURL || "/img/default-avatar.png"} alt="Profile" className="w-full h-full object-cover" />
+              <img src={profile.photoURL || '/img/default-avatar.png'} alt="Profile" className="h-full w-full object-cover" />
             </Link>
           </>
         )}

@@ -133,7 +133,7 @@ export function GroupSettingsModal({
         className="fixed inset-0 z-[2000] flex items-center justify-center bg-[rgba(2,6,23,0.85)] backdrop-blur-[8px]"
         onClick={(e) => { if (e.target === e.currentTarget) { onClose(); } }}
       >
-        <div className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-[28px] p-8 w-[500px] max-[600px]:w-[90%] relative max-h-[80vh] overflow-hidden flex flex-col">
+        <div className="relative flex max-h-[calc(100dvh-2rem)] w-full max-w-[500px] flex-col overflow-hidden rounded-[28px] border border-[var(--glass-border)] bg-[var(--bg-card)] p-5 sm:p-8">
           <button
             type="button"
             className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-[var(--bg-sidebar)] border border-[var(--border-color)] rounded-full text-[var(--text-light)] hover:bg-red-500 hover:text-white hover:rotate-90 transition-all duration-200 cursor-pointer z-10"
@@ -320,7 +320,7 @@ export function GroupSettingsModal({
       {/* Crop Modal */}
       {showCropModal && cropImageSrc && (
         <div className="fixed inset-0 z-[2500] flex flex-col items-center justify-center bg-[rgba(2,6,23,0.92)] backdrop-blur-[10px]">
-          <div className="w-full max-w-[500px] flex flex-col bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-[28px] overflow-hidden">
+          <div className="flex w-full max-w-[500px] flex-col overflow-hidden rounded-[28px] border border-[var(--glass-border)] bg-[var(--bg-card)]">
             <div className="px-6 pt-5 pb-3">
               <h3 className="text-lg font-bold text-[var(--text-main)]">Crop Group Photo</h3>
               <p className="text-xs text-[var(--text-light)] mt-1">Drag to reposition. Scroll or use slider to zoom.</p>

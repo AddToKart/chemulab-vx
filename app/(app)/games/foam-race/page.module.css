@@ -28,9 +28,9 @@
 
 /* Back link */
 .backLink {
-  display: inline-block;
+  display: block;
   margin-bottom: 16px;
-  color: var(--primary);
+  color: #818cf8;
   text-decoration: none;
   font-weight: 500;
   font-size: 0.95em;

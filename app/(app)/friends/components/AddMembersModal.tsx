@@ -28,7 +28,7 @@ export function AddMembersModal({
       className="fixed inset-0 z-[2100] flex items-center justify-center bg-[rgba(2,6,23,0.85)] backdrop-blur-[8px]"
       onClick={(e) => { if (e.target === e.currentTarget) { onClose(); } }}
     >
-      <div className="bg-[var(--bg-card)] border border-[var(--glass-border)] rounded-[28px] p-8 w-[450px] max-[500px]:w-[90%] relative">
+      <div className="relative w-full max-w-[450px] rounded-[28px] border border-[var(--glass-border)] bg-[var(--bg-card)] p-5 sm:p-8">
         <button
           type="button"
           className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center bg-[var(--bg-sidebar)] border border-[var(--border-color)] rounded-full text-[var(--text-light)] hover:bg-red-500 hover:text-white hover:rotate-90 transition-all duration-200 cursor-pointer"

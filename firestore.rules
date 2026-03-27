@@ -44,6 +44,11 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Top-level notebooks collection: only the owning user may read/write
+    match /notebooks/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
     // Friend requests: sender may create; sender or recipient may read/delete.
     // Recipient may update with acceptedAt (kept for backward compatibility).
     match /friendRequests/{requestId} {

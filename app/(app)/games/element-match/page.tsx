@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { elementsData } from '@/lib/data/elements-data';
 import styles from './page.module.css';
@@ -39,6 +39,7 @@ export default function ElementMatchPage() {
   const [showNext, setShowNext] = useState(false);
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('intermediate');
   const [timeLeft, setTimeLeft] = useState<number>(0);
+  const autoAdvanceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get difficulty settings
   const difficultySettings: ElementMatchSettings = elementMatchDifficulty[difficulty];
@@ -48,14 +49,14 @@ export default function ElementMatchPage() {
     let interval: NodeJS.Timeout | null = null;
     const settings = elementMatchDifficulty[difficulty];
 
-    if (isGameActive && settings.timePerQuestion) {
+    if (isGameActive && settings.timePerQuestion && selectedAnswer === null) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setTimeLeft(settings.timePerQuestion);
       interval = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
-            // Time's up - treat as wrong answer
-            if (question) {
+            // Time's up - treat as wrong answer (only if no answer selected)
+            if (question && selectedAnswer === null) {
               setStreak(0);
               setFeedbackText(`Time's up! The answer was ${question.correctAnswer}`);
               setLives((prevLives) => {
@@ -80,7 +81,7 @@ export default function ElementMatchPage() {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isGameActive, difficulty, question]);
+  }, [isGameActive, difficulty, question, selectedAnswer]);
 
   const generateQuestion = useCallback((): Question => {
     // Get current difficulty settings
@@ -203,7 +204,7 @@ export default function ElementMatchPage() {
       options,
       type: questionType,
     };
-  }, [difficulty]);
+  }, [difficulty, difficultySettings.options]);
 
   const startGame = useCallback(() => {
     const settings = elementMatchDifficulty[difficulty];
@@ -254,6 +255,11 @@ export default function ElementMatchPage() {
   );
 
   const nextQuestion = useCallback(() => {
+    // Clear any pending auto-advance timeout
+    if (autoAdvanceTimeoutRef.current) {
+      clearTimeout(autoAdvanceTimeoutRef.current);
+      autoAdvanceTimeoutRef.current = null;
+    }
     setSelectedAnswer(null);
     setFeedbackText('');
     setShowNext(false);
@@ -263,6 +269,25 @@ export default function ElementMatchPage() {
       setTimeLeft(settings.timePerQuestion);
     }
   }, [generateQuestion, difficulty]);
+
+  // Auto-advance effect: move to next question after 1 second delay
+  useEffect(() => {
+    if (showNext && isGameActive && !gameOver) {
+      // Clear any existing timeout
+      if (autoAdvanceTimeoutRef.current) {
+        clearTimeout(autoAdvanceTimeoutRef.current);
+      }
+      // Auto-advance after 1 second
+      autoAdvanceTimeoutRef.current = setTimeout(() => {
+        nextQuestion();
+      }, 1000);
+    }
+    return () => {
+      if (autoAdvanceTimeoutRef.current) {
+        clearTimeout(autoAdvanceTimeoutRef.current);
+      }
+    };
+  }, [showNext, isGameActive, gameOver, nextQuestion]);
 
   const getOptionClass = (option: string): string => {
     if (selectedAnswer === null) return styles.optionBtn;
@@ -340,12 +365,6 @@ export default function ElementMatchPage() {
             </div>
 
             <div className={styles.feedback}>{feedbackText}</div>
-
-            {showNext && (
-              <button className={styles.nextBtn} onClick={nextQuestion}>
-                Next Question
-              </button>
-            )}
           </>
         )}
 

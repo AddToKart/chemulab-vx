@@ -1,34 +1,66 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { cn } from '@/lib/utils';
 import TopBar from './TopBar';
 import Sidebar from './Sidebar';
 
+const DESKTOP_MEDIA_QUERY = '(min-width: 1024px)';
+
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(true);
+  const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
-    const isMobile = window.matchMedia('(max-width: 900px)').matches;
-    const stored = localStorage.getItem('chemulab_sidebar_collapsed');
-    if (stored === 'true') setCollapsed(true);
-    else if (stored === 'false' && !isMobile) setCollapsed(false);
-    else if (isMobile) setCollapsed(true);
-    else setCollapsed(false);
+    const mediaQuery = window.matchMedia(DESKTOP_MEDIA_QUERY);
+
+    const syncLayout = (matchesDesktop: boolean) => {
+      setIsDesktop(matchesDesktop);
+
+      const stored = localStorage.getItem('chemulab_sidebar_collapsed');
+      if (!matchesDesktop) {
+        setCollapsed(true);
+        return;
+      }
+
+      if (stored === 'true') {
+        setCollapsed(true);
+        return;
+      }
+
+      if (stored === 'false') {
+        setCollapsed(false);
+        return;
+      }
+
+      setCollapsed(false);
+    };
+
+    syncLayout(mediaQuery.matches);
+
+    const handleChange = (event: MediaQueryListEvent) => {
+      syncLayout(event.matches);
+    };
+
+    mediaQuery.addEventListener('change', handleChange);
+    return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
 
   const toggleSidebar = useCallback(() => {
     setCollapsed((prev) => {
       const next = !prev;
-      try { localStorage.setItem('chemulab_sidebar_collapsed', String(next)); } catch {}
+      if (isDesktop) {
+        try {
+          localStorage.setItem('chemulab_sidebar_collapsed', String(next));
+        } catch {}
+      }
       return next;
     });
-  }, []);
+  }, [isDesktop]);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      if (collapsed) return;
-      const isMobile = window.matchMedia('(max-width: 900px)').matches;
-      if (!isMobile) return;
+      if (collapsed || isDesktop) return;
       const sidebar = document.querySelector('[data-sidebar]');
       const toggle = document.querySelector('[data-sidebar-toggle]');
       if (sidebar && !sidebar.contains(e.target as Node) && toggle && !toggle.contains(e.target as Node)) {
@@ -37,24 +69,35 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     };
     document.addEventListener('click', handleClick);
     return () => document.removeEventListener('click', handleClick);
-  }, [collapsed]);
+  }, [collapsed, isDesktop]);
 
   return (
-    <div className="w-full min-h-screen overflow-x-hidden relative pt-[calc(64px+2rem)] pb-5">
+    <div className="relative min-h-screen w-full overflow-x-hidden pb-6 pt-[calc(var(--header-height)+1.25rem)] sm:pt-[calc(var(--header-height)+1.5rem)]">
       <TopBar onToggleSidebar={toggleSidebar} />
+      {!collapsed && !isDesktop && (
+        <button
+          type="button"
+          aria-label="Close sidebar overlay"
+          className="fixed inset-0 z-[1150] bg-slate-950/35 backdrop-blur-[2px] lg:hidden"
+          onClick={() => setCollapsed(true)}
+        />
+      )}
       <div data-sidebar>
         <Sidebar collapsed={collapsed} />
       </div>
       <main
+        style={{
+          '--sidebar-offset': collapsed ? '6rem' : '17rem',
+        } as React.CSSProperties}
         className={[
           'mainContent',
-          'mt-4 pb-8 min-h-[calc(100vh-64px-4rem)]',
-          'transition-[margin-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]',
-          collapsed ? 'ml-[100px] max-[900px]:ml-0' : 'ml-[260px] max-[900px]:ml-0',
-          'px-4 md:px-6 lg:pr-8',
+          'relative z-10 mx-auto mt-4 min-h-[calc(100dvh-var(--header-height)-2.5rem)] w-full lg:w-[calc(100%-var(--sidebar-offset))] max-w-[var(--content-max-width)] pb-8',
+          'px-4 sm:px-5 lg:px-8 xl:px-10',
+          'transition-[margin-left,padding,width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]',
+          'lg:ml-[var(--sidebar-offset)]',
         ].join(' ')}
       >
-        {children}
+        <div className={cn('mx-auto w-full max-w-[1440px] min-w-0')}>{children}</div>
       </main>
     </div>
   );

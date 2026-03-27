@@ -32,7 +32,7 @@ function GamesGrid({ games }: { games: Game[] }) {
   const { gameRatings } = useAllGameRatings();
 
   return (
-    <div className="grid grid-cols-4 gap-4 max-[1100px]:grid-cols-2 max-[600px]:grid-cols-1">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {games.map((game) => {
         const rating = gameRatings[game.id];
         const hasRatings = rating && rating.totalRatings > 0;
@@ -41,31 +41,30 @@ function GamesGrid({ games }: { games: Game[] }) {
           <Link
             key={game.href}
             href={game.href}
-            className="flex flex-col gap-2 p-6 rounded-[20px] border-l-4 bg-[var(--bg-card)] backdrop-blur-[40px] border border-[var(--glass-border)] hover:translate-y-[-4px] hover:shadow-[var(--shadow-lg)] transition-all duration-300 group"
+            className="group flex min-h-[15rem] flex-col gap-2 rounded-[20px] border border-[var(--glass-border)] border-l-4 p-6 backdrop-blur-[40px] transition-all duration-300 hover:-translate-y-1 hover:shadow-[var(--shadow-lg)]"
             style={{
               background: `linear-gradient(135deg, ${game.color}15 0%, var(--bg-card) 100%)`,
               borderLeftColor: game.color,
             }}
           >
             <div className="text-[2.5rem] leading-none">{game.emoji}</div>
-            <strong className="text-[var(--text-main)] font-bold text-base">{game.title}</strong>
-            <div className="text-[var(--text-light)] text-sm leading-snug flex-1">{game.description}</div>
+            <strong className="text-base font-bold text-[var(--text-main)]">{game.title}</strong>
+            <div className="flex-1 text-sm leading-snug text-[var(--text-light)]">{game.description}</div>
 
-            {/* Rating Display */}
             {hasRatings ? (
-              <div className="flex items-center gap-2 mt-1">
+              <div className="mt-1 flex flex-wrap items-center gap-2">
                 <StarRating rating={rating.averageRating} readonly size="sm" />
                 <span className="text-xs text-[var(--text-light)]">
                   {rating.averageRating.toFixed(1)} ({rating.totalRatings})
                 </span>
               </div>
             ) : (
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-xs text-[var(--text-light)] italic">No ratings yet</span>
+              <div className="mt-1 flex items-center gap-2">
+                <span className="text-xs italic text-[var(--text-light)]">No ratings yet</span>
               </div>
             )}
 
-            <span className="text-sm font-semibold mt-1 group-hover:translate-x-1 transition-transform inline-block" style={{ color: game.color }}>
+            <span className="mt-1 inline-block text-sm font-semibold transition-transform group-hover:translate-x-1" style={{ color: game.color }}>
               {game.cta} →
             </span>
           </Link>
@@ -77,51 +76,45 @@ function GamesGrid({ games }: { games: Game[] }) {
 
 export default function GamesPage() {
   return (
-    <div className="space-y-8 relative">
-      {/* Background blobs */}
-      <div className="absolute top-0 right-0 w-[350px] h-[350px] rounded-full pointer-events-none opacity-20 blur-[80px]" style={{ background: 'radial-gradient(circle, var(--accent-color), transparent)' }} />
-      <div className="absolute bottom-0 left-0 w-[300px] h-[300px] rounded-full pointer-events-none opacity-15 blur-[80px]" style={{ background: 'radial-gradient(circle, #0ea5e9, transparent)' }} />
+    <div className="relative space-y-8 overflow-hidden">
+      <div className="pointer-events-none absolute right-0 top-0 h-[18rem] w-[18rem] rounded-full opacity-20 blur-[80px] sm:h-[22rem] sm:w-[22rem]" style={{ background: 'radial-gradient(circle, var(--accent-color), transparent)' }} />
+      <div className="pointer-events-none absolute bottom-0 left-0 h-[16rem] w-[16rem] rounded-full opacity-15 blur-[80px] sm:h-[19rem] sm:w-[19rem]" style={{ background: 'radial-gradient(circle, #0ea5e9, transparent)' }} />
 
-      {/* Hero */}
-      <section className="relative bg-gradient-to-br from-[var(--bg-card)] to-[var(--bg-sidebar)] border border-[var(--glass-border)] rounded-[28px] p-10 overflow-hidden shadow-[var(--shadow-md)]">
-        <div className="absolute top-[-30px] left-[-30px] w-[200px] h-[200px] rounded-full opacity-20 blur-[40px]" style={{ background: 'var(--accent-color)' }} />
-        <div className="absolute bottom-[-20px] right-[20%] w-[150px] h-[150px] rounded-full opacity-15 blur-[30px]" style={{ background: '#0ea5e9' }} />
+      <section className="relative overflow-hidden rounded-[28px] border border-[var(--glass-border)] bg-gradient-to-br from-[var(--bg-card)] to-[var(--bg-sidebar)] p-6 shadow-[var(--shadow-md)] sm:p-8 lg:p-10">
+        <div className="absolute left-[-30px] top-[-30px] h-[200px] w-[200px] rounded-full opacity-20 blur-[40px]" style={{ background: 'var(--accent-color)' }} />
+        <div className="absolute bottom-[-20px] right-[20%] h-[150px] w-[150px] rounded-full opacity-15 blur-[30px]" style={{ background: '#0ea5e9' }} />
 
-        <div className="relative z-10 max-w-lg">
-          <span className="inline-flex items-center gap-2 bg-[rgba(16,185,129,0.15)] border border-[rgba(16,185,129,0.3)] text-emerald-400 text-sm font-semibold px-4 py-1.5 rounded-full mb-4">
+        <div className="relative z-10 max-w-2xl">
+          <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-[rgba(16,185,129,0.3)] bg-[rgba(16,185,129,0.15)] px-4 py-1.5 text-sm font-semibold text-emerald-400">
             🎮 Interactive Learning
           </span>
-          <h2 className="text-[2.5rem] font-extrabold text-[var(--text-main)] tracking-tight leading-tight mb-3">Games Arena</h2>
-          <p className="text-[var(--text-light)] text-base leading-relaxed">
-            Challenge yourself with chemistry puzzles and quizzes to sharpen your skills and unlock new achievements!
+          <h2 className="mb-3 text-3xl font-extrabold leading-tight tracking-tight text-[var(--text-main)] sm:text-[2.5rem]">Games Arena</h2>
+          <p className="text-base leading-relaxed text-[var(--text-light)]">
+            Challenge yourself with chemistry puzzles and quizzes to sharpen your skills and unlock new achievements.
           </p>
         </div>
 
-        {/* Floating emojis */}
-        <div className="absolute top-[15%] right-[25%] text-3xl animate-[authFloat_3s_ease-in-out_infinite]">🧪</div>
-        <div className="absolute top-[50%] right-[15%] text-2xl animate-[authFloat_4s_ease-in-out_infinite_reverse_1s]">🧩</div>
-        <div className="absolute top-[30%] right-[35%] text-2xl animate-[authFloat_5s_ease-in-out_infinite_0.5s]">⚗️</div>
-        <div className="absolute top-[65%] right-[28%] text-xl animate-[authFloat_6s_ease-in-out_infinite_reverse_1.5s]">⚛️</div>
+        <div className="absolute right-[25%] top-[15%] hidden text-3xl animate-[authFloat_3s_ease-in-out_infinite] lg:block">🧪</div>
+        <div className="absolute right-[15%] top-[50%] hidden text-2xl animate-[authFloat_4s_ease-in-out_infinite_reverse_1s] lg:block">🧩</div>
+        <div className="absolute right-[35%] top-[30%] hidden text-2xl animate-[authFloat_5s_ease-in-out_infinite_0.5s] lg:block">⚗️</div>
+        <div className="absolute right-[28%] top-[65%] hidden text-xl animate-[authFloat_6s_ease-in-out_infinite_reverse_1.5s] lg:block">⚛️</div>
       </section>
 
-      {/* Single Player */}
       <div>
-        <div className="flex items-center gap-3 mb-4">
+        <div className="mb-4 flex flex-wrap items-center gap-3">
           <h2 className="text-xl font-bold text-[var(--text-main)]">Single Player</h2>
-          <span className="bg-[rgba(16,185,129,0.15)] text-emerald-400 border border-[rgba(16,185,129,0.3)] text-xs font-semibold px-3 py-1 rounded-full">4 Modules Active</span>
+          <span className="rounded-full border border-[rgba(16,185,129,0.3)] bg-[rgba(16,185,129,0.15)] px-3 py-1 text-xs font-semibold text-emerald-400">4 Modules Active</span>
         </div>
         <GamesGrid games={singlePlayerGames} />
       </div>
 
-      {/* Multiplayer */}
       <div>
-        <div className="flex items-center gap-3 mb-4">
+        <div className="mb-4 flex flex-wrap items-center gap-3">
           <h2 className="text-xl font-bold text-[var(--text-main)]">Multiplayer</h2>
-          <span className="bg-[rgba(14,165,233,0.15)] text-sky-400 border border-[rgba(14,165,233,0.3)] text-xs font-semibold px-3 py-1 rounded-full">4 Modules Active</span>
+          <span className="rounded-full border border-[rgba(14,165,233,0.3)] bg-[rgba(14,165,233,0.15)] px-3 py-1 text-xs font-semibold text-sky-400">4 Modules Active</span>
         </div>
         <GamesGrid games={multiplayerGames} />
       </div>
     </div>
   );
 }
-

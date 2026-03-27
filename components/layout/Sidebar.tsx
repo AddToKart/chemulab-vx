@@ -33,26 +33,21 @@ export default function Sidebar({ collapsed }: { collapsed: boolean }) {
   return (
     <aside
       className={cn(
-        'fixed left-4 z-[1000] flex flex-col gap-2 py-6 px-3',
-        'bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60 border border-border',
-        'rounded-3xl shadow-lg',
-        'transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]',
-        'top-[calc(var(--header-height)+2rem)] h-[calc(100vh-var(--header-height)-3rem)]',
-        collapsed ? 'w-20' : 'w-60',
-        // mobile: full height slide-in overlay
-        'max-[900px]:top-0 max-[900px]:left-0 max-[900px]:h-screen max-[900px]:rounded-[0_32px_32px_0] max-[900px]:z-[1200] max-[900px]:bg-card',
-        collapsed && 'max-[900px]:-translate-x-full',
+        'fixed left-3 top-[calc(var(--header-height)+0.75rem)] z-[1200] flex h-[calc(100dvh-var(--header-height)-1.5rem)] flex-col gap-2 overflow-hidden px-3 py-5 sm:left-4 sm:top-[calc(var(--header-height)+1rem)] sm:h-[calc(100dvh-var(--header-height)-2rem)] sm:py-6',
+        'border border-border bg-card/95 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-card/60',
+        'rounded-[28px] transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]',
+        collapsed ? 'w-20' : 'w-[17rem] xl:w-[18rem]',
+        'max-[1023px]:left-3 max-[1023px]:top-3 max-[1023px]:h-[calc(100dvh-1.5rem)] max-[1023px]:w-[min(20rem,calc(100vw-1.5rem))] max-[1023px]:rounded-[28px] max-[1023px]:bg-card max-[1023px]:shadow-2xl',
+        collapsed && 'max-[1023px]:-translate-x-[calc(100%+1rem)]',
       )}
     >
-      {/* Menu label */}
       {!collapsed && (
-        <p className="px-4 pt-2 pb-1 text-[0.65rem] font-bold uppercase tracking-[0.1em] text-muted-foreground opacity-80">
+        <p className="px-4 pb-1 pt-2 text-[0.65rem] font-bold uppercase tracking-[0.1em] text-muted-foreground opacity-80">
           Menu
         </p>
       )}
 
-      {/* Nav */}
-      <nav className="flex flex-col gap-1 flex-1">
+      <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pr-1">
         {NAV_ITEMS.map((item) => {
           const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
 
@@ -60,19 +55,18 @@ export default function Sidebar({ collapsed }: { collapsed: boolean }) {
             <Link
               href={item.href}
               className={cn(
-                'relative flex items-center gap-3 px-4 py-3 rounded-xl no-underline outline-none',
-                'text-foreground font-medium text-sm',
+                'relative flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-foreground no-underline outline-none',
                 'transition-all duration-200',
                 isActive
-                  ? 'bg-primary/10 text-primary font-bold'
-                  : 'hover:bg-accent text-muted-foreground hover:text-accent-foreground hover:translate-x-1',
-                collapsed && 'px-0 justify-center'
+                  ? 'bg-primary/10 font-bold text-primary'
+                  : 'text-muted-foreground hover:translate-x-1 hover:bg-accent hover:text-accent-foreground',
+                collapsed && 'justify-center px-0'
               )}
             >
               {isActive && (
-                <span className="absolute left-0 top-[15%] bottom-[15%] w-1 rounded-r-md bg-primary shadow-sm" />
+                <span className="absolute bottom-[15%] left-0 top-[15%] w-1 rounded-r-md bg-primary shadow-sm" />
               )}
-              <span className="w-6 h-6 flex items-center justify-center shrink-0">{item.icon}</span>
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center">{item.icon}</span>
               {!collapsed && <span className="truncate">{item.label}</span>}
             </Link>
           );
@@ -83,21 +77,18 @@ export default function Sidebar({ collapsed }: { collapsed: boolean }) {
                 <TooltipTrigger asChild>
                   {linkContent}
                 </TooltipTrigger>
-                <TooltipContent side="right" className="font-semibold ml-2">
+                <TooltipContent side="right" className="ml-2 font-semibold">
                   {item.label}
                 </TooltipContent>
               </Tooltip>
             );
           }
 
-          return (
-            <div key={item.href}>{linkContent}</div>
-          );
+          return <div key={item.href}>{linkContent}</div>;
         })}
       </nav>
 
-      {/* Footer / Profile */}
-      <div className="mt-auto flex flex-col gap-2 pt-4 border-t border-border">
+      <div className="mt-auto flex flex-col gap-2 border-t border-border pt-4">
         {!collapsed && (
           <p className="px-4 pb-1 text-[0.65rem] font-bold uppercase tracking-[0.1em] text-muted-foreground opacity-80">
             Account
@@ -105,36 +96,35 @@ export default function Sidebar({ collapsed }: { collapsed: boolean }) {
         )}
         {!loading && profile && (
           <div className={cn(
-            "flex p-2 bg-muted/50 border border-border rounded-xl",
-            collapsed ? "flex-col items-center gap-3" : "items-center justify-between"
+            'flex rounded-xl border border-border bg-muted/50 p-2',
+            collapsed ? 'flex-col items-center gap-3' : 'items-center justify-between'
           )}>
             <Link
               href="/profile"
               className={cn(
-                "flex items-center gap-3 no-underline text-inherit hover:opacity-80 transition-opacity",
-                collapsed && "w-full justify-center"
+                'flex items-center gap-3 text-inherit no-underline transition-opacity hover:opacity-80',
+                collapsed && 'w-full justify-center'
               )}
             >
-              {/* Avatar with progress ring */}
               <div
                 className={cn(
-                  "rounded-full flex items-center justify-center relative shrink-0",
-                  collapsed ? "w-10 h-10" : "w-[46px] h-[46px]"
+                  'relative flex items-center justify-center rounded-full shrink-0',
+                  collapsed ? 'h-10 w-10' : 'h-[46px] w-[46px]'
                 )}
                 style={{ background: `conic-gradient(var(--accent-color) ${progressPct}%, transparent ${progressPct}%)` }}
               >
-                <Avatar className={cn("border-2 border-background", collapsed ? "w-8 h-8" : "w-10 h-10")}>
-                  <AvatarImage src={profile.photoURL || "/img/default-avatar.png"} alt="Profile" className="object-cover" />
-                  <AvatarFallback className="bg-background text-foreground text-xs font-semibold">
+                <Avatar className={cn('border-2 border-background', collapsed ? 'h-8 w-8' : 'h-10 w-10')}>
+                  <AvatarImage src={profile.photoURL || '/img/default-avatar.png'} alt="Profile" className="object-cover" />
+                  <AvatarFallback className="bg-background text-xs font-semibold text-foreground">
                     {profile.username?.substring(0, 2).toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
-                <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background" />
+                <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-background bg-green-500" />
               </div>
               {!collapsed && (
                 <div className="flex flex-col">
-                  <span className="font-semibold text-foreground text-sm leading-tight inline-block max-w-[100px] truncate">{profile.username}</span>
-                  <span className="text-xs text-primary font-medium">
+                  <span className="inline-block max-w-[140px] truncate text-sm leading-tight font-semibold text-foreground">{profile.username}</span>
+                  <span className="text-xs font-medium text-primary">
                     {profile.emailVerified ? 'Verified' : 'Explorer'}
                   </span>
                 </div>
@@ -148,7 +138,7 @@ export default function Sidebar({ collapsed }: { collapsed: boolean }) {
                     variant="ghost"
                     size="icon"
                     onClick={handleLogout}
-                    className="w-10 h-10 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    className="h-10 w-10 rounded-full text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -157,7 +147,7 @@ export default function Sidebar({ collapsed }: { collapsed: boolean }) {
                     </svg>
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="right" className="font-semibold ml-2">Logout</TooltipContent>
+                <TooltipContent side="right" className="ml-2 font-semibold">Logout</TooltipContent>
               </Tooltip>
             ) : (
               <Button
@@ -165,7 +155,7 @@ export default function Sidebar({ collapsed }: { collapsed: boolean }) {
                 size="icon"
                 onClick={handleLogout}
                 title="Logout"
-                className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors rounded-lg"
+                className="rounded-lg text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />

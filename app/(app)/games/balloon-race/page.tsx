@@ -386,7 +386,7 @@ export default function BalloonRacePage() {
   /* ================================================================== */
 
   return (
-    <div>
+    <div className={styles.container}>
       <Link href="/games" className={styles.backLink}>
         &larr; Back to Games
       </Link>

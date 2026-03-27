@@ -114,7 +114,7 @@ export default function ElementsPage() {
   return (
     <>
       {/* Filter and Bookmarks Controls */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-4 items-start sm:items-center">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         {/* Desktop Filter Tabs */}
         <div className="hidden md:flex flex-wrap gap-2">
           {filterCategories.map((category) => (
@@ -146,7 +146,7 @@ export default function ElementsPage() {
         {/* Bookmarks Button */}
         <button
           onClick={() => setIsBookmarksModalOpen(true)}
-          className="ml-auto px-4 py-2 bg-muted text-foreground rounded-full flex items-center gap-2 hover:bg-accent transition-all"
+          className="sm:ml-auto px-4 py-2 bg-muted text-foreground rounded-full flex items-center gap-2 hover:bg-accent transition-all"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
@@ -159,9 +159,9 @@ export default function ElementsPage() {
         Click any element here, and I will provide all the information you need to know!
       </p>
 
-      <div className="bg-card border border-border p-5 rounded-2xl text-center overflow-x-auto shadow-sm max-[900px]:p-3">
+      <div className="overflow-x-auto rounded-2xl border border-border bg-card p-3 text-center shadow-sm sm:p-5">
         {/* Main 18-column grid */}
-        <div className="grid grid-cols-[repeat(18,1fr)] gap-1 text-[12px] min-w-[800px] max-[900px]:gap-[2px]">
+        <div className="grid min-w-[760px] grid-cols-[repeat(18,1fr)] gap-1 text-[12px] max-[900px]:gap-[2px] sm:min-w-[800px]">
           {mainElements.map((el) => {
             const pos = mainGridPositions[el.atomic_number];
             const visible = isElementVisible(el);
@@ -181,7 +181,7 @@ export default function ElementsPage() {
         </div>
 
         {/* F-block */}
-        <div className="mt-4 flex flex-col gap-1 min-w-[800px] max-[900px]:gap-[2px]">
+        <div className="mt-4 flex min-w-[760px] flex-col gap-1 max-[900px]:gap-[2px] sm:min-w-[800px]">
           {[lanthanides, actinides].map((group, gi) => (
             <div
               key={gi}
@@ -210,11 +210,11 @@ export default function ElementsPage() {
       {/* Element Info Modal */}
       {selectedElement && (
         <div
-          className="fixed inset-0 z-[2000] flex items-center justify-center p-5 bg-background/80 backdrop-blur-sm"
+          className="fixed inset-0 z-[2000] flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm sm:p-5"
           onClick={closeModal}
         >
           <div
-            className="relative w-full max-w-[450px] bg-card p-10 border border-border rounded-3xl shadow-xl animate-in zoom-in-95 duration-200"
+            className="relative w-full max-w-[450px] max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-3xl border border-border bg-card p-5 shadow-xl animate-in zoom-in-95 duration-200 sm:p-8 md:p-10"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -225,7 +225,7 @@ export default function ElementsPage() {
               ×
             </button>
 
-            <div className="flex items-center gap-6 mb-6">
+            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
               <button
                 type="button"
                 onClick={(e) => {
@@ -236,15 +236,15 @@ export default function ElementsPage() {
                 aria-label={`${isElementImageVisible ? 'Hide' : 'Show'} image for ${selectedElement.name}`}
                 aria-pressed={isElementImageVisible}
                 title={`${isElementImageVisible ? 'Hide' : 'Show'} image for ${selectedElement.name}`}
-                className="group relative flex h-[82px] w-[82px] shrink-0 flex-col items-center justify-center rounded-2xl border border-border bg-muted text-foreground shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                className="group relative flex h-[82px] w-[82px] shrink-0 flex-col items-center justify-center self-start rounded-2xl border border-border bg-muted text-foreground shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 <span className="text-[2rem] font-extrabold leading-none">{selectedElement.symbol}</span>
                 <span className="mt-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground transition-colors group-hover:text-primary">
                   {isElementImageVisible ? 'Hide' : 'Image'}
                 </span>
               </button>
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <h2 className="m-0 text-[2rem] font-extrabold text-foreground tracking-[-0.02em] truncate">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <h2 className="m-0 truncate text-[1.75rem] font-extrabold tracking-[-0.02em] text-foreground sm:text-[2rem]">
                   {selectedElement.name}
                 </h2>
                 <button
@@ -320,7 +320,7 @@ export default function ElementsPage() {
             )}
 
             <div className="relative">
-              <div className="grid gap-5 relative z-[1]">
+                  <div className="relative z-[1] grid gap-4 sm:gap-5">
                 {[
                   { label: 'Atomic Number', value: selectedElement.atomic_number },
                   { label: 'Symbol', value: selectedElement.symbol },
@@ -343,7 +343,7 @@ export default function ElementsPage() {
       {isFilterModalOpen && (
         <div className="fixed inset-0 z-[2000] flex items-end justify-center bg-background/50 backdrop-blur-sm" onClick={() => setIsFilterModalOpen(false)}>
           <div
-            className="w-full max-w-lg bg-card rounded-t-3xl p-6 animate-in slide-in-from-bottom duration-300"
+            className="w-full max-w-lg rounded-t-3xl bg-card p-5 animate-in slide-in-from-bottom duration-300 sm:p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-4">
@@ -355,7 +355,7 @@ export default function ElementsPage() {
                 ×
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-2 max-h-[50vh] overflow-y-auto">
+            <div className="grid max-h-[50vh] grid-cols-1 gap-2 overflow-y-auto sm:grid-cols-2">
               {filterCategories.map((category) => (
                 <button
                   key={category}
@@ -379,12 +379,12 @@ export default function ElementsPage() {
 
       {/* Bookmarks Modal - Larger with split view */}
       {isBookmarksModalOpen && (
-        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-5 bg-background/80 backdrop-blur-sm" onClick={() => {
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm sm:p-5" onClick={() => {
           setIsBookmarksModalOpen(false);
           setSelectedBookmark(null);
         }}>
           <div
-            className="relative w-full max-w-[700px] h-[80vh] bg-card border border-border rounded-3xl shadow-xl animate-in zoom-in-95 duration-200 flex flex-col"
+            className="relative flex h-[min(80dvh,44rem)] w-full max-w-[700px] flex-col overflow-hidden rounded-3xl border border-border bg-card shadow-xl animate-in zoom-in-95 duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -401,9 +401,9 @@ export default function ElementsPage() {
               </button>
             </div>
 
-            <div className="flex flex-1 overflow-hidden">
+            <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
               {/* Left Panel - Bookmarks List */}
-              <div className="w-1/3 border-r border-border p-4 flex flex-col">
+              <div className="flex border-b border-border p-4 md:w-1/3 md:flex-col md:border-b-0 md:border-r">
                 {/* Bookmark Filter Dropdown */}
                 <div className="mb-4">
                   <select
@@ -420,7 +420,7 @@ export default function ElementsPage() {
                 </div>
 
                 {/* Bookmarked Elements List */}
-                <div className="flex-1 overflow-y-auto">
+                <div className="min-h-0 flex-1 overflow-y-auto">
                   {bookmarkedElements.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <p>No bookmarks yet.</p>
@@ -455,11 +455,11 @@ export default function ElementsPage() {
               </div>
 
               {/* Right Panel - Element Details */}
-              <div className="w-2/3 p-6 overflow-y-auto">
+              <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 md:w-2/3">
                 {selectedBookmark ? (
                   <div className="space-y-6">
                     {/* Element Symbol and Name */}
-                    <div className="flex items-center gap-6">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
                       <div className="w-20 h-20 bg-muted flex items-center justify-center text-3xl font-extrabold rounded-2xl shadow-sm border border-border text-foreground">
                         {selectedBookmark.symbol}
                       </div>
@@ -498,7 +498,7 @@ export default function ElementsPage() {
                     </div>
 
                     {/* Element Details Grid */}
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-4 sm:grid-cols-2">
                       <div className="bg-muted p-4 rounded-xl">
                         <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold mb-1">
                           Atomic Number
@@ -526,7 +526,7 @@ export default function ElementsPage() {
                     </div>
 
                     {/* Actions */}
-                    <div className="flex gap-3">
+                    <div className="flex flex-col gap-3 sm:flex-row">
                       <button
                         onClick={() => {
                           speakElementName(selectedBookmark.name);
