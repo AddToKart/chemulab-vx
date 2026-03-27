@@ -327,7 +327,7 @@ export default function LabPage() {
       <div
         key={el.symbol}
         className={cn(
-          'group relative flex min-h-[104px] cursor-pointer select-none rounded-2xl border px-4 py-3 text-left transition-all duration-200',
+          'group relative flex min-h-[72px] xl:min-h-[104px] cursor-pointer select-none rounded-xl xl:rounded-2xl border px-3 py-2 xl:px-4 xl:py-3 text-left transition-all duration-200',
           'shadow-sm hover:-translate-y-0.5 hover:shadow-md',
           isSelected
             ? 'border-emerald-500 ring-2 ring-emerald-500/30 ring-offset-2 ring-offset-background'
@@ -339,13 +339,13 @@ export default function LabPage() {
         onClick={() => handleElementClick(el)}
         title={`${el.name} (${el.symbol})`}
       >
-        <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/18 via-transparent to-black/10" />
-        <div className="relative flex w-full items-start gap-4">
-          <div className="flex h-16 w-16 shrink-0 flex-col items-center justify-center rounded-xl border border-white/15 bg-black/10 text-white shadow-inner">
-            <span className="text-[10px] font-bold leading-none opacity-70">
+        <div className="absolute inset-0 rounded-xl xl:rounded-2xl bg-gradient-to-br from-white/18 via-transparent to-black/10" />
+        <div className="relative flex w-full items-center xl:items-start gap-3 xl:gap-4">
+          <div className="flex h-12 w-12 xl:h-16 xl:w-16 shrink-0 flex-col items-center justify-center rounded-lg xl:rounded-xl border border-white/15 bg-black/10 text-white shadow-inner">
+            <span className="text-[8px] xl:text-[10px] font-bold leading-none opacity-70">
               {extra?.atomic_number ?? '--'}
             </span>
-            <span className="mt-1 text-2xl font-black leading-none tracking-tight">
+            <span className="mt-0.5 xl:mt-1 text-xl xl:text-2xl font-black leading-none tracking-tight">
               {el.symbol}
             </span>
           </div>
@@ -377,12 +377,12 @@ export default function LabPage() {
                   {extra?.category?.replace(/-/g, ' ') ?? el.type}
                 </p>
               </div>
-              <span className="rounded-full border border-white/15 bg-black/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white/75">
+              <span className="hidden xl:inline-block rounded-full border border-white/15 bg-black/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white/75">
                 Drag
               </span>
             </div>
 
-            <div className="mt-3 flex items-center justify-between gap-3">
+            <div className="mt-1 xl:mt-3 flex items-center justify-between gap-3 max-xl:hidden">
               <span className="text-[11px] font-medium text-white/70">
                 Tap to place
               </span>
@@ -398,8 +398,8 @@ export default function LabPage() {
 
   /* ---------- render ---------- */
   return (
-    <div className="flex flex-col gap-5 pb-6 xl:h-[calc(100dvh-10rem)] xl:flex-row">
-      <div className="sticky top-[4.5rem] md:top-20 z-30 block xl:hidden">
+    <div className="flex flex-col gap-2 pb-2 h-[calc(100dvh-7rem)] xl:gap-5 xl:pb-6 xl:h-[calc(100dvh-10rem)] xl:flex-row max-xl:overflow-hidden">
+      <div className="flex-none w-full z-30 block xl:hidden">
         <div className="glass-panel p-2 bg-white/90 dark:bg-[#0a0f1c]/90 backdrop-blur-2xl border-b border-white/5 shadow-md">
           <div className="grid grid-cols-2 gap-2">
             {[
@@ -428,15 +428,15 @@ export default function LabPage() {
       {/* ---- Elements Panel ---- */}
       <div
         className={cn(
-          'flex w-full flex-col gap-5 glass-panel p-5 shadow-xl animate-in slide-in-from-left-5 duration-500 sm:p-6 xl:w-[min(24rem,26vw)] xl:min-w-[20rem] xl:max-w-[26rem]',
-          'max-xl:max-h-[32rem]',
+          'flex w-full flex-col gap-3 glass-panel p-3 shadow-xl animate-in slide-in-from-left-5 duration-500 xl:gap-5 xl:p-5 sm:p-6 xl:w-[min(24rem,26vw)] xl:min-w-[20rem] xl:max-w-[26rem]',
+          'max-xl:flex-1 max-xl:min-h-0',
           mobileSection === 'lab' ? 'max-xl:flex order-2' : 'max-xl:hidden',
           'xl:flex xl:order-1',
         )}
       >
-        <div className="space-y-1.5">
-          <h3 className="font-bold text-[var(--text-main)] text-xl tracking-tight">Chemical Elements</h3>
-          <p className="text-sm text-[var(--text-light)] font-medium">
+        <div className="space-y-1 xl:space-y-1.5">
+          <h3 className="font-bold text-[var(--text-main)] text-lg xl:text-xl tracking-tight">Chemical Elements</h3>
+          <p className="hidden xl:block text-sm text-[var(--text-light)] font-medium">
             Drag or tap elements to add them to the reaction chamber.
           </p>
         </div>
@@ -466,15 +466,15 @@ export default function LabPage() {
       {/* ---- Crafting Area ---- */}
       <div
         className={cn(
-          'group/craft relative flex min-h-[32rem] flex-1 flex-col items-center justify-start overflow-y-auto custom-scrollbar glass-panel p-6 shadow-2xl animate-in zoom-in-95 duration-700 sm:p-8 xl:min-h-0 xl:p-10',
+          'group/craft relative flex flex-1 flex-col items-center justify-start overflow-y-auto custom-scrollbar glass-panel p-3 shadow-2xl animate-in zoom-in-95 duration-700 xl:p-10 xl:min-h-0',
           mobileSection === 'lab' ? 'max-xl:flex order-1' : 'max-xl:hidden',
           'xl:flex xl:order-2',
         )}
       >
         <div className="absolute inset-0 bg-emerald-500/[0.02] dark:bg-emerald-500/[0.05] pointer-events-none" />
 
-        <div className="relative z-10 flex w-full flex-col items-center gap-8 sm:gap-10">
-          <div className="text-center space-y-2">
+        <div className="relative z-10 flex w-full flex-col items-center gap-3 xl:gap-8 sm:gap-10 max-xl:h-full max-xl:justify-center">
+          <div className="text-center space-y-2 hidden xl:block">
             <h2 className="text-3xl font-black tracking-tighter text-[var(--text-main)] uppercase">The Laboratory</h2>
             <div className="h-1 w-12 bg-emerald-500 mx-auto rounded-full" />
             <p className="mx-auto max-w-xl text-sm text-[var(--text-light)]">
@@ -486,7 +486,7 @@ export default function LabPage() {
           <div
             ref={chamberRef}
             className={cn(
-              'group relative w-full max-w-[360px] min-h-[300px] flex flex-col justify-end border-x-4 border-b-4 border-t-0 rounded-b-[3rem] cursor-pointer transition-all duration-300 shadow-2xl backdrop-blur-sm bg-gradient-to-b from-white/5 to-white/15 dark:from-white/5 dark:to-white/[0.05]',
+              'group relative w-full max-w-[360px] min-h-[140px] xl:min-h-[300px] flex flex-col justify-end border-x-4 border-b-4 border-t-0 rounded-b-[2rem] xl:rounded-b-[3rem] cursor-pointer transition-all duration-300 shadow-2xl backdrop-blur-sm bg-gradient-to-b from-white/5 to-white/15 dark:from-white/5 dark:to-white/[0.05]',
               chamberElements.length > 0
                 ? 'border-emerald-500/40'
                 : 'border-white/20 hover:border-emerald-500/40',
@@ -504,18 +504,21 @@ export default function LabPage() {
 
             {chamberElements.length === 0 ? (
               /* ── Empty state ── */
-              <div className="flex-1 w-full flex flex-col items-center justify-center gap-3 text-center text-muted-foreground/50 group-hover:text-emerald-500/70 transition-colors duration-200 p-8">
-                <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-dashed border-current">
-                  <span className="text-3xl font-light">+</span>
+              <div className="flex-1 w-full flex flex-col items-center justify-center gap-2 xl:gap-3 text-center text-muted-foreground/50 group-hover:text-emerald-500/70 transition-colors duration-200 p-4 xl:p-8">
+                <div className="flex h-10 w-10 xl:h-16 xl:w-16 items-center justify-center rounded-full border-2 border-dashed border-current">
+                  <span className="text-2xl xl:text-3xl font-light">+</span>
                 </div>
-                <span className="text-xs font-bold uppercase tracking-[0.18em]">Reaction Chamber</span>
-                <span className="max-w-[16rem] text-[11px] font-medium normal-case tracking-normal opacity-70">
+                <span className="text-[10px] xl:text-xs font-bold uppercase tracking-[0.18em]">Reaction Chamber</span>
+                <span className="hidden xl:block max-w-[16rem] text-[11px] font-medium normal-case tracking-normal opacity-70">
                   Drag elements here or tap a card first, then tap this area. Add as many as you need!
+                </span>
+                <span className="xl:hidden text-[9px] font-medium normal-case tracking-normal opacity-70">
+                  Tap card, then tap here
                 </span>
               </div>
             ) : (
               /* ── Filled state — element pills ── */
-              <div className="w-full p-5 flex flex-col gap-4 animate-in slide-in-from-bottom-4 duration-500">
+              <div className="w-full p-3 xl:p-5 flex flex-col gap-2 xl:gap-4 animate-in slide-in-from-bottom-4 duration-500">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-500">
                     Reaction Chamber — {chamberElements.length} element{chamberElements.length !== 1 ? 's' : ''}
@@ -570,7 +573,7 @@ export default function LabPage() {
           </div>
 
           <button
-            className="group relative w-full max-w-[22rem] overflow-hidden rounded-2xl bg-[var(--accent-gradient)] px-6 py-4 text-sm font-black uppercase tracking-[0.22em] text-white shadow-[0_10px_30px_rgba(16,185,129,0.3)] transition-all duration-300 hover:scale-105 hover:shadow-[0_15px_40px_rgba(16,185,129,0.4)] active:scale-95 disabled:cursor-not-allowed disabled:grayscale disabled:opacity-30 sm:px-12 cursor-pointer"
+            className="group relative w-full max-w-[22rem] overflow-hidden rounded-xl xl:rounded-2xl bg-[var(--accent-gradient)] px-4 py-3 xl:px-6 xl:py-4 text-xs xl:text-sm font-black uppercase tracking-[0.22em] text-white shadow-[0_10px_30px_rgba(16,185,129,0.3)] transition-all duration-300 hover:scale-105 hover:shadow-[0_15px_40px_rgba(16,185,129,0.4)] active:scale-95 disabled:cursor-not-allowed disabled:grayscale disabled:opacity-30 sm:px-12 cursor-pointer mt-2 xl:mt-0"
             disabled={chamberElements.length === 0}
             onClick={handleCombine}
           >
@@ -579,14 +582,14 @@ export default function LabPage() {
           </button>
         </div>
 
-        <div className="relative z-10 mt-8 flex w-full flex-col items-center gap-4">
-          <div className="w-px h-12 bg-gradient-to-b from-emerald-500/50 to-transparent" />
-          <div className={`flex h-36 w-36 flex-col items-center justify-center rounded-3xl border-2 border-dashed border-white/10 bg-black/5 text-center transition-all duration-700 dark:bg-white/5 sm:h-48 sm:w-48 ${result ? 'scale-110 border-emerald-500/30 shadow-2xl' : 'opacity-50'}`}>
+        <div className={cn("relative z-10 mt-3 xl:mt-8 flex w-full flex-col items-center gap-2 xl:gap-4", !result && "hidden xl:flex")}>
+          <div className="w-px h-6 xl:h-12 bg-gradient-to-b from-emerald-500/50 to-transparent" />
+          <div className={`flex h-24 w-24 xl:h-36 xl:w-36 flex-col items-center justify-center rounded-2xl xl:rounded-3xl border-2 border-dashed border-white/10 bg-black/5 text-center transition-all duration-700 dark:bg-white/5 sm:h-48 sm:w-48 ${result ? 'scale-110 border-emerald-500/30 shadow-2xl' : 'opacity-50'}`}>
             {result ? (
-              <div className="group relative w-full h-full flex flex-col items-center justify-center rounded-3xl text-white p-6 shadow-2xl overflow-hidden animate-in zoom-in-75 duration-500" style={{ backgroundColor: result.color }}>
+              <div className="group relative w-full h-full flex flex-col items-center justify-center rounded-2xl xl:rounded-3xl text-white p-2 xl:p-6 shadow-2xl overflow-hidden animate-in zoom-in-75 duration-500" style={{ backgroundColor: result.color }}>
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.3),transparent)]" />
-                <span className="relative font-black text-6xl leading-none tracking-tighter drop-shadow-2xl">{result.symbol}</span>
-                <span className="relative text-sm font-black uppercase tracking-[0.2em] mt-4 drop-shadow-md">{result.name}</span>
+                <span className="relative font-black text-4xl xl:text-6xl leading-none tracking-tighter drop-shadow-2xl">{result.symbol}</span>
+                <span className="relative text-[9px] xl:text-sm font-black uppercase tracking-[0.2em] mt-2 xl:mt-4 drop-shadow-md truncate w-full px-1">{result.name}</span>
                 <div className="absolute -bottom-2 -right-2 w-16 h-16 bg-white/20 blur-2xl rounded-full animate-pulse" />
               </div>
             ) : (
