@@ -1,7 +1,5 @@
 import AppShell from '@/components/layout/AppShell';
-import PopoyChatbot from '@/components/chatbot/PopoyChatbot';
 import ProtectedLayout from '@/components/auth/ProtectedLayout';
-import { TooltipProvider } from '@/components/ui/tooltip';
 
 export default function AppLayout({
   children,
@@ -10,12 +8,9 @@ export default function AppLayout({
 }) {
   return (
     <ProtectedLayout>
-      <TooltipProvider>
-        <AppShell>
-          {children}
-          <PopoyChatbot />
-        </AppShell>
-      </TooltipProvider>
+      <AppShell>
+        {children}
+      </AppShell>
     </ProtectedLayout>
   );
 }

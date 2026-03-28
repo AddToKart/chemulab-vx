@@ -6,6 +6,8 @@ import ReactMarkdown from 'react-markdown';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { filterProfanity } from '@/lib/utils';
 
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+
 interface ChatMessage {
   role: 'bot' | 'user';
   content: string;
@@ -62,18 +64,27 @@ export default function PopoyChatbot() {
   return (
     <>
       {/* Chat bubble toggle */}
-      <button
-        onClick={() => setIsOpen((prev) => !prev)}
-        aria-label="Toggle Popoy AI chat"
-        className="fixed bottom-4 right-4 z-[1500] h-14 w-14 overflow-hidden rounded-full border-emerald-500/30 p-0 transition-all duration-300 hover:scale-110 glass-panel sm:bottom-6 sm:right-6"
-      >
-        <Image src="/img/jepoy.png" alt="Popoy" width={56} height={56} className="w-full h-full object-cover" />
-      </button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            onClick={() => setIsOpen((prev) => !prev)}
+            aria-label="Toggle Popoy AI chat"
+            className={`fixed bottom-4 right-4 z-[2000] h-14 w-14 overflow-hidden rounded-full p-0 transition-all duration-300 hover:scale-110 active:scale-95 shadow-xl glass-panel sm:bottom-6 sm:right-6 ${
+              isOpen ? 'ring-2 ring-emerald-500 ring-offset-2' : ''
+            }`}
+          >
+            <Image src="/img/jepoy.png" alt="Popoy" width={56} height={56} className="w-full h-full object-cover" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="left" className="bg-emerald-600 text-white border-none font-bold mr-2">
+          Chat with Popoy
+        </TooltipContent>
+      </Tooltip>
 
       {/* Chat window */}
       {isOpen && (
         <div
-          className="fixed bottom-20 right-3 z-[1400] flex h-[min(32rem,calc(100dvh-6.5rem))] w-[min(22rem,calc(100vw-1.5rem))] flex-col overflow-hidden rounded-[24px] animate-in slide-in-from-bottom-5 fade-in duration-300 glass-panel sm:bottom-24 sm:right-6 sm:w-[360px] sm:max-w-[calc(100vw-3rem)]"
+          className="fixed bottom-20 right-4 z-[2000] flex h-[min(32rem,calc(100dvh-6.5rem))] w-[min(22rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-[24px] animate-in slide-in-from-bottom-5 fade-in duration-300 glass-panel sm:bottom-24 sm:right-6 sm:w-[360px] sm:max-w-[calc(100vw-3rem)]"
         >
           {/* Header */}
           <div
