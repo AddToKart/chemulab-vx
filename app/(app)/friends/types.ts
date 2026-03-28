@@ -49,6 +49,16 @@ export interface GroupModalData {
   mode: 'info' | 'members';
 }
 
+export interface GroupFormValues {
+  name: string;
+  description: string;
+  avatar: string;
+}
+
+export interface CreateGroupFormValues extends GroupFormValues {
+  selectedFriendIds: string[];
+}
+
 export type GroupChatType = import('@/lib/firebase/group-chats').GroupChat;
 export type GroupMessageType = import('@/lib/firebase/group-chats').GroupMessage;
 export type GroupRoleType = import('@/lib/firebase/group-chats').GroupRole;

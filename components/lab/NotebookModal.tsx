@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -19,20 +18,10 @@ interface NotebookModalProps {
 
 export function NotebookModal({ isOpen, onClose, uid }: NotebookModalProps) {
   const { notebook, loading, saving, updateContent } = useNotebook(uid);
-  const [localContent, setLocalContent] = useState('');
-
-  // Sync local content when notebook loads
-  useEffect(() => {
-    if (notebook) {
-      setLocalContent(notebook.content);
-    } else {
-      setLocalContent('');
-    }
-  }, [notebook]);
+  const content = notebook?.content ?? '';
 
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newContent = e.target.value;
-    setLocalContent(newContent);
     updateContent(newContent);
   };
 
@@ -58,7 +47,7 @@ export function NotebookModal({ isOpen, onClose, uid }: NotebookModalProps) {
             </div>
           ) : (
             <textarea
-              value={localContent}
+              value={content}
               onChange={handleContentChange}
               placeholder="Start writing your lab notes here..."
               className={cn(

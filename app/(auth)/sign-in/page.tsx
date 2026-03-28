@@ -138,7 +138,7 @@ export default function SignInPage() {
 
           {/* Logo */}
           <div className="text-center mb-2">
-            <span className="text-[2.5rem] font-extrabold tracking-[-0.03em] bg-gradient-to-br from-white to-indigo-300 bg-clip-text text-transparent">
+            <span className="text-[2.5rem] font-extrabold tracking-[-0.03em] bg-gradient-to-br from-indigo-600 via-indigo-500 to-indigo-300 dark:from-white dark:to-indigo-300 bg-clip-text text-transparent">
               CheMuLab
             </span>
           </div>
@@ -182,7 +182,7 @@ export default function SignInPage() {
                 </button>
               </div>
               <div className="text-right -mt-1">
-                <button type="button" onClick={() => switchMode('forgot')} className="text-sm text-white/70 hover:text-white hover:underline bg-transparent border-none cursor-pointer p-0 transition-colors">
+                <button type="button" onClick={() => switchMode('forgot')} className="text-sm text-[var(--text-light)] hover:text-[var(--text-main)] dark:text-white/70 dark:hover:text-white hover:underline bg-transparent border-none cursor-pointer p-0 transition-colors">
                   Forgot Password?
                 </button>
               </div>
@@ -283,7 +283,7 @@ export default function SignInPage() {
           {mode === 'forgot' && (
             <form className="flex flex-col gap-4" onSubmit={handleForgot}>
               <h2 className="text-center text-2xl font-bold tracking-[-0.01em] mb-1">Reset Password</h2>
-              <p className="text-center text-sm text-white/70">Enter your email to receive a password reset link.</p>
+              <p className="text-center text-sm text-[var(--text-light)] dark:text-white/70">Enter your email to receive a password reset link.</p>
               <Input
                 type="email"
                 placeholder="Email"
@@ -299,7 +299,7 @@ export default function SignInPage() {
               >
                 {submitting ? 'Sending…' : 'Send Reset Link'}
               </Button>
-              <button type="button" onClick={() => switchMode('login')} className="text-sm text-white/70 hover:text-white hover:underline bg-transparent border-none cursor-pointer transition-colors self-center">
+              <button type="button" onClick={() => switchMode('login')} className="text-sm text-[var(--text-light)] hover:text-[var(--text-main)] dark:text-white/70 dark:hover:text-white hover:underline bg-transparent border-none cursor-pointer transition-colors self-center">
                 Back to Sign In
               </button>
             </form>

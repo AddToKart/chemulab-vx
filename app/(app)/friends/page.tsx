@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useEffectEvent, useState } from 'react';
 import { useAuthStore } from '@/store/auth-store';
 import { cn } from '@/lib/utils';
 import { useFriends, useGroups, useChat } from './hooks';
@@ -31,6 +31,7 @@ export default function FriendsPage() {
     outgoingRequests,
     blockedUsers,
     statusMsg,
+    setStatus: setFriendsStatus,
     modalVisible,
     setModalVisible,
     modalData,
@@ -58,12 +59,6 @@ export default function FriendsPage() {
     setGroupModalData,
     showAddMembersModal,
     setShowAddMembersModal,
-    selectedFriendsForGroup,
-    setSelectedFriendsForGroup,
-    groupAvatar,
-    setGroupAvatar,
-    groupAvatarSource,
-    setGroupAvatarSource,
     activeGroupReactionMessageId,
     setActiveGroupReactionMessageId,
     showGroupFullReactionPicker,
@@ -83,6 +78,7 @@ export default function FriendsPage() {
     openGroupChat,
     getGroupMemberCount,
     getUserGroupRole,
+    canDeleteGroup,
     canManageGroup,
     canManageMembers,
     canPromoteToAdmin,
@@ -111,35 +107,52 @@ export default function FriendsPage() {
     handleReportMessage,
     PREDEFINED_REACTIONS,
     reactionPickerRef,
+    router,
+    searchParams,
   } = chatHook;
 
   const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'groups'>('friends');
 
   // Sync status messages
   useEffect(() => {
-    if (groupStatusMsg) friendsHook.setStatus(groupStatusMsg);
-  }, [groupStatusMsg]);
+    if (groupStatusMsg) {
+      setFriendsStatus(groupStatusMsg);
+    }
+  }, [groupStatusMsg, setFriendsStatus]);
+
+  const finishChatInitialization = useEffectEvent(() => {
+    window.setTimeout(() => setIsInitializingChat(false), 60);
+  });
+
+  const initializeChatFromSearch = useEffectEvent((targetChatId: string) => {
+    const friend = friends.find((candidate) => candidate.chatId === targetChatId);
+
+    if (!friend) {
+      finishChatInitialization();
+      return;
+    }
+
+    openChat(friend);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('chatId');
+    router.replace(`/friends${params.toString() ? `?${params.toString()}` : ''}`);
+    finishChatInitialization();
+  });
 
   // Handle direct chat from URL
   useEffect(() => {
-    const targetChatId = chatHook.searchParams.get('chatId');
+    const targetChatId = searchParams.get('chatId');
     if (!targetChatId) {
-      if (isInitializingChat) setTimeout(() => setIsInitializingChat(false), 60);
+      if (isInitializingChat) {
+        finishChatInitialization();
+      }
       return;
     }
+
     if (friends.length > 0) {
-      const friend = friends.find(f => f.chatId === targetChatId);
-      if (friend) {
-        openChat(friend);
-        const params = new URLSearchParams(chatHook.searchParams.toString());
-        params.delete('chatId');
-        chatHook.router.replace(`/friends${params.toString() ? `?${params.toString()}` : ''}`);
-        setTimeout(() => setIsInitializingChat(false), 60);
-      } else {
-        setTimeout(() => setIsInitializingChat(false), 60);
-      }
+      initializeChatFromSearch(targetChatId);
     }
-  }, [chatHook.searchParams, friends, chatHook.router]);
+  }, [friends, isInitializingChat, searchParams]);
 
   const uid = user?.uid;
 
@@ -298,59 +311,63 @@ export default function FriendsPage() {
         onUnpinMessage={handlePinMessage}
       />
 
-      <CreateGroupModal
-        isOpen={showCreateGroupModal}
-        onClose={() => { setShowCreateGroupModal(false); setSelectedFriendsForGroup([]); setGroupAvatar(''); }}
-        onSubmit={handleCreateGroup}
-        friends={friends}
-        selectedFriends={selectedFriendsForGroup}
-        setSelectedFriends={setSelectedFriendsForGroup}
-        groupAvatar={groupAvatar}
-        setGroupAvatar={setGroupAvatar}
-        groupAvatarSource={groupAvatarSource}
-        setGroupAvatarSource={setGroupAvatarSource}
-      />
+      {showCreateGroupModal && (
+        <CreateGroupModal
+          isOpen={showCreateGroupModal}
+          onClose={() => setShowCreateGroupModal(false)}
+          onSubmit={handleCreateGroup}
+          friends={friends}
+        />
+      )}
 
-      <GroupSettingsModal
-        isOpen={showGroupModal}
-        onClose={() => { setShowGroupModal(false); setGroupModalData(null); }}
-        group={activeGroupChat!}
-        mode={groupModalData?.mode || 'members'}
-        uid={uid}
-        onAddMembers={() => { setShowGroupModal(false); setShowAddMembersModal(true); }}
-        onLeaveGroup={handleLeaveGroup}
-        onDeleteGroup={handleDeleteGroup}
-        onPromoteToAdmin={handlePromoteToAdmin}
-        onDemoteFromAdmin={handleDemoteFromAdmin}
-        onRemoveMember={handleRemoveMemberFromGroup}
-        onUpdateGroup={async (name, desc, avatar) => {
-          if (activeGroupChat) {
+      {showGroupModal && activeGroupChat && (
+        <GroupSettingsModal
+          isOpen={showGroupModal}
+          onClose={() => { setShowGroupModal(false); setGroupModalData(null); }}
+          group={activeGroupChat}
+          mode={groupModalData?.mode || 'members'}
+          uid={uid}
+          onAddMembers={() => { setShowGroupModal(false); setShowAddMembersModal(true); }}
+          onLeaveGroup={handleLeaveGroup}
+          onDeleteGroup={handleDeleteGroup}
+          onPromoteToAdmin={handlePromoteToAdmin}
+          onDemoteFromAdmin={handleDemoteFromAdmin}
+          onRemoveMember={handleRemoveMemberFromGroup}
+          onUpdateGroup={async (values) => {
             try {
-              await updateGroupInfo(activeGroupChat.id, { name, description: desc, avatar });
+              await updateGroupInfo(activeGroupChat.id, {
+                name: values.name,
+                description: values.description,
+                avatar: values.avatar,
+              });
               setShowGroupModal(false);
-            } catch (e: unknown) {
-              const errorCode = (e as { code?: string })?.code;
-              console.error('[UpdateGroup] Failed:', e);
+              setGroupModalData(null);
+            } catch (error: unknown) {
+              const errorCode = (error as { code?: string })?.code;
+              console.error('[UpdateGroup] Failed:', error);
               if (errorCode === 'permission-denied') {
                 alert('Permission denied. You must be a member of the group to update it.');
               } else {
                 alert('Failed to update group. Please try again.');
               }
             }
-          }
-        }}
-        getUserGroupRole={getUserGroupRole}
-        canManageMembers={canManageMembers}
-        canPromoteToAdmin={canPromoteToAdmin}
-      />
+          }}
+          getUserGroupRole={getUserGroupRole}
+          canDeleteGroup={canDeleteGroup}
+          canManageMembers={canManageMembers}
+          canPromoteToAdmin={canPromoteToAdmin}
+        />
+      )}
 
-      <AddMembersModal
-        isOpen={showAddMembersModal}
-        onClose={() => setShowAddMembersModal(false)}
-        friends={friends}
-        currentMemberIds={activeGroupChat?.members?.map(m => m.uid) || []}
-        onAddMember={handleAddMemberToGroup}
-      />
+      {showAddMembersModal && activeGroupChat && (
+        <AddMembersModal
+          isOpen={showAddMembersModal}
+          onClose={() => setShowAddMembersModal(false)}
+          friends={friends}
+          currentMemberIds={activeGroupChat.members?.map((member) => member.uid) || []}
+          onAddMember={handleAddMemberToGroup}
+        />
+      )}
 
       {/* LOADING OVERLAY */}
       {isInitializingChat && (
