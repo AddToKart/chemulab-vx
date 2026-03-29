@@ -344,7 +344,9 @@ export default function VolcanoPage() {
   useEffect(() => {
     if (currentGame?.status === 'completed' && !hasTriggeredEruption.current) {
       hasTriggeredEruption.current = true;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShaking(true);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setErupting(true);
 
       eruptionTimeoutRef.current = setTimeout(() => {

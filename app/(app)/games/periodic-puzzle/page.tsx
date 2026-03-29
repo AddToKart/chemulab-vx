@@ -177,7 +177,6 @@ export default function PeriodicPuzzlePage() {
     const settings = periodicPuzzleDifficulty[difficulty];
 
     if (gameStarted && settings.timeLimit) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTimeLeft(settings.timeLimit);
       interval = setInterval(() => {
         setTimeLeft((prev) => {

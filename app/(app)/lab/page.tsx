@@ -13,6 +13,7 @@ import { elementsData } from '@/lib/data/elements-data';
 import type { Discovery } from '@/lib/firebase/discoveries';
 import { useLabDiscoveries } from '@/lib/hooks/use-lab-discoveries';
 import { useIdle } from '@/lib/hooks/use-idle';
+import { useReactionSound } from '@/lib/hooks/use-reaction-sound';
 import Image from 'next/image';
 import { NotebookModal } from '@/components/lab/NotebookModal';
 
@@ -49,11 +50,15 @@ export default function LabPage() {
   const [mobileSection, setMobileSection] = useState<'lab' | 'inventory'>('lab');
   const [toast, setToast] = useState<{ message: string; error?: boolean } | null>(null);
   const [notebookModalOpen, setNotebookModalOpen] = useState(false);
+  const [isReacting, setIsReacting] = useState(false);
   
   // Hint system state
   const isIdle = useIdle(10000); // 10 seconds
   const [hintDismissed, setHintDismissed] = useState(false);
   const [chamberCoords, setChamberCoords] = useState({ top: 0, left: 0, width: 0 });
+  
+  // Sound hook
+  const { playReactionSound } = useReactionSound();
 
   /* ---------- derived state ---------- */
   const showHint = !loading && chamberElements.length === 0 && !hintDismissed && isIdle;
@@ -222,27 +227,38 @@ export default function LabPage() {
       return;
     }
 
+    // Start reaction animation and sound
+    setIsReacting(true);
+    playReactionSound();
+
     const combinedResult = combination.product;
-    setResult(combinedResult);
-    setSuccessReaction({
-      product: combinedResult,
-      reactionType: combination.reactionType,
-    });
-    setChamberElements([]);
+    
+    // Wait for animation to complete before showing results
+    setTimeout(() => {
+      setResult(combinedResult);
+      setSuccessReaction({
+        product: combinedResult,
+        reactionType: combination.reactionType,
+      });
+      setChamberElements([]);
+      setIsReacting(false);
 
-    // Check if already discovered
-    if (discoveries.some((d) => d.symbol === combinedResult.symbol)) {
-      return;
-    }
+      // Check if already discovered
+      if (discoveries.some((d) => d.symbol === combinedResult.symbol)) {
+        return;
+      }
 
-    // Add discovery
-    await addDiscovery({
-      symbol: combinedResult.symbol,
-      name: combinedResult.name,
-      color: combinedResult.color,
-      type: combinedResult.type,
-    });
-  }, [chamberElements, discoveries, addDiscovery, showToast]);
+      // Add discovery
+      addDiscovery({
+        symbol: combinedResult.symbol,
+        name: combinedResult.name,
+        color: combinedResult.color,
+        type: combinedResult.type,
+      });
+    }, 1500); // 1.5 second animation duration
+  }, [chamberElements, discoveries, addDiscovery, showToast, playReactionSound]);
+
+
 
   useEffect(() => {
     if (!successReaction) return;
@@ -486,7 +502,8 @@ export default function LabPage() {
           <div
             ref={chamberRef}
             className={cn(
-              'group relative w-full max-w-[360px] min-h-[140px] xl:min-h-[300px] flex flex-col justify-end border-x-4 border-b-4 border-t-0 rounded-b-[2rem] xl:rounded-b-[3rem] cursor-pointer transition-all duration-300 shadow-2xl backdrop-blur-sm bg-gradient-to-b from-white/5 to-white/15 dark:from-white/5 dark:to-white/[0.05]',
+              'group relative w-full max-w-[360px] min-h-[140px] xl:min-h-[300px] flex flex-col justify-end border-x-4 border-b-4 border-t-0 rounded-b-[2rem] xl:rounded-b-[3rem] cursor-pointer transition-all duration-300 shadow-2xl backdrop-blur-sm bg-gradient-to-b from-white/5 to-white/15 dark:from-white/5 dark:to-white/[0.05] overflow-hidden',
+              isReacting ? 'border-yellow-500/60' :
               chamberElements.length > 0
                 ? 'border-emerald-500/40'
                 : 'border-white/20 hover:border-emerald-500/40',
@@ -569,6 +586,13 @@ export default function LabPage() {
                   ))}
                 </div>
               </div>
+            )}
+
+            {/* Reaction Animation Overlay - Rendered last to be on top */}
+            {isReacting && (
+              <>
+                <div className="reaction-overlay" />
+              </>
             )}
           </div>
 

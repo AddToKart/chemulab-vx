@@ -17,8 +17,8 @@ interface Game {
 const singlePlayerGames: Game[] = [
   { id: 'element-match', href: '/games/element-match', emoji: '🧪', title: 'Element Match', description: 'Match symbols to element names', cta: 'Play Now', color: '#0ea5e9' },
   { id: 'reaction-quiz', href: '/games/reaction-quiz', emoji: '⚗️', title: 'Reaction Quiz', description: 'Predict the products of reactions', cta: 'Start Quiz', color: '#8b5cf6' },
-  { id: 'whack-a-mole', href: '/games/whack-a-mole', emoji: '⚖️', title: 'Whack-a-Mole', description: 'Catch the heavy metals!', cta: 'Enter Arena', color: '#22c55e' },
   { id: 'periodic-puzzle', href: '/games/periodic-puzzle', emoji: '🧩', title: 'Periodic Puzzle', description: 'Assemble the table', cta: 'Solve Puzzle', color: '#f59e0b' },
+  { id: 'miner-game', href: '/games/miner-game', emoji: '🧲', title: 'Miner Game', description: 'Extract the right elements!', cta: 'Start Mining', color: '#22c55e' },
 ];
 
 const multiplayerGames: Game[] = [
@@ -26,6 +26,7 @@ const multiplayerGames: Game[] = [
   { id: 'foam-race', href: '/games/foam-race', emoji: '🐘', title: 'Elephant Toothpaste', description: 'Fast-paced foam race!', cta: 'Race Now', color: '#10b981' },
   { id: 'balloon-race', href: '/games/balloon-race', emoji: '🎈', title: 'Balloon Race', description: 'Inflate balloons with CO₂!', cta: 'Inflate', color: '#f59e0b' },
   { id: 'ph-challenge', href: '/games/ph-challenge', emoji: '🌈', title: 'pH Challenge', description: 'Color-changing reaction!', cta: 'Challenge', color: '#6366f1' },
+  { id: 'chemical-formula-race', href: '/games/chemical-formula-race', emoji: '💨', title: 'Chemical Formula Race', description: 'Type formulas faster than opponent!', cta: 'Race Now', color: '#06b6d4' },
 ];
 
 function GamesGrid({ games }: { games: Game[] }) {
@@ -103,7 +104,7 @@ export default function GamesPage() {
       <div>
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <h2 className="text-xl font-bold text-[var(--text-main)]">Single Player</h2>
-          <span className="rounded-full border border-[rgba(16,185,129,0.3)] bg-[rgba(16,185,129,0.15)] px-3 py-1 text-xs font-semibold text-emerald-400">4 Modules Active</span>
+          <span className="rounded-full border border-[rgba(16,185,129,0.3)] bg-[rgba(16,185,129,0.15)] px-3 py-1 text-xs font-semibold text-emerald-400">{singlePlayerGames.length} Modules Active</span>
         </div>
         <GamesGrid games={singlePlayerGames} />
       </div>
@@ -111,7 +112,7 @@ export default function GamesPage() {
       <div>
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <h2 className="text-xl font-bold text-[var(--text-main)]">Multiplayer</h2>
-          <span className="rounded-full border border-[rgba(14,165,233,0.3)] bg-[rgba(14,165,233,0.15)] px-3 py-1 text-xs font-semibold text-sky-400">4 Modules Active</span>
+          <span className="rounded-full border border-[rgba(14,165,233,0.3)] bg-[rgba(14,165,233,0.15)] px-3 py-1 text-xs font-semibold text-sky-400">{multiplayerGames.length} Modules Active</span>
         </div>
         <GamesGrid games={multiplayerGames} />
       </div>

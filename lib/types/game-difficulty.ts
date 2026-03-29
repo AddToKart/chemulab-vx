@@ -41,6 +41,13 @@ export interface PeriodicPuzzleSettings extends BaseDifficultySettings {
   timeLimit?: number;
 }
 
+export interface MinerGameSettings extends BaseDifficultySettings {
+  itemCount: number;
+  timePerQuestion?: number;
+  wrongAnswerPenalty: number;
+  elementPool: 'common' | 'all';
+}
+
 // Difficulty configurations for each game
 export const elementMatchDifficulty: Record<DifficultyLevel, ElementMatchSettings> = {
   beginner: {
@@ -200,6 +207,40 @@ export const periodicPuzzleDifficulty: Record<DifficultyLevel, PeriodicPuzzleSet
     showHints: true,
     interactionMode: 'drag',
     timeLimit: 480,
+    scoringMultiplier: 3.0,
+  },
+};
+
+export const minerGameDifficulty: Record<DifficultyLevel, MinerGameSettings> = {
+  beginner: {
+    level: 'beginner',
+    itemCount: 5,
+    wrongAnswerPenalty: 0,
+    elementPool: 'common',
+    scoringMultiplier: 1.0,
+  },
+  intermediate: {
+    level: 'intermediate',
+    itemCount: 6,
+    timePerQuestion: 15,
+    wrongAnswerPenalty: -5,
+    elementPool: 'all',
+    scoringMultiplier: 1.5,
+  },
+  advanced: {
+    level: 'advanced',
+    itemCount: 7,
+    timePerQuestion: 10,
+    wrongAnswerPenalty: -5,
+    elementPool: 'all',
+    scoringMultiplier: 2.0,
+  },
+  expert: {
+    level: 'expert',
+    itemCount: 8,
+    timePerQuestion: 8,
+    wrongAnswerPenalty: -5,
+    elementPool: 'all',
     scoringMultiplier: 3.0,
   },
 };

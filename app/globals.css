@@ -700,3 +700,77 @@ h6 {
   transform: scale(1.05);
   box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
 }
+
+/* ===== Reaction Chamber Bubble Animation ===== */
+@keyframes chamberBubble {
+  0% {
+    transform: translateY(100%) scale(0.3);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.8;
+  }
+  50% {
+    transform: translateY(40%) scale(1.1);
+    opacity: 0.7;
+  }
+  90% {
+    opacity: 0.3;
+  }
+  100% {
+    transform: translateY(-20%) scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes chamberBubblePulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+}
+
+.chamber-bubble {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.1));
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.1),
+    inset 0 1px 2px rgba(255, 255, 255, 0.4);
+  animation: chamberBubble 1.5s ease-out forwards;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.chamber-bubble::after {
+  content: '';
+  position: absolute;
+  top: 20%;
+  left: 30%;
+  width: 20%;
+  height: 20%;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+  filter: blur(1px);
+}
+
+/* Reaction overlay effect */
+.reaction-overlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    circle at center,
+    rgba(16, 185, 129, 0.1) 0%,
+    rgba(16, 185, 129, 0.05) 50%,
+    transparent 70%
+  );
+  border-radius: inherit;
+  animation: chamberBubblePulse 1.5s ease-in-out;
+  pointer-events: none;
+  z-index: 5;
+}

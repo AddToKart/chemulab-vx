@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { User } from 'firebase/auth';
+import type { Timestamp } from 'firebase/firestore';
 
 export interface UserProfile {
   uid: string;
@@ -10,8 +11,8 @@ export interface UserProfile {
   photoURL?: string;
   photoSourceURL?: string;
   bio?: string;
-  registrationDate?: any;
-  createdAt?: any;
+  registrationDate?: Timestamp;
+  createdAt?: Timestamp;
 }
 
 interface AuthState {

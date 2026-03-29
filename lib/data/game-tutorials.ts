@@ -85,4 +85,14 @@ export const gameTutorials = {
     ],
     tip: 'Think about whether each pick moves your pH up, down, or keeps it steady.',
   },
+  chemFormulaRace: {
+    summary: 'Race against your opponent to type chemical formulas faster and more accurately.',
+    steps: [
+      'Create a room or join a friend with a room code.',
+      'Watch the compound name appear on screen with a 30-second timer.',
+      'Type the correct chemical formula as fast as you can.',
+      'Win rounds by answering correctly and faster than your opponent—first to 3 wins!',
+    ],
+    tip: 'Speed matters, but accuracy is essential—incorrect answers lose you points.',
+  },
 } satisfies Record<string, GameTutorial>;

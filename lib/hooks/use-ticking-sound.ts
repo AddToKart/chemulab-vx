@@ -2,6 +2,13 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 
+// Extend Window interface to include webkitAudioContext
+declare global {
+  interface Window {
+    webkitAudioContext?: typeof AudioContext;
+  }
+}
+
 export function useTickingSound(timeLeft: number, isGameActive: boolean) {
   const audioContextRef = useRef<AudioContext | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -10,7 +17,7 @@ export function useTickingSound(timeLeft: number, isGameActive: boolean) {
   useEffect(() => {
     if (!audioContextRef.current) {
       try {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
       } catch (error) {
         console.warn('AudioContext not supported:', error);
       }
@@ -28,7 +35,7 @@ export function useTickingSound(timeLeft: number, isGameActive: boolean) {
     if (!audioContextRef.current) {
       // Try to initialize if not already
       try {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
       } catch (error) {
         return; // Audio not supported
       }

@@ -178,8 +178,10 @@ export default function FoamRacePage() {
     if (!gameData) return;
 
     if (gameData.status === 'waiting') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setScreen('waiting');
     } else if (gameData.status === 'playing') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setScreen('game');
     } else if (gameData.status === 'completed') {
       const p1Score = calculateScore(gameData.p1Inventory);
@@ -194,7 +196,9 @@ export default function FoamRacePage() {
         text = "It's a tie!";
       }
 
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setWinnerInfo({ text, p1Score, p2Score });
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setScreen('victory');
     }
   }, [gameData]);

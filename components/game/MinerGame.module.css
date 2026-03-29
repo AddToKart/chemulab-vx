@@ -1,0 +1,509 @@
+/* Container & Board */
+.container {
+  max-width: calc(95% + 50px);
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.backLink {
+  display: block;
+  margin-bottom: 16px;
+  color: #818cf8;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.95em;
+  transition: opacity 0.2s;
+}
+
+.backLink:hover {
+  opacity: 0.8;
+}
+
+.gameArea {
+  position: relative;
+  max-width: 95%;
+  width: 1000px;
+  margin: 0 auto;
+  background: var(--bg-card);
+  padding: 0; 
+  border-radius: 24px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+  height: calc(100vh - 140px);
+  min-height: 600px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1.5px solid var(--glass-border);
+}
+
+.canvas {
+  flex: 1;
+  position: relative;
+  background: radial-gradient(circle at bottom center, rgba(16, 185, 129, 0.05) 0%, transparent 60%);
+  overflow: hidden;
+}
+
+.uiLayer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 20px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.uiBox {
+  pointer-events: auto;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 10px 20px;
+  color: white;
+  font-weight: bold;
+}
+
+.bottomPanel {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  padding: 20px;
+  border-top: 1px solid var(--glass-border);
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 10;
+}
+
+.questionText {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #fff;
+  text-align: center;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  margin-bottom: 15px;
+}
+
+.timerBarContainer {
+  width: 100%;
+  max-width: 500px;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.timerBarFill {
+  height: 100%;
+  background: var(--accent-color);
+  transition: width 0.1s linear, background-color 0.3s;
+}
+
+.timerWarning {
+  background: #ef4444 !important;
+}
+
+/* Floating Elements */
+.itemWrapper {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  z-index: 25; /* Higher than craneRoot (20) */
+  transition: opacity 0.3s, transform 0.2s, top 0.2s, left 0.2s;
+}
+
+.itemWrapper:hover {
+  transform: translate(-50%, -50%) scale(1.1);
+  z-index: 26;
+}
+
+.itemDisabled {
+  pointer-events: none;
+}
+
+/* State when item is clicked but not yet caught */
+.itemTargeted {
+  animation: none !important; /* Stop floating */
+  transition: top 0.6s cubic-bezier(0.4, 0, 0.2, 1), left 0.6s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s;
+  z-index: 28;
+}
+
+/* State when item is nested in rope */
+.itemAttached {
+  animation: itemCatch 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes itemCatch {
+  0% { transform: translate(-50%, 50%) scale(1); }
+  50% { transform: translate(-50%, 50%) scale(1.3); filter: brightness(2) drop-shadow(0 0 20px gold); }
+  100% { transform: translate(-50%, 50%) scale(1.1); filter: brightness(1.2) drop-shadow(0 0 10px gold); }
+}
+
+.itemBeingPulled {
+  pointer-events: none;
+  animation: itemSpinPull 0.9s cubic-bezier(0.4, 0, 0.2, 1) 0.2s forwards;
+  z-index: 27;
+}
+
+@keyframes itemSpinPull {
+  0% { 
+    transform: translate(-50%, 50%) scale(1.1) rotate(0deg);
+    filter: brightness(1.2) drop-shadow(0 0 10px gold);
+  }
+  30% { 
+    transform: translate(-50%, 50%) scale(1.3) rotate(120deg);
+    filter: brightness(2.5) drop-shadow(0 0 40px gold) drop-shadow(0 0 80px #fbbf24);
+  }
+  60% { 
+    transform: translate(-50%, 50%) scale(1.2) rotate(240deg);
+    filter: brightness(2) drop-shadow(0 0 30px gold);
+  }
+  100% { 
+    transform: translate(-50%, 50%) scale(0.3) rotate(360deg);
+    filter: brightness(4) drop-shadow(0 0 60px gold);
+  }
+}
+
+/* Base Styles for types */
+.mineralToken {
+  width: 60px;
+  height: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+  color: white;
+  font-weight: 900;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+  border: 2px solid rgba(255,255,255,0.4);
+}
+
+.typeMetal {
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffd700 0%, #b8860b 100%);
+  border-color: #fff9c4;
+}
+
+.typeNonmetal {
+  border-radius: 12px 12px 4px 4px;
+  background: linear-gradient(135deg, #4ade80 0%, #16a34a 100%);
+  position: relative;
+}
+
+.typeNonmetal::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 6px;
+  background: #22c55e;
+  border-radius: 4px 4px 0 0;
+  border-top: 2px solid rgba(255,255,255,0.5);
+}
+
+.typeMetalloid {
+  border-radius: 4px 4px 20px 20px;
+  background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.6);
+}
+
+.typeAlloy {
+  border-radius: 8px;
+  background: linear-gradient(135deg, #9ca3af 0%, #4b5563 100%);
+}
+
+.itemSymbol {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.itemName {
+  font-size: 0.6rem;
+  opacity: 0.9;
+  text-transform: uppercase;
+  max-width: 50px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Floating Animations */
+@keyframes float1 { 0%, 100% { transform: translateY(0px) translateX(0px); } 50% { transform: translateY(-15px) translateX(10px); } }
+@keyframes float2 { 0%, 100% { transform: translateY(0px) translateX(0px); } 50% { transform: translateY(-10px) translateX(-15px); } }
+@keyframes float3 { 0%, 100% { transform: translateY(0px) translateX(0px) rotate(0deg); } 50% { transform: translateY(-12px) translateX(5px) rotate(5deg); } }
+
+.float1 { animation: float1 4s ease-in-out infinite; }
+.float2 { animation: float2 5s ease-in-out infinite; }
+.float3 { animation: float3 4.5s ease-in-out infinite; }
+
+/* Wrong Answer Shake */
+@keyframes shake {
+  0%, 100% { transform: translate(-50%, -50%) translateX(0); filter: brightness(1); }
+  25% { transform: translate(-50%, -50%) translateX(-8px); filter: brightness(1) drop-shadow(0 0 10px red); }
+  50% { transform: translate(-50%, -50%) translateX(8px); filter: brightness(1) drop-shadow(0 0 10px red); }
+  75% { transform: translate(-50%, -50%) translateX(-8px); filter: brightness(1) drop-shadow(0 0 10px red); }
+}
+
+.wrongShake {
+  animation: shake 0.4s ease-in-out !important;
+  background: #ef4444 !important; /* Flash red */
+  color: white !important;
+  z-index: 10 !important;
+}
+
+/* Crane Mechanics - ENHANCED WITH TWO-PHASE ANIMATION */
+.craneRoot {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  display: flex;
+  justify-content: center;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.rope {
+  position: absolute;
+  top: 0;
+  width: 8px;
+  background: repeating-linear-gradient(
+    45deg,
+    #fbbf24,
+    #fbbf24 5px,
+    #f59e0b 5px,
+    #f59e0b 10px
+  );
+  transform-origin: top center;
+  transition: height 0.6s cubic-bezier(0.4, 0, 0.2, 1), transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 
+    0 0 20px rgba(251, 191, 36, 0.8),
+    0 0 40px rgba(251, 191, 36, 0.4),
+    2px 0 10px rgba(0,0,0,0.5);
+  z-index: 15;
+}
+
+.ropeExtending {
+  animation: ropeExtendGlow 0.6s ease-in-out;
+}
+
+.ropeRetracting {
+  transition: height 0.7s cubic-bezier(0.4, 0, 0.2, 1), transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: ropeRetractGlow 0.7s ease-in-out;
+}
+
+@keyframes ropeExtendGlow {
+  0% { box-shadow: 0 0 20px rgba(251, 191, 36, 0.8), 0 0 40px rgba(251, 191, 36, 0.4); }
+  50% { box-shadow: 0 0 40px rgba(251, 191, 36, 1), 0 0 80px rgba(251, 191, 36, 0.6); }
+  100% { box-shadow: 0 0 60px rgba(251, 191, 36, 1), 0 0 100px rgba(251, 191, 36, 0.8); }
+}
+
+@keyframes ropeRetractGlow {
+  0% { box-shadow: 0 0 60px rgba(251, 191, 36, 1), 0 0 100px rgba(251, 191, 36, 0.8); }
+  100% { box-shadow: 0 0 20px rgba(251, 191, 36, 0.8), 0 0 40px rgba(251, 191, 36, 0.4); }
+}
+
+.magnet {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: -20px; /* Center magnet on rope end (size 40) */
+  color: #ef4444;
+  filter: drop-shadow(0 5px 15px rgba(0,0,0,0.5));
+}
+
+.magnetAttaching {
+  animation: magnetAttachPulse 0.2s ease-in-out;
+}
+
+.magnetAttaching::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 4px solid rgba(251, 191, 36, 0.9);
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.3) 0%, transparent 70%);
+  animation: magnetContactBurst 0.4s ease-out forwards;
+}
+
+@keyframes magnetAttachPulse {
+  0% { transform: translateX(-50%) scale(1); }
+  50% { transform: translateX(-50%) scale(1.3); }
+  100% { transform: translateX(-50%) scale(1.1); }
+}
+
+@keyframes magnetContactBurst {
+  0% { transform: translate(-50%, -50%) scale(0.5); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+}
+
+/* CLANK Text Effect */
+.clankText {
+  position: absolute;
+  bottom: -40px; /* Below the magnet */
+  left: 50%;
+  /* transform: translateX(-50%) is handled via inline styles in JSX to un-rotate */
+  font-size: 2rem;
+  font-weight: 900;
+  color: #fbbf24;
+  text-shadow: 
+    0 0 10px #fbbf24,
+    0 0 20px #f59e0b,
+    0 0 40px #d97706,
+    3px 3px 0px #000;
+  animation: clankPop 0.4s ease-out forwards;
+  z-index: 30;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+@keyframes clankPop {
+  0% { 
+    transform: translateX(-50%) scale(0) rotate(-10deg); 
+    opacity: 0;
+  }
+  30% { 
+    transform: translateX(-50%) scale(1.3) rotate(5deg); 
+    opacity: 1;
+  }
+  60% { 
+    transform: translateX(-50%) scale(1.1) rotate(-3deg); 
+    opacity: 1;
+  }
+  100% { 
+    transform: translateX(-50%) scale(1) rotate(0deg); 
+    opacity: 0;
+  }
+}
+
+.sparkle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  width: 100px;
+  height: 100px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.8) 0%, transparent 70%);
+  z-index: 30;
+  animation: popSparkle 0.8s ease-out forwards;
+}
+
+@keyframes popSparkle {
+  0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+}
+
+/* Screens */
+.startScreen, .gameOverScreen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  text-align: center;
+  height: 100%;
+}
+
+.title {
+  font-size: 3rem;
+  font-weight: 900;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 20px;
+}
+
+.subtitle {
+  font-size: 1.2rem;
+  color: var(--text-light);
+  margin-bottom: 30px;
+  max-width: 600px;
+}
+
+.startBtn {
+  padding: 16px 40px;
+  font-size: 1.25rem;
+  font-weight: bold;
+  background: var(--accent-gradient);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+  margin-top: 20px;
+}
+
+.startBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+}
+
+.statsRow {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.statItem {
+  background: rgba(0,0,0,0.1);
+  padding: 15px 30px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+/* Screen Shake Animation */
+.shakeScreen {
+  animation: screenShake 0.3s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+@keyframes screenShake {
+  10%, 90% { transform: translate3d(-2px, 0, 0); }
+  20%, 80% { transform: translate3d(4px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
+  40%, 60% { transform: translate3d(6px, 0, 0); }
+}
+
+/* Gold Particle Trail */
+.goldParticle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: radial-gradient(circle, #fff 0%, #fbbf24 30%, #f59e0b 100%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 30;
+  animation: particleFloat 1.5s ease-out forwards;
+  box-shadow: 0 0 10px #fbbf24, 0 0 20px #f59e0b;
+}
+
+@keyframes particleFloat {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, calc(-50% + 100px)) scale(0);
+    opacity: 0;
+  }
+}

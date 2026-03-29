@@ -148,10 +148,10 @@ const rawElementsData = [
   { atomic_number: 118, symbol: 'Og', name: 'Oganesson', atomic_mass: 294.0, category: 'noble-gas' },
 ] as const;
 
-export const elementsData: ElementData[] = (rawElementsData as unknown as any[]).map((element) => ({
+export const elementsData: ElementData[] = (rawElementsData as unknown as ElementData[]).map((element) => ({
   ...element,
   imageUrl: `https://images-of-elements.com/s/${getElementImageSlug(element.name)}.jpg`,
-})) as ElementData[];
+}));
 
 /** Grid positions for elements in the main 18-column grid. */
 export const mainGridPositions: Record<number, { row: number; col: number }> = {

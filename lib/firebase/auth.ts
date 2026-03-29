@@ -91,13 +91,16 @@ export async function register(
     try {
       const userCred = await createUserWithEmailAndPassword(auth, email, password);
       uid = userCred.user.uid;
-    } catch (err: any) {
-      if (err.code === 'auth/email-already-in-use') {
-        throw new Error('This email address is already registered. Please use a different email or sign in.');
-      } else if (err.code === 'auth/weak-password') {
-        throw new Error('Password is too weak. Please use at least 6 characters.');
-      } else if (err.code === 'auth/invalid-email') {
-        throw new Error('Invalid email address format.');
+    } catch (err) {
+      if (err && typeof err === 'object' && 'code' in err) {
+        const firebaseErr = err as { code: string };
+        if (firebaseErr.code === 'auth/email-already-in-use') {
+          throw new Error('This email address is already registered. Please use a different email or sign in.');
+        } else if (firebaseErr.code === 'auth/weak-password') {
+          throw new Error('Password is too weak. Please use at least 6 characters.');
+        } else if (firebaseErr.code === 'auth/invalid-email') {
+          throw new Error('Invalid email address format.');
+        }
       }
       throw err;
     }
