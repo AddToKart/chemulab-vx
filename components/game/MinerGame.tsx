@@ -738,14 +738,14 @@ export default function MinerGame({ userId }: { userId?: string }) {
             <div className="flex gap-4">
               <button className={styles.startBtn} onClick={startGame}>Play Again</button>
               <ShareGameScore 
-                gameTitle="Miner Game" 
+                gameName="Miner Game" 
                 score={score} 
-                stats={`Accuracy: ${finalStats.accuracy}% | Elements: ${finalStats.correctCount}/10`}
+                customMessage={`I just scored ${score} points in Miner Game! Accuracy: ${finalStats?.accuracy}% | Elements: ${finalStats?.correctCount}/10 🎮`}
               />
             </div>
 
             <div className="mt-8 w-full max-w-md">
-              <GameRating gameId="miner-game" />
+              <GameRating gameId="miner-game" gameName="Miner Game" />
             </div>
           </div>
         )}
