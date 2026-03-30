@@ -17,6 +17,7 @@ interface Game {
 const singlePlayerGames: Game[] = [
   { id: 'element-match', href: '/games/element-match', emoji: '🧪', title: 'Element Match', description: 'Match symbols to element names', cta: 'Play Now', color: '#0ea5e9' },
   { id: 'reaction-quiz', href: '/games/reaction-quiz', emoji: '⚗️', title: 'Reaction Quiz', description: 'Predict the products of reactions', cta: 'Start Quiz', color: '#8b5cf6' },
+  { id: 'element-sort', href: '/games/element-sort', emoji: '🧪', title: 'Element Sort', description: 'Sort elements by category into test tubes', cta: 'Sort Now', color: '#a855f7' },
   { id: 'periodic-puzzle', href: '/games/periodic-puzzle', emoji: '🧩', title: 'Periodic Puzzle', description: 'Assemble the table', cta: 'Solve Puzzle', color: '#f59e0b' },
   { id: 'miner-game', href: '/games/miner-game', emoji: '🧲', title: 'Miner Game', description: 'Extract the right elements!', cta: 'Start Mining', color: '#22c55e' },
 ];

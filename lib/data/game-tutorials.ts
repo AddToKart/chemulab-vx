@@ -95,4 +95,15 @@ export const gameTutorials = {
     ],
     tip: 'Speed matters, but accuracy is essential—incorrect answers lose you points.',
   },
+  elementSort: {
+    summary: 'Sort elements by chemical category into test tubes.',
+    steps: [
+      'Click a test tube to select it.',
+      'Click another tube to pour elements with matching categories.',
+      'Elements can only pour onto matching colors or empty tubes.',
+      'Sort all elements so each tube contains only one category.',
+      'Use the empty tube as workspace to rearrange elements.',
+    ],
+    tip: 'Plan ahead! You may need to temporarily move elements to another tube.',
+  },
 } satisfies Record<string, GameTutorial>;

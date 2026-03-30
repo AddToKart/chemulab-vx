@@ -38,6 +38,7 @@ const GAME_RATING_SCALE = [1, 2, 3, 4, 5];
 const GAME_IDS = [
   'element-match',
   'reaction-quiz',
+  'element-sort',
   'periodic-puzzle',
   'miner-game',
   'volcano',
