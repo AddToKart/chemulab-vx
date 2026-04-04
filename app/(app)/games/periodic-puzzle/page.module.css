@@ -50,6 +50,37 @@
   justify-content: center;
 }
 
+.subtitle {
+  font-size: 1.125rem;
+  color: #64748b;
+  margin-bottom: 32px;
+  line-height: 1.6;
+}
+
+.startBtn {
+  padding: 16px 48px;
+  font-size: 1.125rem;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 10px 25px rgba(79, 70, 229, 0.3);
+  margin-top: 32px;
+}
+
+.startBtn:hover {
+  background: linear-gradient(135deg, #4f46e5 0%, #4338ca 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 15px 30px rgba(79, 70, 229, 0.4);
+}
+
+.startBtn:active {
+  transform: translateY(0);
+}
+
 /* ── Layout ── */
 
 .puzzleWrapper {
@@ -131,12 +162,12 @@
   transition: border-color 0.2s, background-color 0.2s, transform 0.15s, box-shadow 0.2s;
   user-select: none;
   color: #fff;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .puzzleSlot:hover {
   transform: scale(1.06);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
 .puzzleSlotHidden {
@@ -145,7 +176,7 @@
 }
 
 .puzzleSlotFilled {
-  border: 2px solid rgba(255,255,255,0.3);
+  border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 .puzzleSlotCorrect {
@@ -160,9 +191,19 @@
 }
 
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-3px); }
-  75% { transform: translateX(3px); }
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(-3px);
+  }
+
+  75% {
+    transform: translateX(3px);
+  }
 }
 
 .puzzleSlotDroppable {
@@ -211,13 +252,13 @@
   font-size: 0.85em;
   border: none;
   padding: 0;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.25);
-  box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
 .puzzlePiece:hover {
   transform: scale(1.12);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 .puzzlePieceDragging {
@@ -310,6 +351,10 @@
 :global([data-theme='dark']) .instructions {
   background: rgba(255, 255, 255, 0.08);
   color: var(--text-main);
+}
+
+:global([data-theme='dark']) .subtitle {
+  color: #94a3b8;
 }
 
 :global([data-theme='dark']) .puzzleGrid {
@@ -481,5 +526,11 @@
   .periodLabel {
     width: 16px;
     font-size: 0.5em;
+  }
+}
+
+@media (max-width: 640px) {
+  .startBtn {
+    width: 100%;
   }
 }

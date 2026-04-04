@@ -416,7 +416,7 @@ export default function FoamRacePage() {
 
       {user && (
         <>
-          <GameTutorial tutorial={gameTutorials.foamRace} accentColor="#10b981" className="mb-6" />
+          <GameTutorial tutorial={gameTutorials.foamRace} accentColor="#10b981" className="mb-3" />
           <div className={styles.lobbyOptions}>
             <div className={styles.lobbyCard}>
               <h2>Create Game</h2>
@@ -455,7 +455,7 @@ export default function FoamRacePage() {
     <div className={styles.screen}>
       <h1 className={styles.title}>Waiting for Opponent...</h1>
       <p className={styles.subtitle}>Share this room code with a friend:</p>
-      <GameTutorial tutorial={gameTutorials.foamRace} accentColor="#10b981" className="mb-6" />
+      <GameTutorial tutorial={gameTutorials.foamRace} accentColor="#10b981" className="mb-3" />
       <div className={styles.roomCodeDisplay}>{gameData?.roomCode}</div>
       <p className={styles.subtitle}>Waiting for Player 2 to join...</p>
       <button className={styles.btnOutline} onClick={leaveGame}>
@@ -473,9 +473,8 @@ export default function FoamRacePage() {
         {/* Player status */}
         <div className={styles.playerStatus}>
           <div
-            className={`${styles.playerCard} ${styles.p1} ${
-              gameData.currentTurn === 1 ? styles.active : ''
-            }`}
+            className={`${styles.playerCard} ${styles.p1} ${gameData.currentTurn === 1 ? styles.active : ''
+              }`}
           >
             <div className={styles.playerName}>{gameData.player1Name}</div>
             <div className={styles.inventory}>
@@ -485,9 +484,8 @@ export default function FoamRacePage() {
             </div>
           </div>
           <div
-            className={`${styles.playerCard} ${styles.p2} ${
-              gameData.currentTurn === 2 ? styles.active : ''
-            }`}
+            className={`${styles.playerCard} ${styles.p2} ${gameData.currentTurn === 2 ? styles.active : ''
+              }`}
           >
             <div className={styles.playerName}>{gameData.player2Name}</div>
             <div className={styles.inventory}>
@@ -617,16 +615,16 @@ export default function FoamRacePage() {
         </div>
 
         <div className="flex flex-col items-center gap-4 mt-8">
-            <ShareGameScore 
-                customMessage={`I built a ${myScore}cm foam tower in Foam Race! 🐘`}
-                gameName="Foam Race" 
-            />
-            <button className={styles.btnPrimary} onClick={playAgain}>
+          <ShareGameScore
+            customMessage={`I built a ${myScore}cm foam tower in Foam Race! 🐘`}
+            gameName="Foam Race"
+          />
+          <button className={styles.btnPrimary} onClick={playAgain}>
             Play Again
-            </button>
-            <div className="w-full">
-              <GameRating gameId="foam-race" gameName="Elephant Toothpaste" />
-            </div>
+          </button>
+          <div className="w-full">
+            <GameRating gameId="foam-race" gameName="Elephant Toothpaste" />
+          </div>
         </div>
       </div>
     );

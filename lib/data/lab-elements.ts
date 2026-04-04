@@ -143,6 +143,13 @@ export type CombinationResult =
   | { kind: 'invalid_extra'; message: string }
   | { kind: 'invalid_unknown'; message: string };
 
+export type RecipeAttemptResult =
+  | { kind: 'success'; product: LabElement; reactionType: string }
+  | { kind: 'invalid_missing'; message: string }
+  | { kind: 'invalid_extra'; message: string }
+  | { kind: 'wrong_product'; message: string; actualProduct: LabElement }
+  | { kind: 'invalid_unknown'; message: string };
+
 export const recipes: Recipe[] = [
   { reactants: { H: 2, O: 1 }, product: { symbol: 'H₂O', name: 'Water', color: '#B3E0FF', type: 'compound' }, reactionType: 'Synthesis' },
   { reactants: { H: 2, O: 2 }, product: { symbol: 'H₂O₂', name: 'Hydrogen Peroxide', color: '#E6F3FF', type: 'compound' }, reactionType: 'Oxidation' },
@@ -210,6 +217,63 @@ function formatMissingReactants(
     .filter(([sym, need]) => (counts[sym] || 0) < need)
     .map(([sym, need]) => `${need - (counts[sym] || 0)}× ${sym}`)
     .join(', ');
+}
+
+export function getReactantCount(elements: LabElement[]): Record<string, number> {
+  return countElements(elements);
+}
+
+export function getRecipeTotalReactants(recipe: Recipe): number {
+  return Object.values(recipe.reactants).reduce((sum, count) => sum + count, 0);
+}
+
+export function attemptRecipeCombination(
+  elements: LabElement[],
+  recipe: Recipe,
+): RecipeAttemptResult {
+  if (elements.length === 0) {
+    return {
+      kind: 'invalid_unknown',
+      message: 'Add ingredients to the chamber first.',
+    };
+  }
+
+  const counts = countElements(elements);
+  if (countsMatch(counts, recipe.reactants)) {
+    return {
+      kind: 'success',
+      product: recipe.product,
+      reactionType: recipe.reactionType,
+    };
+  }
+
+  if (isSubset(counts, recipe.reactants)) {
+    return {
+      kind: 'invalid_missing',
+      message: `Missing ${formatMissingReactants(counts, recipe)} to make ${recipe.product.name}.`,
+    };
+  }
+
+  if (hasAllRequiredReactants(counts, recipe.reactants)) {
+    return {
+      kind: 'invalid_extra',
+      message: `This chamber has extra ingredients, so it cannot make ${recipe.product.name} exactly.`,
+    };
+  }
+
+  const result = attemptCombination(elements);
+  if (result.kind === 'success') {
+    return {
+      kind: 'wrong_product',
+      actualProduct: result.product,
+      message: `That combination makes ${result.product.name}, not ${recipe.product.name}.`,
+    };
+  }
+
+  return {
+    kind: 'invalid_unknown',
+    message: `That mixture does not make ${recipe.product.name}.`,
+  };
 }
 
 export function attemptCombination(elements: LabElement[]): CombinationResult {

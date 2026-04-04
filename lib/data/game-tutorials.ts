@@ -86,14 +86,15 @@ export const gameTutorials = {
     tip: 'Think about whether each pick moves your pH up, down, or keeps it steady.',
   },
   chemFormulaRace: {
-    summary: 'Race against your opponent to type chemical formulas faster and more accurately.',
+    summary: 'Race against your opponent to build the target compound in a reaction chamber.',
     steps: [
       'Create a room or join a friend with a room code.',
-      'Watch the compound name appear on screen with a 30-second timer.',
-      'Type the correct chemical formula as fast as you can.',
-      'Win rounds by answering correctly and faster than your opponent—first to 3 wins!',
+      'Watch the target compound name appear when each round starts.',
+      'Drag ingredients into your chamber and press Check to validate the build.',
+      'If nobody solves it after 10 seconds, both players get a hint with the needed ingredient counts.',
+      'Win the round by building the exact combination before your opponent. First to 3 round wins takes the match.',
     ],
-    tip: 'Speed matters, but accuracy is essential—incorrect answers lose you points.',
+    tip: 'Extra ingredients will fail the check, so clear your chamber and rebuild if a mix gets messy.',
   },
   elementSort: {
     summary: 'Sort elements by chemical category into test tubes.',

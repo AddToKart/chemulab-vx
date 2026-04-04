@@ -37,6 +37,7 @@ export default function LabPage() {
   /* ---------- refs ---------- */
   const importRef = useRef<HTMLInputElement>(null);
   const chamberRef = useRef<HTMLDivElement>(null);
+  const elementsListRef = useRef<HTMLDivElement>(null);
 
   /* ---------- state ---------- */
   const [searchTerm, setSearchTerm] = useState('');
@@ -51,17 +52,57 @@ export default function LabPage() {
   const [toast, setToast] = useState<{ message: string; error?: boolean } | null>(null);
   const [notebookModalOpen, setNotebookModalOpen] = useState(false);
   const [isReacting, setIsReacting] = useState(false);
-  
+
   // Hint system state
   const isIdle = useIdle(10000); // 10 seconds
   const [hintDismissed, setHintDismissed] = useState(false);
   const [chamberCoords, setChamberCoords] = useState({ top: 0, left: 0, width: 0 });
-  
+
   // Sound hook
   const { playReactionSound } = useReactionSound();
 
+  /* ---------- touch drag state ---------- */
+  const [touchDrag, setTouchDrag] = useState<{
+    isDragging: boolean;
+    element: LabElement | null;
+    x: number;
+    y: number;
+    startX: number;
+    startY: number;
+  }>({ isDragging: false, element: null, x: 0, y: 0, startX: 0, startY: 0 });
+  const [isChamberHovered, setIsChamberHovered] = useState(false);
+  const chamberTouchRef = useRef<HTMLDivElement>(null);
+  const dragTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isDraggingRef = useRef(false);
+
   /* ---------- derived state ---------- */
   const showHint = !loading && chamberElements.length === 0 && !hintDismissed && isIdle;
+
+  /* ---------- lock scroll during drag ---------- */
+  useEffect(() => {
+    if (touchDrag.isDragging) {
+      const scrollY = window.scrollY;
+      document.body.style.touchAction = 'none';
+      document.body.style.overscrollBehavior = 'none';
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      if (elementsListRef.current) {
+        elementsListRef.current.style.overflow = 'hidden';
+      }
+      return () => {
+        document.body.style.touchAction = '';
+        document.body.style.overscrollBehavior = '';
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        if (elementsListRef.current) {
+          elementsListRef.current.style.overflow = '';
+        }
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [touchDrag.isDragging]);
 
   /* ---------- callbacks ---------- */
   const updateCoords = useCallback(() => {
@@ -186,6 +227,93 @@ export default function LabPage() {
     [addToChamber],
   );
 
+  /* ---------- touch drag handlers ---------- */
+  const handleTouchStart = useCallback((element: LabElement) => (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    setTouchDrag({
+      isDragging: false,
+      element,
+      x: touch.clientX,
+      y: touch.clientY,
+      startX: touch.clientX,
+      startY: touch.clientY,
+    });
+
+    if (dragTimerRef.current) clearTimeout(dragTimerRef.current);
+    dragTimerRef.current = setTimeout(() => {
+      setTouchDrag((prev) => {
+        const dx = prev.x - prev.startX;
+        const dy = prev.y - prev.startY;
+        if (Math.sqrt(dx * dx + dy * dy) > 15) {
+          isDraggingRef.current = false;
+          return { isDragging: false, element: null, x: 0, y: 0, startX: 0, startY: 0 };
+        }
+        isDraggingRef.current = true;
+        return { ...prev, isDragging: true };
+      });
+    }, 300);
+  }, []);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!touchDrag.element) return;
+
+    const touch = e.touches[0];
+    setTouchDrag((prev) => ({ ...prev, x: touch.clientX, y: touch.clientY }));
+
+    // Always prevent default once drag is active — this blocks scroll on the list
+    if (isDraggingRef.current) {
+      e.preventDefault();
+    }
+
+    if (chamberTouchRef.current) {
+      const rect = chamberTouchRef.current.getBoundingClientRect();
+      const isOver =
+        touch.clientX >= rect.left &&
+        touch.clientX <= rect.right &&
+        touch.clientY >= rect.top &&
+        touch.clientY <= rect.bottom;
+      setIsChamberHovered(isOver);
+    }
+  }, [touchDrag.element]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (dragTimerRef.current) {
+      clearTimeout(dragTimerRef.current);
+      dragTimerRef.current = null;
+    }
+
+    if (isDraggingRef.current && touchDrag.element && isChamberHovered) {
+      addToChamber(touchDrag.element);
+    }
+    isDraggingRef.current = false;
+    setTouchDrag({ isDragging: false, element: null, x: 0, y: 0, startX: 0, startY: 0 });
+    setIsChamberHovered(false);
+  }, [touchDrag.element, isChamberHovered, addToChamber]);
+
+  /* ---------- discovery touch handlers ---------- */
+  const handleDiscoveryTouchStart = useCallback((disc: Discovery) => (e: React.TouchEvent) => {
+    const el: LabElement = {
+      symbol: disc.symbol,
+      name: disc.name,
+      color: disc.color || '#cccccc',
+      type: disc.type || 'compound',
+    };
+    const touch = e.touches[0];
+    setTouchDrag({
+      isDragging: false,
+      element: el,
+      x: touch.clientX,
+      y: touch.clientY,
+      startX: touch.clientX,
+      startY: touch.clientY,
+    });
+
+    if (dragTimerRef.current) clearTimeout(dragTimerRef.current);
+    dragTimerRef.current = setTimeout(() => {
+      setTouchDrag((prev) => ({ ...prev, isDragging: true }));
+    }, 300);
+  }, []);
+
   /* ---------- click-to-place ---------- */
   const handleElementClick = useCallback(
     (element: LabElement) => {
@@ -232,7 +360,7 @@ export default function LabPage() {
     playReactionSound();
 
     const combinedResult = combination.product;
-    
+
     // Wait for animation to complete before showing results
     setTimeout(() => {
       setResult(combinedResult);
@@ -352,6 +480,9 @@ export default function LabPage() {
         style={{ backgroundColor: el.color }}
         draggable
         onDragStart={(e) => handleDragStart(e, el)}
+        onTouchStart={handleTouchStart(el)}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         onClick={() => handleElementClick(el)}
         title={`${el.name} (${el.symbol})`}
       >
@@ -472,7 +603,13 @@ export default function LabPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 overflow-y-auto pr-2 xl:min-h-0">
+        <div
+          ref={elementsListRef}
+          className={cn(
+            'grid grid-cols-1 gap-3 overflow-y-auto pr-2 xl:min-h-0',
+            touchDrag.isDragging && 'overflow-hidden',
+          )}
+        >
           {filteredElements.map((el) =>
             renderElementCard(el, selectedElement?.symbol === el.symbol),
           )}
@@ -482,14 +619,14 @@ export default function LabPage() {
       {/* ---- Crafting Area ---- */}
       <div
         className={cn(
-          'group/craft relative flex flex-1 flex-col items-center justify-start overflow-y-auto custom-scrollbar glass-panel p-3 shadow-2xl animate-in zoom-in-95 duration-700 xl:p-10 xl:min-h-0',
+          'group/craft relative flex flex-1 flex-col items-center justify-center overflow-y-auto custom-scrollbar glass-panel p-3 shadow-2xl animate-in zoom-in-95 duration-700 xl:p-10 xl:min-h-0',
           mobileSection === 'lab' ? 'max-xl:flex order-1' : 'max-xl:hidden',
           'xl:flex xl:order-2',
         )}
       >
         <div className="absolute inset-0 bg-emerald-500/[0.02] dark:bg-emerald-500/[0.05] pointer-events-none" />
 
-        <div className="relative z-10 flex w-full flex-col items-center gap-3 xl:gap-8 sm:gap-10 max-xl:h-full max-xl:justify-center">
+        <div className="relative z-10 flex w-full flex-col items-center justify-center gap-3 xl:gap-8 sm:gap-10 xl:h-full max-xl:h-full max-xl:justify-center">
           <div className="text-center space-y-2 hidden xl:block">
             <h2 className="text-3xl font-black tracking-tighter text-[var(--text-main)] uppercase">The Laboratory</h2>
             <div className="h-1 w-12 bg-emerald-500 mx-auto rounded-full" />
@@ -500,13 +637,17 @@ export default function LabPage() {
 
           {/* ─── Single Reaction Chamber (Beaker Style) ─── */}
           <div
-            ref={chamberRef}
+            ref={(el) => {
+              chamberRef.current = el;
+              chamberTouchRef.current = el;
+            }}
             className={cn(
               'group relative w-full max-w-[360px] min-h-[140px] xl:min-h-[300px] flex flex-col justify-end border-x-4 border-b-4 border-t-0 rounded-b-[2rem] xl:rounded-b-[3rem] cursor-pointer transition-all duration-300 shadow-2xl backdrop-blur-sm bg-gradient-to-b from-white/5 to-white/15 dark:from-white/5 dark:to-white/[0.05] overflow-hidden',
               isReacting ? 'border-yellow-500/60' :
-              chamberElements.length > 0
-                ? 'border-emerald-500/40'
-                : 'border-white/20 hover:border-emerald-500/40',
+                isChamberHovered ? 'border-emerald-400 bg-emerald-500/10 scale-[1.02]' :
+                  chamberElements.length > 0
+                    ? 'border-emerald-500/40'
+                    : 'border-white/20 hover:border-emerald-500/40',
             )}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -678,6 +819,9 @@ export default function LabPage() {
                 className="group relative flex items-center gap-4 p-3 bg-black/5 dark:bg-white/5 border border-white/5 rounded-xl cursor-pointer hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all shadow-sm overflow-hidden"
                 draggable
                 onDragStart={(e) => handleDiscoveryDragStart(e, d)}
+                onTouchStart={handleDiscoveryTouchStart(d)}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
                 onClick={() => handleDiscoveryClick(d)}
               >
                 <div
@@ -735,7 +879,7 @@ export default function LabPage() {
 
       {/* ---- Popoy Hint Portal ---- */}
       {showHint && typeof document !== 'undefined' && createPortal(
-        <div 
+        <div
           className="fixed z-[1100] pointer-events-none"
           style={{
             top: Math.max(140, chamberCoords.top - 80), // Keep it below the TopBar (80px) with some margin
@@ -746,11 +890,11 @@ export default function LabPage() {
           <div className="relative group/hint pointer-events-auto animate-in fade-in zoom-in-95 slide-in-from-bottom-4 duration-500">
             <div className="flex w-[min(22rem,calc(100vw-2rem))] items-center gap-4 rounded-2xl border-2 border-emerald-500/30 bg-white/95 px-4 py-3 shadow-[0_20px_50px_rgba(0,0,0,0.3),0_0_20px_rgba(16,185,129,0.2)] backdrop-blur-xl sm:w-auto sm:min-w-[340px] sm:px-5 dark:bg-slate-900/95">
               <div className="w-12 h-12 shrink-0 rounded-full overflow-hidden border-2 border-emerald-500/30 bg-emerald-500/10 shadow-lg">
-                <Image 
-                  src="/img/jepoy.png" 
-                  alt="Popoy" 
-                  width={48} 
-                  height={48} 
+                <Image
+                  src="/img/jepoy.png"
+                  alt="Popoy"
+                  width={48}
+                  height={48}
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -860,6 +1004,32 @@ export default function LabPage() {
         document.body
       )}
       <NotebookModal isOpen={notebookModalOpen} onClose={() => setNotebookModalOpen(false)} uid={uid} />
+
+      {/* ---- Touch Drag Ghost Element ---- */}
+      {touchDrag.isDragging && touchDrag.element && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed z-[9999] pointer-events-none"
+          style={{
+            left: touchDrag.x - 48,
+            top: touchDrag.y - 48,
+            width: 96,
+            height: 96,
+          }}
+        >
+          <div
+            className="w-full h-full rounded-2xl flex flex-col items-center justify-center text-white shadow-2xl border-2 border-white/40"
+            style={{ backgroundColor: touchDrag.element.color }}
+          >
+            <span className="text-3xl font-black leading-none drop-shadow-lg">
+              {touchDrag.element.symbol}
+            </span>
+            <span className="text-[10px] font-bold mt-1 leading-none truncate max-w-[80px] opacity-90">
+              {touchDrag.element.name}
+            </span>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

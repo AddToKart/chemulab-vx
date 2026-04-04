@@ -80,14 +80,14 @@
   display: flex;
   gap: 20px;
   max-width: 800px;
-  margin: 20px auto;
+  margin: 15px auto;
   flex: 1;
   align-items: center;
 }
 
 .lobbyCard {
   flex: 1;
-  padding: 30px;
+  padding: 20px;
   border-radius: 20px;
   border: 1px solid #e2e8f0;
   transition: transform 0.3s, box-shadow 0.3s;
@@ -100,8 +100,8 @@
 }
 
 .lobbyCardEmoji {
-  font-size: 3em;
-  margin-bottom: 15px;
+  font-size: 2.2em;
+  margin-bottom: 8px;
   display: block;
 }
 
@@ -124,11 +124,11 @@
 }
 
 .codeInput {
-  padding: 15px;
+  padding: 12px;
   border-radius: 12px;
   border: 2px solid #e2e8f0;
   text-transform: uppercase;
-  font-size: 1.4em;
+  font-size: 1.25em;
   font-weight: 800;
   letter-spacing: 4px;
   text-align: center;

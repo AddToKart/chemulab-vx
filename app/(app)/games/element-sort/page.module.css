@@ -37,7 +37,8 @@
   flex-direction: column;
   justify-content: center;
   position: relative;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 /* Abstract background elements for game area */
@@ -201,11 +202,11 @@
   .gameArea {
     padding: 20px;
   }
-  
+
   .title {
     font-size: 2.25rem;
   }
-  
+
   .startBtn {
     width: 100%;
   }

@@ -194,7 +194,7 @@ export const periodicPuzzleDifficulty: Record<DifficultyLevel, PeriodicPuzzleSet
   advanced: {
     level: 'advanced',
     periods: 4,
-    elementCount: 30,
+    elementCount: 36,
     showHints: false,
     interactionMode: 'drag',
     timeLimit: 300,
@@ -202,11 +202,11 @@ export const periodicPuzzleDifficulty: Record<DifficultyLevel, PeriodicPuzzleSet
   },
   expert: {
     level: 'expert',
-    periods: 6,
-    elementCount: 86,
+    periods: 7,
+    elementCount: 118,
     showHints: true,
     interactionMode: 'drag',
-    timeLimit: 480,
+    timeLimit: 900,
     scoringMultiplier: 3.0,
   },
 };

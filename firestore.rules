@@ -174,6 +174,20 @@ service cloud.firestore {
       allow delete: if request.auth != null && resource.data.player1 == request.auth.uid;
     }
 
+    // Chemical Formula Race multiplayer games
+    match /formulaRaceGames/{gameId} {
+      allow create: if request.auth != null
+                    && request.resource.data.player1 == request.auth.uid;
+      allow read: if request.auth != null;
+      allow update: if request.auth != null
+                    && (
+                      resource.data.player1 == request.auth.uid
+                      || resource.data.player2 == request.auth.uid
+                      || (resource.data.player2 == null && request.resource.data.player2 == request.auth.uid)
+                    );
+      allow delete: if request.auth != null && resource.data.player1 == request.auth.uid;
+    }
+
     // Notifications: sender creates for the recipient; recipient can read/delete.
     match /notifications/{notificationId} {
       allow create: if request.auth != null

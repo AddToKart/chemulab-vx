@@ -12,6 +12,8 @@ import {
 } from '@/lib/data/elements-data';
 import { useBookmarks } from '@/lib/hooks/use-bookmarks';
 
+const F_BLOCK_START_COLUMN = 3;
+
 export default function ElementsPage() {
   const [selectedElement, setSelectedElement] = useState<ElementData | null>(null);
   const [selectedFilter, setSelectedFilter] = useState<ElementCategory | 'all' | 'reactive-nonmetals'>('all');
@@ -185,15 +187,15 @@ export default function ElementsPage() {
           {[lanthanides, actinides].map((group, gi) => (
             <div
               key={gi}
-              className="grid grid-cols-[repeat(14,1fr)] gap-1 max-[900px]:gap-[2px]"
-              style={{ marginLeft: 'calc(2 * (100% / 18) + 4px)' }}
+              className="grid grid-cols-[repeat(18,1fr)] gap-1 max-[900px]:gap-[2px]"
             >
-              {group.map((el) => {
+              {group.map((el, index) => {
                 const visible = isElementVisible(el);
                 return (
                   <button
                     key={el.atomic_number}
                     className={`element-cell cat-${el.category} ${!visible ? 'opacity-30 grayscale-[50%]' : ''}`}
+                    style={{ gridColumn: F_BLOCK_START_COLUMN + index }}
                     onClick={() => handleElementClick(el)}
                     aria-label={`${el.name} (${el.symbol})`}
                   >

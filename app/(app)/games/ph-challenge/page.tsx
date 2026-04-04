@@ -359,7 +359,7 @@ export default function PHChallengePage() {
             <p className={styles.subtitle}>
               Pick ingredients to reach the target pH — closest wins!
             </p>
-            <GameTutorial tutorial={gameTutorials.phChallenge} accentColor="#6366f1" className="mb-6" />
+            <GameTutorial tutorial={gameTutorials.phChallenge} accentColor="#6366f1" className="mb-3" />
 
             <div className={styles.lobbyOptions}>
               {/* Create */}
@@ -403,7 +403,7 @@ export default function PHChallengePage() {
           <div className={styles.screen}>
             <h2 className={styles.title}>Waiting for opponent…</h2>
             <p className={styles.subtitle}>Share this code with a friend:</p>
-            <GameTutorial tutorial={gameTutorials.phChallenge} accentColor="#6366f1" className="mb-6" />
+            <GameTutorial tutorial={gameTutorials.phChallenge} accentColor="#6366f1" className="mb-3" />
             <div className={styles.roomCodeTag}>{gameData.roomCode}</div>
             <div className={styles.waitingDots}>
               <span className={styles.dot} />
@@ -533,9 +533,9 @@ export default function PHChallengePage() {
 
             <div className={styles.victoryButtons}>
               <div style={{ marginBottom: '1rem', width: '100%', display: 'flex', justifyContent: 'center' }}>
-                <ShareGameScore 
-                    gameName="pH Challenge" 
-                    customMessage={`I finished with pH ${playerNumber === 1 ? gameData.p1PH : gameData.p2PH} (Target: ${gameData.targetPH}) in pH Challenge! 🧪`} 
+                <ShareGameScore
+                  gameName="pH Challenge"
+                  customMessage={`I finished with pH ${playerNumber === 1 ? gameData.p1PH : gameData.p2PH} (Target: ${gameData.targetPH}) in pH Challenge! 🧪`}
                 />
               </div>
               <button className={styles.btn} onClick={handleReplay}>

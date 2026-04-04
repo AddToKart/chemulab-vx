@@ -25,7 +25,7 @@ export function GameTutorial({
 
   return (
     <section
-      className={`w-full max-w-2xl rounded-3xl border p-5 text-left shadow-sm backdrop-blur-sm ${className}`.trim()}
+      className={`mx-auto w-full max-w-2xl rounded-3xl border p-5 text-left shadow-sm backdrop-blur-sm ${className}`.trim()}
       style={cardStyle}
       aria-label="How to play"
     >

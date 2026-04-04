@@ -14,7 +14,7 @@ import { getCroppedImg } from '@/lib/utils/crop-image';
 import { useUserProgress } from '@/lib/hooks/use-user-progress';
 import { TOTAL_ELEMENTS as CANONICAL_TOTAL_ELEMENTS } from '@/lib/firebase/discoveries';
 
-const DEFAULT_AVATAR = '/images/profile.png';
+const DEFAULT_AVATAR = '/img/default-avatar.png';
 const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,20}$/;
 
 interface FirestoreDate {

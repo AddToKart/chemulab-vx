@@ -1,68 +1,47 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
-import { db } from '@/lib/firebase/config';
+import { createPortal } from 'react-dom';
 import {
-  doc,
-  setDoc,
-  updateDoc,
-  onSnapshot,
   deleteDoc,
+  doc,
   getDoc,
+  onSnapshot,
+  runTransaction,
   serverTimestamp,
+  setDoc,
+  type Timestamp,
 } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
 import { useAuthStore } from '@/store/auth-store';
-import styles from './page.module.css';
-
+import {
+  attemptRecipeCombination,
+  getRecipeTotalReactants,
+  initialElements,
+  recipes,
+  type LabElement,
+  type Recipe,
+  type RecipeAttemptResult,
+} from '@/lib/data/lab-elements';
 import { ShareGameScore } from '@/components/game/ShareGameScore';
 import { GameTutorial } from '@/components/game/GameTutorial';
 import GameRating from '@/components/game/GameRating';
 import { gameTutorials } from '@/lib/data/game-tutorials';
-
-/* ------------------------------------------------------------------ */
-/*  Constants                                                          */
-/* ------------------------------------------------------------------ */
-
-interface Compound {
-  id: string;
-  name: string;
-  emoji: string;
-  formula: string;
-}
-
-const COMPOUNDS: Compound[] = [
-  { id: 'water', name: 'Water', emoji: '💧', formula: 'H₂O' },
-  { id: 'carbon_dioxide', name: 'Carbon Dioxide', emoji: '🌍', formula: 'CO₂' },
-  { id: 'salt', name: 'Common Salt', emoji: '🧂', formula: 'NaCl' },
-  { id: 'methane', name: 'Methane', emoji: '⛽', formula: 'CH₄' },
-  { id: 'sulfuric_acid', name: 'Sulfuric Acid', emoji: '⚗️', formula: 'H₂SO₄' },
-  { id: 'glucose', name: 'Glucose', emoji: '🍬', formula: 'C₆H₁₂O₆' },
-  { id: 'ammonia', name: 'Ammonia', emoji: '💨', formula: 'NH₃' },
-  { id: 'hydrogen_peroxide', name: 'Hydrogen Peroxide', emoji: '🧪', formula: 'H₂O₂' },
-  { id: 'calcium_carbonate', name: 'Calcium Carbonate', emoji: '⛰️', formula: 'CaCO₃' },
-  { id: 'sodium_hydroxide', name: 'Sodium Hydroxide', emoji: '🔞', formula: 'NaOH' },
-  { id: 'ethanol', name: 'Ethanol', emoji: '🍷', formula: 'C₂H₆O' },
-  { id: 'acetic_acid', name: 'Acetic Acid', emoji: '🍶', formula: 'CH₃COOH' },
-  { id: 'nitrogen', name: 'Nitrogen Gas', emoji: '💨', formula: 'N₂' },
-  { id: 'oxygen', name: 'Oxygen Gas', emoji: '🫁', formula: 'O₂' },
-  { id: 'chlorine', name: 'Chlorine Gas', emoji: '☢️', formula: 'Cl₂' },
-  { id: 'magnesium_oxide', name: 'Magnesium Oxide', emoji: '🔥', formula: 'MgO' },
-  { id: 'potassium_nitrate', name: 'Potassium Nitrate', emoji: '💥', formula: 'KNO₃' },
-  { id: 'zinc_sulfate', name: 'Zinc Sulfate', emoji: '⚡', formula: 'ZnSO₄' },
-  { id: 'iron_oxide', name: 'Iron Oxide', emoji: '🦴', formula: 'Fe₂O₃' },
-  { id: 'aluminum_oxide', name: 'Aluminum Oxide', emoji: '✨', formula: 'Al₂O₃' },
-];
+import styles from './page.module.css';
 
 const WINNING_ROUNDS = 3;
-const ROUND_TIME = 30; // seconds
+const ROUND_TIME = 30;
+const HINT_DELAY = 10;
+const ROUND_RESULT_DELAY = 15;
+const TOUCH_DRAG_HOLD_DELAY = 300;
+const DISTRACTOR_COUNT = 3;
+const MAX_PLAYABLE_REACTANTS = 5;
 
-interface RoundSubmission {
-  playerNum: number;
-  formula: string;
-  timestamp: number; // when they submitted relative to round start
-  correct: boolean;
-}
+type Screen = 'lobby' | 'waiting' | 'game' | 'victory';
+type MatchStatus = 'waiting' | 'playing' | 'completed';
+type RoundWinner = 0 | 1 | 2 | null;
+type SharedTimerValue = number | Timestamp | null;
 
 interface GameData {
   id: string;
@@ -70,58 +49,211 @@ interface GameData {
   player2: string | null;
   p1Name: string;
   p2Name: string;
-  status: 'waiting' | 'playing' | 'completed';
+  status: MatchStatus;
   currentRound: number;
-  currentCompoundId: string;
-  p1Score: number; // number of rounds won
+  currentRecipeIndex: number;
+  currentPoolSymbols: string[];
+  p1Score: number;
   p2Score: number;
-  p1Submissions: RoundSubmission[];
-  p2Submissions: RoundSubmission[];
-  roundStartTime: number; // timestamp
+  roundStartTime: SharedTimerValue;
   roundEnded: boolean;
-  winner: number | null; // 1, 2, or 0 for tie
-  createdAt: ReturnType<typeof serverTimestamp> | null;
+  roundWinner: RoundWinner;
+  roundResolvedAt: SharedTimerValue;
+  winner: RoundWinner;
+  createdAt: unknown;
 }
 
-type Screen = 'lobby' | 'waiting' | 'game' | 'victory';
+interface CheckFeedback {
+  kind: 'success' | 'warning' | 'error' | 'info';
+  title: string;
+  message: string;
+}
 
-/* ------------------------------------------------------------------ */
-/*  Helpers                                                            */
-/* ------------------------------------------------------------------ */
+interface TouchDragState {
+  isDragging: boolean;
+  element: LabElement | null;
+  x: number;
+  y: number;
+  startX: number;
+  startY: number;
+}
+
+const ELEMENT_BY_SYMBOL = new Map(
+  initialElements.map((element) => [element.symbol, element]),
+);
+
+const PLAYABLE_RECIPE_INDICES = recipes.reduce<number[]>((indices, recipe, index) => {
+  if (getRecipeTotalReactants(recipe) <= MAX_PLAYABLE_REACTANTS) {
+    indices.push(index);
+  }
+  return indices;
+}, []);
+
+const PLAYABLE_SYMBOLS = Array.from(
+  new Set(
+    PLAYABLE_RECIPE_INDICES.flatMap((index) => Object.keys(recipes[index].reactants)),
+  ),
+);
+
+const ROUND_TIME_MS = ROUND_TIME * 1000;
+const ROUND_RESULT_DELAY_MS = ROUND_RESULT_DELAY * 1000;
 
 function generateRoomCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 5; i += 1) {
     code += chars[Math.floor(Math.random() * chars.length)];
   }
   return code;
 }
 
-function getCompound(id: string): Compound {
-  return COMPOUNDS.find((c) => c.id === id)!;
+function shuffleArray<T>(items: T[]): T[] {
+  const shuffled = [...items];
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
 }
 
-function normalizeFormula(formula: string): string {
-  // Remove spaces and convert to lowercase for comparison
-  // Handle subscripts: ₂ -> 2, ₃ -> 3, etc.
-  return formula
-    .toLowerCase()
-    .replace(/\s+/g, '')
-    .replace(/₀/g, '0')
-    .replace(/₁/g, '1')
-    .replace(/₂/g, '2')
-    .replace(/₃/g, '3')
-    .replace(/₄/g, '4')
-    .replace(/₅/g, '5')
-    .replace(/₆/g, '6')
-    .replace(/₇/g, '7')
-    .replace(/₈/g, '8')
-    .replace(/₉/g, '9');
+function pickRecipeIndex(previousIndex?: number): number {
+  const candidates = PLAYABLE_RECIPE_INDICES.filter((index) => index !== previousIndex);
+  const pool = candidates.length > 0 ? candidates : PLAYABLE_RECIPE_INDICES;
+  return pool[Math.floor(Math.random() * pool.length)] ?? 0;
 }
 
-function getRandomCompound(): Compound {
-  return COMPOUNDS[Math.floor(Math.random() * COMPOUNDS.length)];
+function buildRoundPoolSymbols(recipeIndex: number): string[] {
+  const recipe = recipes[recipeIndex];
+  const requiredSymbols = Object.keys(recipe.reactants);
+  const distractorCandidates = PLAYABLE_SYMBOLS.filter(
+    (symbol) => !requiredSymbols.includes(symbol),
+  );
+  const distractors = shuffleArray(distractorCandidates).slice(0, DISTRACTOR_COUNT);
+  return shuffleArray([...requiredSymbols, ...distractors]);
+}
+
+function createRoundState(previousIndex?: number) {
+  const currentRecipeIndex = pickRecipeIndex(previousIndex);
+  return {
+    currentRecipeIndex,
+    currentPoolSymbols: buildRoundPoolSymbols(currentRecipeIndex),
+    roundStartTime: serverTimestamp(),
+    roundEnded: false,
+    roundWinner: null as RoundWinner,
+    roundResolvedAt: null as SharedTimerValue,
+  };
+}
+
+function getHintLines(recipe: Recipe): string[] {
+  return Object.entries(recipe.reactants).map(
+    ([symbol, count]) => `${count}x ${symbol}`,
+  );
+}
+
+function getMatchWinnerText(gameData: GameData): string {
+  if (gameData.winner === 1) {
+    return `${gameData.p1Name} wins the match!`;
+  }
+  if (gameData.winner === 2) {
+    return `${gameData.p2Name} wins the match!`;
+  }
+  if (gameData.winner === 0) {
+    return 'The match ends in a tie.';
+  }
+  return 'Match complete';
+}
+
+function getRoundSummary(gameData: GameData, recipe: Recipe): CheckFeedback {
+  if (gameData.roundWinner === 1) {
+    return {
+      kind: 'success',
+      title: `${gameData.p1Name} won the round`,
+      message: `${recipe.product.name} was built first. The formula is ${recipe.product.symbol}.`,
+    };
+  }
+
+  if (gameData.roundWinner === 2) {
+    return {
+      kind: 'success',
+      title: `${gameData.p2Name} won the round`,
+      message: `${recipe.product.name} was built first. The formula is ${recipe.product.symbol}.`,
+    };
+  }
+
+  return {
+    kind: 'info',
+    title: 'Time ran out',
+    message: `No one built ${recipe.product.name} before the timer expired.`,
+  };
+}
+
+function getCheckFeedback(result: RecipeAttemptResult, recipe: Recipe): CheckFeedback {
+  if (result.kind === 'success') {
+    return {
+      kind: 'success',
+      title: 'Exact match',
+      message: `You built ${recipe.product.name}. Locking in your round win...`,
+    };
+  }
+
+  if (result.kind === 'invalid_missing') {
+    return { kind: 'warning', title: 'Almost there', message: result.message };
+  }
+
+  if (result.kind === 'invalid_extra') {
+    return { kind: 'warning', title: 'Too many ingredients', message: result.message };
+  }
+
+  if (result.kind === 'wrong_product') {
+    return { kind: 'error', title: 'Different compound', message: result.message };
+  }
+
+  return { kind: 'error', title: 'No match', message: result.message };
+}
+
+function createEmptyTouchDragState(): TouchDragState {
+  return {
+    isDragging: false,
+    element: null,
+    x: 0,
+    y: 0,
+    startX: 0,
+    startY: 0,
+  };
+}
+
+function getSharedTimerMs(value: SharedTimerValue): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (
+    value &&
+    typeof value === 'object' &&
+    'toMillis' in value &&
+    typeof value.toMillis === 'function'
+  ) {
+    return value.toMillis();
+  }
+
+  return null;
+}
+
+function getElapsedFromSharedTimer(
+  value: SharedTimerValue,
+  durationMs: number,
+): number {
+  const startMs = getSharedTimerMs(value);
+  if (startMs == null) {
+    return 0;
+  }
+
+  return Math.min(Math.max(Date.now() - startMs, 0), durationMs);
+}
+
+function getRemainingSeconds(durationMs: number, elapsedMs: number): number {
+  const remainingMs = Math.max(0, durationMs - elapsedMs);
+  return Math.ceil(remainingMs / 1000);
 }
 
 async function getUserDisplayName(uid: string): Promise<string> {
@@ -132,425 +264,894 @@ async function getUserDisplayName(uid: string): Promise<string> {
       return data.username || data.displayName || 'Player';
     }
   } catch {
-    // ignore
+    // Ignore profile lookup failures and fall back to a generic label.
   }
+
   return 'Player';
 }
 
-/* ------------------------------------------------------------------ */
-/*  Component                                                          */
-/* ------------------------------------------------------------------ */
-
 export default function ChemicalFormulaRacePage() {
   const { user } = useAuthStore();
-
   const [screen, setScreen] = useState<Screen>('lobby');
   const [gameData, setGameData] = useState<GameData | null>(null);
   const [joinCode, setJoinCode] = useState('');
   const [winnerText, setWinnerText] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [inputValue, setInputValue] = useState('');
-  const [feedback, setFeedback] = useState<'correct' | 'incorrect' | null>(null);
   const [timeLeft, setTimeLeft] = useState(ROUND_TIME);
-  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [selectedElement, setSelectedElement] = useState<LabElement | null>(null);
+  const [chamberElements, setChamberElements] = useState<LabElement[]>([]);
+  const [checkFeedback, setCheckFeedback] = useState<CheckFeedback | null>(null);
+  const [checkBusy, setCheckBusy] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [roundResultCountdown, setRoundResultCountdown] = useState(ROUND_RESULT_DELAY);
+  const [touchDrag, setTouchDrag] = useState<TouchDragState>(createEmptyTouchDragState);
+  const [isChamberHovered, setIsChamberHovered] = useState(false);
 
-  const gameIdRef = useRef<string>(undefined);
   const unsubRef = useRef<(() => void) | undefined>(undefined);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const roundStartRef = useRef<number>(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const roundResultTimerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const activeRoundKeyRef = useRef('');
+  const timeoutRoundKeyRef = useRef('');
+  const autoAdvanceRoundKeyRef = useRef('');
+  const activeResultKeyRef = useRef('');
+  const chamberTouchRef = useRef<HTMLDivElement | null>(null);
+  const dragTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isDraggingRef = useRef(false);
+  const roundTickStartedAtRef = useRef(0);
+  const roundElapsedBaseMsRef = useRef(0);
+  const resultTickStartedAtRef = useRef(0);
+  const resultElapsedBaseMsRef = useRef(0);
+  const previousGameStateRef = useRef<{
+    status: MatchStatus;
+    currentRound: number;
+    roundEnded: boolean;
+  } | null>(null);
 
-  /* ---------- derived ---------- */
-  const myPlayerNum =
-    gameData && user
-      ? gameData.player1 === user.uid
-        ? 1
-        : gameData.player2 === user.uid
-          ? 2
-          : null
-      : null;
+  const myPlayerNum = gameData && user
+    ? gameData.player1 === user.uid
+      ? 1
+      : gameData.player2 === user.uid
+        ? 2
+        : null
+    : null;
 
-  const currentCompound = gameData ? getCompound(gameData.currentCompoundId) : null;
-  const isRoundActive = gameData && !gameData.roundEnded && timeLeft > 0;
+  const currentRecipe = useMemo(() => {
+    if (!gameData) {
+      return null;
+    }
+    return recipes[gameData.currentRecipeIndex] ?? null;
+  }, [gameData]);
 
-  /* ---------- cleanup ---------- */
+  const currentPoolElements = useMemo(() => {
+    if (!gameData) {
+      return [];
+    }
+
+    return gameData.currentPoolSymbols
+      .map((symbol) => ELEMENT_BY_SYMBOL.get(symbol))
+      .filter((element): element is LabElement => Boolean(element));
+  }, [gameData]);
+
+  const chamberGroups = useMemo(
+    () =>
+      chamberElements.reduce<{ element: LabElement; count: number; indices: number[] }[]>(
+        (groups, element, index) => {
+          const existing = groups.find(
+            (group) => group.element.symbol === element.symbol,
+          );
+
+          if (existing) {
+            existing.count += 1;
+            existing.indices.push(index);
+            return groups;
+          }
+
+          groups.push({ element, count: 1, indices: [index] });
+          return groups;
+        },
+        [],
+      ),
+    [chamberElements],
+  );
+
+  const roundKey = gameData
+    ? `${gameData.currentRound}`
+    : '';
+
+  const elapsedSeconds = Math.max(0, ROUND_TIME - timeLeft);
+  const hintCountdown = Math.max(HINT_DELAY - elapsedSeconds, 0);
+  const showHint = Boolean(
+    gameData &&
+    currentRecipe &&
+    screen === 'game' &&
+    !gameData.roundEnded &&
+    hintCountdown === 0,
+  );
+  const isRoundActive = Boolean(
+    gameData &&
+    currentRecipe &&
+    screen === 'game' &&
+    !gameData.roundEnded &&
+    timeLeft > 0,
+  );
+  const roundSummary = gameData && currentRecipe && gameData.roundEnded
+    ? getRoundSummary(gameData, currentRecipe)
+    : null;
+
   const cleanup = useCallback(() => {
     if (unsubRef.current) {
       unsubRef.current();
       unsubRef.current = undefined;
     }
+
     if (timerRef.current) {
       clearInterval(timerRef.current);
-      timerRef.current = null;
+      timerRef.current = undefined;
     }
-    gameIdRef.current = undefined;
+
+    if (roundResultTimerRef.current) {
+      clearInterval(roundResultTimerRef.current);
+      roundResultTimerRef.current = undefined;
+    }
+
+    if (dragTimerRef.current) {
+      clearTimeout(dragTimerRef.current);
+      dragTimerRef.current = null;
+    }
+
+    activeRoundKeyRef.current = '';
+    timeoutRoundKeyRef.current = '';
+    autoAdvanceRoundKeyRef.current = '';
+    activeResultKeyRef.current = '';
+    isDraggingRef.current = false;
   }, []);
 
   useEffect(() => {
     return () => cleanup();
   }, [cleanup]);
 
-  /* ---------- Timer ---------- */
   useEffect(() => {
-    if (screen !== 'game' || !gameData || gameData.roundEnded) return;
-
-    const elapsed = Math.floor((Date.now() - gameData.roundStartTime) / 1000);
-    const remaining = Math.max(0, ROUND_TIME - elapsed);
-    setTimeLeft(remaining);
-
-    if (remaining === 0 && !gameData.roundEnded) {
-      // Round time expired, move to next round
-      handleRoundTimeout();
+    if (!touchDrag.isDragging) {
       return;
     }
 
-    timerRef.current = setInterval(() => {
-      setTimeLeft((prev) => {
-        const newTime = prev - 1;
-        if (newTime <= 0 && gameData && !gameData.roundEnded) {
-          handleRoundTimeout();
-          return 0;
-        }
-        return newTime;
-      });
-    }, 1000);
+    const scrollY = window.scrollY;
+    document.body.style.touchAction = 'none';
+    document.body.style.overscrollBehavior = 'none';
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
 
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      document.body.style.touchAction = '';
+      document.body.style.overscrollBehavior = '';
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      window.scrollTo(0, scrollY);
     };
-  }, [screen, gameData, gameData?.roundEnded]);
+  }, [touchDrag.isDragging]);
 
-  /* ---------- Firestore listener ---------- */
   const listenToGame = useCallback(
     (gameId: string) => {
       cleanup();
-      gameIdRef.current = gameId;
 
-      const unsub = onSnapshot(doc(db, 'formulaRaceGames', gameId), (snap) => {
-        if (!snap.exists()) {
-          setGameData(null);
-          setScreen('lobby');
-          setError('Game was cancelled.');
-          cleanup();
-          return;
-        }
-
-        const data = snap.data() as Omit<GameData, 'id'>;
-        const gd: GameData = { ...data, id: gameId };
-        setGameData(gd);
-
-        if (gd.status === 'waiting') {
-          setScreen('waiting');
-        } else if (gd.status === 'playing') {
-          setScreen('game');
-          setHasSubmitted(false);
-          setFeedback(null);
-          setInputValue('');
-          const elapsed = Math.floor((Date.now() - gd.roundStartTime) / 1000);
-          const remaining = Math.max(0, ROUND_TIME - elapsed);
-          setTimeLeft(remaining);
-        } else if (gd.status === 'completed') {
-          if (gd.winner === 0) {
-            setWinnerText("It's a Tie!");
-          } else if (gd.winner === 1) {
-            setWinnerText(`${gd.p1Name} Wins!`);
-          } else {
-            setWinnerText(`${gd.p2Name} Wins!`);
+      unsubRef.current = onSnapshot(
+        doc(db, 'formulaRaceGames', gameId),
+        (snap) => {
+          if (!snap.exists()) {
+            cleanup();
+            setGameData(null);
+            setScreen('lobby');
+            setError('Game was cancelled.');
+            return;
           }
-          setScreen('victory');
-        }
-      });
 
-      unsubRef.current = unsub;
+          const raw = snap.data() as Partial<GameData>;
+          if (
+            typeof raw.currentRecipeIndex !== 'number' ||
+            !Array.isArray(raw.currentPoolSymbols)
+          ) {
+            cleanup();
+            setGameData(null);
+            setScreen('lobby');
+            setError('This room uses an outdated Formula Race version. Create a new room.');
+            return;
+          }
+
+          const nextGameData = { ...raw, id: gameId } as GameData;
+          setGameData(nextGameData);
+
+          if (nextGameData.status === 'waiting') {
+            setScreen('waiting');
+            return;
+          }
+
+          if (nextGameData.status === 'playing') {
+            setScreen('game');
+            return;
+          }
+
+          setWinnerText(getMatchWinnerText(nextGameData));
+          setScreen('victory');
+        },
+        (snapshotError) => {
+          console.error('[FormulaRace] Snapshot error:', snapshotError);
+          setError('Connection to the room was lost.');
+        },
+      );
     },
     [cleanup],
   );
 
-  /* ---------- Create Game ---------- */
+  const handleRoundTimeout = useCallback(async () => {
+    if (!gameData) {
+      return;
+    }
+
+    try {
+      await runTransaction(db, async (transaction) => {
+        const gameRef = doc(db, 'formulaRaceGames', gameData.id);
+        const snap = await transaction.get(gameRef);
+
+        if (!snap.exists()) {
+          return;
+        }
+
+        const latest = snap.data() as GameData;
+        if (latest.status !== 'playing' || latest.roundEnded) {
+          return;
+        }
+
+        const roundStartedAtMs = getSharedTimerMs(latest.roundStartTime);
+        if (
+          roundStartedAtMs != null
+          && Date.now() < roundStartedAtMs + ROUND_TIME_MS
+        ) {
+          return;
+        }
+
+        transaction.update(gameRef, {
+          roundEnded: true,
+          roundWinner: 0,
+          roundResolvedAt: serverTimestamp(),
+        });
+      });
+    } catch (transactionError) {
+      console.error('[FormulaRace] Timeout transaction failed:', transactionError);
+    }
+  }, [gameData]);
+
+  useEffect(() => {
+    if (!gameData || screen !== 'game') {
+      return;
+    }
+
+    if (activeRoundKeyRef.current === roundKey) {
+      return;
+    }
+
+    activeRoundKeyRef.current = roundKey;
+    timeoutRoundKeyRef.current = '';
+    autoAdvanceRoundKeyRef.current = '';
+    activeResultKeyRef.current = '';
+    const previousGameState = previousGameStateRef.current;
+    const isLiveRoundTransition = previousGameState != null && (
+      previousGameState.status !== gameData.status
+      || previousGameState.currentRound !== gameData.currentRound
+      || previousGameState.roundEnded
+    );
+    const initialElapsedMs =
+      gameData.status === 'playing' && !gameData.roundEnded && !isLiveRoundTransition
+        ? getElapsedFromSharedTimer(gameData.roundStartTime, ROUND_TIME_MS)
+        : 0;
+    roundElapsedBaseMsRef.current = initialElapsedMs;
+    roundTickStartedAtRef.current = performance.now();
+    setTimeLeft(getRemainingSeconds(ROUND_TIME_MS, initialElapsedMs));
+    setRoundResultCountdown(ROUND_RESULT_DELAY);
+    if (dragTimerRef.current) {
+      clearTimeout(dragTimerRef.current);
+      dragTimerRef.current = null;
+    }
+    isDraggingRef.current = false;
+    setTouchDrag(createEmptyTouchDragState());
+    setIsChamberHovered(false);
+    setSelectedElement(null);
+    setChamberElements([]);
+    setCheckFeedback(null);
+    setCheckBusy(false);
+    setIsDragOver(false);
+  }, [gameData, roundKey, screen]);
+
+  useEffect(() => {
+    if (
+      screen !== 'game' ||
+      !gameData ||
+      gameData.status !== 'playing' ||
+      gameData.roundEnded
+    ) {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = undefined;
+      }
+      return;
+    }
+
+    const syncTimer = () => {
+      const elapsedMs =
+        roundElapsedBaseMsRef.current + (performance.now() - roundTickStartedAtRef.current);
+      setTimeLeft(getRemainingSeconds(ROUND_TIME_MS, elapsedMs));
+    };
+
+    syncTimer();
+    timerRef.current = setInterval(syncTimer, 250);
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = undefined;
+      }
+    };
+  }, [gameData, gameData?.roundEnded, gameData?.status, roundKey, screen]);
+
+  useEffect(() => {
+    if (isRoundActive) {
+      return;
+    }
+
+    if (dragTimerRef.current) {
+      clearTimeout(dragTimerRef.current);
+      dragTimerRef.current = null;
+    }
+
+    isDraggingRef.current = false;
+    setTouchDrag((current) =>
+      current.element || current.isDragging ? createEmptyTouchDragState() : current,
+    );
+    setIsChamberHovered(false);
+  }, [isRoundActive]);
+
+  useEffect(() => {
+    if (!gameData || screen !== 'game' || gameData.roundEnded || timeLeft > 0) {
+      return;
+    }
+
+    if (timeoutRoundKeyRef.current === roundKey) {
+      return;
+    }
+
+    timeoutRoundKeyRef.current = roundKey;
+    void handleRoundTimeout();
+  }, [gameData, handleRoundTimeout, roundKey, screen, timeLeft]);
+
   const handleCreate = async () => {
     if (!user) {
       setError('You must be logged in to create a game.');
       return;
     }
+
     setError('');
     setLoading(true);
 
     try {
-      const code = generateRoomCode();
       const displayName = await getUserDisplayName(user.uid);
-      const compound = getRandomCompound();
 
-      const gameDoc: Omit<GameData, 'id'> = {
-        player1: user.uid,
-        player2: null,
-        p1Name: displayName,
-        p2Name: '',
-        status: 'waiting',
-        currentRound: 1,
-        currentCompoundId: compound.id,
-        p1Score: 0,
-        p2Score: 0,
-        p1Submissions: [],
-        p2Submissions: [],
-        roundStartTime: Date.now(),
-        roundEnded: false,
-        winner: null,
-        createdAt: serverTimestamp(),
-      };
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const code = generateRoomCode();
+        const gameRef = doc(db, 'formulaRaceGames', code);
+        const existing = await getDoc(gameRef);
+        if (existing.exists()) {
+          continue;
+        }
 
-      await setDoc(doc(db, 'formulaRaceGames', code), gameDoc);
-      listenToGame(code);
-    } catch (err) {
+        const roundState = createRoundState();
+        await setDoc(gameRef, {
+          player1: user.uid,
+          player2: null,
+          p1Name: displayName,
+          p2Name: '',
+          status: 'waiting',
+          currentRound: 1,
+          p1Score: 0,
+          p2Score: 0,
+          ...roundState,
+          winner: null,
+          createdAt: serverTimestamp(),
+        });
+
+        listenToGame(code);
+        setLoading(false);
+        return;
+      }
+
+      setError('Could not reserve a room code. Please try again.');
+    } catch (createError) {
+      console.error('[FormulaRace] Create failed:', createError);
       setError('Failed to create game. Please try again.');
-      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  /* ---------- Join Game ---------- */
   const handleJoin = async () => {
     if (!user) {
       setError('You must be logged in to join a game.');
       return;
     }
+
     const code = joinCode.trim().toUpperCase();
     if (!code) {
       setError('Please enter a room code.');
       return;
     }
+
     setError('');
     setLoading(true);
 
     try {
-      const snap = await getDoc(doc(db, 'formulaRaceGames', code));
-      if (!snap.exists()) {
-        setError('Game not found. Check the room code.');
-        setLoading(false);
-        return;
-      }
-
-      const data = snap.data() as Omit<GameData, 'id'>;
-      if (data.status !== 'waiting') {
-        setError('This game has already started or ended.');
-        setLoading(false);
-        return;
-      }
-
-      if (data.player1 === user.uid) {
-        setError('You cannot join your own game.');
-        setLoading(false);
-        return;
-      }
-
       const displayName = await getUserDisplayName(user.uid);
+      await runTransaction(db, async (transaction) => {
+        const gameRef = doc(db, 'formulaRaceGames', code);
+        const snap = await transaction.get(gameRef);
 
-      await updateDoc(doc(db, 'formulaRaceGames', code), {
-        player2: user.uid,
-        p2Name: displayName,
-        status: 'playing',
-        roundStartTime: Date.now(),
+        if (!snap.exists()) {
+          throw new Error('Game not found. Check the room code.');
+        }
+
+        const data = snap.data() as Partial<GameData>;
+        if (
+          typeof data.currentRecipeIndex !== 'number' ||
+          !Array.isArray(data.currentPoolSymbols)
+        ) {
+          throw new Error('This room uses an outdated Formula Race version. Create a new room.');
+        }
+
+        if (data.status !== 'waiting') {
+          throw new Error('This game has already started or ended.');
+        }
+
+        if (data.player1 === user.uid) {
+          throw new Error('You cannot join your own game.');
+        }
+
+        if (data.player2) {
+          throw new Error('This room is already full.');
+        }
+
+        transaction.update(gameRef, {
+          player2: user.uid,
+          p2Name: displayName,
+          status: 'playing',
+          roundStartTime: serverTimestamp(),
+          roundEnded: false,
+          roundWinner: null,
+          roundResolvedAt: null,
+        });
       });
 
       listenToGame(code);
-    } catch (err) {
-      setError('Failed to join game. Please try again.');
-      console.error(err);
+    } catch (joinError) {
+      console.error('[FormulaRace] Join failed:', joinError);
+      setError(
+        joinError instanceof Error
+          ? joinError.message
+          : 'Failed to join game. Please try again.',
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  /* ---------- Submit Formula ---------- */
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!gameData || !user || !myPlayerNum || !isRoundActive || hasSubmitted) return;
-
-    const userInput = normalizeFormula(inputValue);
-    const correctFormula = normalizeFormula(currentCompound!.formula);
-    const isCorrect = userInput === correctFormula;
-
-    // Calculate score based on speed (earlier = better) and accuracy
-    const elapsedTime = Math.floor((Date.now() - gameData.roundStartTime) / 1000);
-    const speedPoints = Math.max(0, (ROUND_TIME - elapsedTime) / ROUND_TIME * 100);
-    const accuracyMultiplier = isCorrect ? 1 : 0.25;
-    const roundPoints = Math.round(speedPoints * accuracyMultiplier);
-
-    setFeedback(isCorrect ? 'correct' : 'incorrect');
-    setHasSubmitted(true);
-
-    try {
-      const newSubmission: RoundSubmission = {
-        playerNum: myPlayerNum,
-        formula: inputValue,
-        timestamp: elapsedTime,
-        correct: isCorrect,
-      };
-
-      const updates: Record<string, unknown> = {};
-
-      if (myPlayerNum === 1) {
-        updates.p1Submissions = [...gameData.p1Submissions, newSubmission];
-      } else {
-        updates.p2Submissions = [...gameData.p2Submissions, newSubmission];
+  const addToChamber = useCallback(
+    (element: LabElement) => {
+      if (!isRoundActive) {
+        return;
       }
 
-      // Check if both players have submitted or time is up
-      const allSubmitted =
-        (myPlayerNum === 1 && gameData.p2Submissions.length > 0) ||
-        (myPlayerNum === 2 && gameData.p1Submissions.length > 0);
+      setChamberElements((current) => [...current, element]);
+    },
+    [isRoundActive],
+  );
 
-      if (allSubmitted || timeLeft <= 0) {
-        // End this round and determine winner
-        const p1LastSubmission = myPlayerNum === 1 ? newSubmission : gameData.p1Submissions[gameData.p1Submissions.length - 1];
-        const p2LastSubmission = myPlayerNum === 2 ? newSubmission : gameData.p2Submissions[gameData.p2Submissions.length - 1];
-
-        let p1RoundWin = false,
-          p2RoundWin = false;
-
-        if (p1LastSubmission && p2LastSubmission) {
-          if (p1LastSubmission.correct && !p2LastSubmission.correct) {
-            p1RoundWin = true;
-          } else if (!p1LastSubmission.correct && p2LastSubmission.correct) {
-            p2RoundWin = true;
-          } else if (p1LastSubmission.correct && p2LastSubmission.correct) {
-            p1RoundWin = p1LastSubmission.timestamp < p2LastSubmission.timestamp;
-            p2RoundWin = !p1RoundWin;
-          }
-        }
-
-        const newP1Score = gameData.p1Score + (p1RoundWin ? 1 : 0);
-        const newP2Score = gameData.p2Score + (p2RoundWin ? 1 : 0);
-
-        updates.p1Score = newP1Score;
-        updates.p2Score = newP2Score;
-        updates.roundEnded = true;
-
-        // Check if game is over
-        if (newP1Score >= WINNING_ROUNDS || newP2Score >= WINNING_ROUNDS) {
-          updates.status = 'completed';
-          if (newP1Score > newP2Score) {
-            updates.winner = 1;
-          } else if (newP2Score > newP1Score) {
-            updates.winner = 2;
-          } else {
-            updates.winner = 0;
-          }
-        }
+  const handleDragStart = useCallback(
+    (event: React.DragEvent<HTMLButtonElement>, element: LabElement) => {
+      if (!isRoundActive) {
+        return;
       }
 
-      await updateDoc(doc(db, 'formulaRaceGames', gameData.id), updates);
-    } catch (err) {
-      console.error('Failed to submit formula:', err);
-      setHasSubmitted(false);
-    }
-  };
+      event.dataTransfer.effectAllowed = 'copy';
+      event.dataTransfer.setData('application/json', JSON.stringify(element));
+    },
+    [isRoundActive],
+  );
 
-  /* ---------- Next Round ---------- */
-  const handleNextRound = async () => {
-    if (!gameData) return;
+  const handleDragOver = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      if (!isRoundActive) {
+        return;
+      }
 
-    try {
-      const newCompound = getRandomCompound();
-      await updateDoc(doc(db, 'formulaRaceGames', gameData.id), {
-        currentCompoundId: newCompound.id,
-        p1Submissions: [],
-        p2Submissions: [],
-        roundStartTime: Date.now(),
-        roundEnded: false,
-        currentRound: gameData.currentRound + 1,
+      event.preventDefault();
+      setIsDragOver(true);
+    },
+    [isRoundActive],
+  );
+
+  const handleDragLeave = useCallback(() => {
+    setIsDragOver(false);
+  }, []);
+
+  const handleDropToChamber = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      if (!isRoundActive) {
+        return;
+      }
+
+      event.preventDefault();
+      setIsDragOver(false);
+
+      try {
+        const payload = event.dataTransfer.getData('application/json');
+        if (!payload) {
+          return;
+        }
+
+        const parsed = JSON.parse(payload) as LabElement;
+        const element = ELEMENT_BY_SYMBOL.get(parsed.symbol);
+        if (element) {
+          addToChamber(element);
+        }
+      } catch {
+        // Ignore invalid drop payloads.
+      }
+    },
+    [addToChamber, isRoundActive],
+  );
+
+  const handleTouchStart = useCallback(
+    (element: LabElement) => (event: React.TouchEvent<HTMLElement>) => {
+      if (!isRoundActive) {
+        return;
+      }
+
+      const touch = event.touches[0];
+      setTouchDrag({
+        isDragging: false,
+        element,
+        x: touch.clientX,
+        y: touch.clientY,
+        startX: touch.clientX,
+        startY: touch.clientY,
       });
 
-      setInputValue('');
-      setFeedback(null);
-      setHasSubmitted(false);
-    } catch (err) {
-      console.error('Failed to start next round:', err);
-    }
-  };
+      if (dragTimerRef.current) {
+        clearTimeout(dragTimerRef.current);
+      }
 
-  /* ---------- Round Timeout ---------- */
-  const handleRoundTimeout = async () => {
-    if (!gameData || gameData.roundEnded) return;
+      dragTimerRef.current = setTimeout(() => {
+        setTouchDrag((current) => {
+          const dx = current.x - current.startX;
+          const dy = current.y - current.startY;
+
+          if (Math.sqrt(dx * dx + dy * dy) > 15) {
+            isDraggingRef.current = false;
+            return createEmptyTouchDragState();
+          }
+
+          isDraggingRef.current = true;
+          return { ...current, isDragging: true };
+        });
+      }, TOUCH_DRAG_HOLD_DELAY);
+    },
+    [isRoundActive],
+  );
+
+  const handleTouchMove = useCallback(
+    (event: React.TouchEvent<HTMLElement>) => {
+      if (!touchDrag.element) {
+        return;
+      }
+
+      const touch = event.touches[0];
+      setTouchDrag((current) => ({
+        ...current,
+        x: touch.clientX,
+        y: touch.clientY,
+      }));
+
+      if (isDraggingRef.current) {
+        event.preventDefault();
+      }
+
+      if (chamberTouchRef.current) {
+        const rect = chamberTouchRef.current.getBoundingClientRect();
+        const isOver =
+          touch.clientX >= rect.left &&
+          touch.clientX <= rect.right &&
+          touch.clientY >= rect.top &&
+          touch.clientY <= rect.bottom;
+        setIsChamberHovered(isOver);
+      }
+    },
+    [touchDrag.element],
+  );
+
+  const handleTouchEnd = useCallback(() => {
+    if (dragTimerRef.current) {
+      clearTimeout(dragTimerRef.current);
+      dragTimerRef.current = null;
+    }
+
+    if (isDraggingRef.current && touchDrag.element && isChamberHovered && isRoundActive) {
+      addToChamber(touchDrag.element);
+    }
+
+    isDraggingRef.current = false;
+    setTouchDrag(createEmptyTouchDragState());
+    setIsChamberHovered(false);
+  }, [addToChamber, isChamberHovered, isRoundActive, touchDrag.element]);
+
+  const handleElementClick = useCallback(
+    (element: LabElement) => {
+      if (!isRoundActive) {
+        return;
+      }
+
+      setSelectedElement((current) =>
+        current?.symbol === element.symbol ? null : element,
+      );
+    },
+    [isRoundActive],
+  );
+
+  const handleChamberClick = useCallback(() => {
+    if (!selectedElement || !isRoundActive) {
+      return;
+    }
+
+    addToChamber(selectedElement);
+    setSelectedElement(null);
+  }, [addToChamber, isRoundActive, selectedElement]);
+
+  const removeFromChamber = useCallback(
+    (index: number) => {
+      if (!isRoundActive) {
+        return;
+      }
+
+      setChamberElements((current) =>
+        current.filter((_, currentIndex) => currentIndex !== index),
+      );
+    },
+    [isRoundActive],
+  );
+
+  const clearChamber = useCallback(() => {
+    if (!isRoundActive) {
+      return;
+    }
+
+    setChamberElements([]);
+    setSelectedElement(null);
+  }, [isRoundActive]);
+
+  const handleCheckChamber = useCallback(async () => {
+    if (!gameData || !currentRecipe || !myPlayerNum || checkBusy || !isRoundActive) {
+      return;
+    }
+
+    const attempt = attemptRecipeCombination(chamberElements, currentRecipe);
+    setCheckFeedback(getCheckFeedback(attempt, currentRecipe));
+
+    if (attempt.kind !== 'success') {
+      return;
+    }
+
+    setCheckBusy(true);
 
     try {
-      const p1Sub = gameData.p1Submissions[gameData.p1Submissions.length - 1];
-      const p2Sub = gameData.p2Submissions[gameData.p2Submissions.length - 1];
+      const outcome = await runTransaction(db, async (transaction) => {
+        const gameRef = doc(db, 'formulaRaceGames', gameData.id);
+        const snap = await transaction.get(gameRef);
 
-      let p1RoundWin = false,
-        p2RoundWin = false;
-
-      if (p1Sub && p2Sub) {
-        if (p1Sub.correct && !p2Sub.correct) {
-          p1RoundWin = true;
-        } else if (!p1Sub.correct && p2Sub.correct) {
-          p2RoundWin = true;
-        } else if (p1Sub.correct && p2Sub.correct) {
-          p1RoundWin = p1Sub.timestamp < p2Sub.timestamp;
-          p2RoundWin = !p1RoundWin;
+        if (!snap.exists()) {
+          return 'missing';
         }
-      }
 
-      const newP1Score = gameData.p1Score + (p1RoundWin ? 1 : 0);
-      const newP2Score = gameData.p2Score + (p2RoundWin ? 1 : 0);
-
-      const updates: Record<string, unknown> = {
-        p1Score: newP1Score,
-        p2Score: newP2Score,
-        roundEnded: true,
-      };
-
-      if (newP1Score >= WINNING_ROUNDS || newP2Score >= WINNING_ROUNDS) {
-        updates.status = 'completed';
-        if (newP1Score > newP2Score) {
-          updates.winner = 1;
-        } else if (newP2Score > newP1Score) {
-          updates.winner = 2;
-        } else {
-          updates.winner = 0;
+        const latest = snap.data() as GameData;
+        if (latest.status !== 'playing' || latest.roundEnded) {
+          return 'closed';
         }
-      }
 
-      await updateDoc(doc(db, 'formulaRaceGames', gameData.id), updates);
-    } catch (err) {
-      console.error('Failed to handle round timeout:', err);
+        const nextP1Score = latest.p1Score + (myPlayerNum === 1 ? 1 : 0);
+        const nextP2Score = latest.p2Score + (myPlayerNum === 2 ? 1 : 0);
+        const didWinMatch =
+          nextP1Score >= WINNING_ROUNDS || nextP2Score >= WINNING_ROUNDS;
+
+        transaction.update(gameRef, {
+          roundEnded: true,
+          roundWinner: myPlayerNum,
+          roundResolvedAt: serverTimestamp(),
+          p1Score: nextP1Score,
+          p2Score: nextP2Score,
+          ...(didWinMatch
+            ? {
+              status: 'completed' as MatchStatus,
+              winner: myPlayerNum,
+            }
+            : {}),
+        });
+
+        return 'won';
+      });
+
+      if (outcome !== 'won') {
+        setCheckFeedback({
+          kind: 'info',
+          title: 'Round already finished',
+          message: 'Your opponent locked in the result before this check completed.',
+        });
+      }
+    } catch (transactionError) {
+      console.error('[FormulaRace] Check transaction failed:', transactionError);
+      setCheckFeedback({
+        kind: 'error',
+        title: 'Check failed',
+        message: 'Could not submit your chamber. Try again.',
+      });
+    } finally {
+      setCheckBusy(false);
     }
-  };
+  }, [
+    chamberElements,
+    checkBusy,
+    currentRecipe,
+    gameData,
+    isRoundActive,
+    myPlayerNum,
+  ]);
 
-  /* ---------- Leave / Cancel ---------- */
+  const handleNextRound = useCallback(async () => {
+    if (!gameData || gameData.status !== 'playing') {
+      return;
+    }
+
+    setCheckBusy(true);
+
+    try {
+      await runTransaction(db, async (transaction) => {
+        const gameRef = doc(db, 'formulaRaceGames', gameData.id);
+        const snap = await transaction.get(gameRef);
+
+        if (!snap.exists()) {
+          return;
+        }
+
+        const latest = snap.data() as GameData;
+        if (latest.status !== 'playing' || !latest.roundEnded) {
+          return;
+        }
+
+        const nextRoundState = createRoundState(latest.currentRecipeIndex);
+        transaction.update(gameRef, {
+          currentRound: latest.currentRound + 1,
+          ...nextRoundState,
+        });
+      });
+    } catch (transactionError) {
+      console.error('[FormulaRace] Next round transaction failed:', transactionError);
+      setError('Could not start the next round. Please try again.');
+    } finally {
+      setCheckBusy(false);
+    }
+  }, [gameData]);
+
+  useEffect(() => {
+    if (
+      !gameData ||
+      screen !== 'game' ||
+      gameData.status !== 'playing' ||
+      !gameData.roundEnded
+    ) {
+      if (roundResultTimerRef.current) {
+        clearInterval(roundResultTimerRef.current);
+        roundResultTimerRef.current = undefined;
+      }
+      setRoundResultCountdown(ROUND_RESULT_DELAY);
+      return;
+    }
+
+    const resultKey = `${gameData.currentRound}:ended`;
+    if (activeResultKeyRef.current !== resultKey) {
+      const previousGameState = previousGameStateRef.current;
+      const isLiveRoundEnd = previousGameState != null
+        && previousGameState.currentRound === gameData.currentRound
+        && !previousGameState.roundEnded;
+      const initialElapsedMs = isLiveRoundEnd
+        ? 0
+        : getElapsedFromSharedTimer(gameData.roundResolvedAt, ROUND_RESULT_DELAY_MS);
+      activeResultKeyRef.current = resultKey;
+      resultElapsedBaseMsRef.current = initialElapsedMs;
+      resultTickStartedAtRef.current = performance.now();
+      setRoundResultCountdown(getRemainingSeconds(ROUND_RESULT_DELAY_MS, initialElapsedMs));
+    }
+
+    const syncCountdown = () => {
+      const elapsedMs =
+        resultElapsedBaseMsRef.current + (performance.now() - resultTickStartedAtRef.current);
+      const remaining = getRemainingSeconds(ROUND_RESULT_DELAY_MS, elapsedMs);
+      setRoundResultCountdown(remaining);
+
+      if (remaining === 0 && autoAdvanceRoundKeyRef.current !== roundKey) {
+        autoAdvanceRoundKeyRef.current = roundKey;
+        void handleNextRound();
+      }
+    };
+
+    syncCountdown();
+    roundResultTimerRef.current = setInterval(syncCountdown, 250);
+
+    return () => {
+      if (roundResultTimerRef.current) {
+        clearInterval(roundResultTimerRef.current);
+        roundResultTimerRef.current = undefined;
+      }
+    };
+  }, [gameData, handleNextRound, roundKey, screen]);
+
+  useEffect(() => {
+    previousGameStateRef.current = gameData
+      ? {
+          status: gameData.status,
+          currentRound: gameData.currentRound,
+          roundEnded: gameData.roundEnded,
+        }
+      : null;
+  }, [gameData]);
+
   const handleLeave = async () => {
-    if (!gameData) return;
+    if (!gameData || !user) {
+      return;
+    }
+
+    if (gameData.player1 !== user.uid) {
+      setError('Only the host can cancel this room.');
+      return;
+    }
+
     try {
       await deleteDoc(doc(db, 'formulaRaceGames', gameData.id));
     } catch {
-      // ignore
+      // Ignore delete errors during cleanup.
     }
+
     cleanup();
     setGameData(null);
     setScreen('lobby');
   };
 
-  /* ---------- Play Again ---------- */
   const handlePlayAgain = () => {
     cleanup();
     setGameData(null);
+    setJoinCode('');
     setWinnerText('');
     setError('');
-    setJoinCode('');
-    setInputValue('');
-    setFeedback(null);
-    setHasSubmitted(false);
+    setTimeLeft(ROUND_TIME);
+    setSelectedElement(null);
+    setChamberElements([]);
+    setCheckFeedback(null);
+    setCheckBusy(false);
+    setIsDragOver(false);
     setScreen('lobby');
   };
-
-  /* ================================================================== */
-  /*  Render                                                             */
-  /* ================================================================== */
 
   if (!user) {
     return (
       <div className={styles.container}>
-        <p>You must be logged in to play.</p>
+        <div className={styles.gameArea}>
+          <p className={styles.errorMsg}>You must be logged in to play.</p>
+        </div>
       </div>
     );
   }
@@ -563,11 +1164,12 @@ export default function ChemicalFormulaRacePage() {
 
       <div className={styles.gameArea}>
         <h1 className={styles.title}>Chemical Formula Race</h1>
-        <p className={styles.subtitle}>Type formulas faster than your opponent!</p>
+        <p className={styles.subtitle}>
+          Build first. Win the round.
+        </p>
 
         {error && <p className={styles.errorMsg}>{error}</p>}
 
-        {/* ---- LOBBY ---- */}
         {screen === 'lobby' && (
           <div className={styles.lobbyContainer}>
             <GameTutorial
@@ -582,15 +1184,17 @@ export default function ChemicalFormulaRacePage() {
                 onClick={handleCreate}
                 disabled={loading}
               >
-                {loading ? 'Creating...' : '➕ Create Room'}
+                {loading ? 'Creating...' : 'Create Room'}
               </button>
+
               <div className={styles.divider}>or</div>
+
               <div className={styles.joinSection}>
                 <input
                   type="text"
                   placeholder="Enter room code"
                   value={joinCode}
-                  onChange={(e) => setJoinCode(e.target.value)}
+                  onChange={(event) => setJoinCode(event.target.value)}
                   className={styles.joinInput}
                   maxLength={5}
                 />
@@ -599,99 +1203,259 @@ export default function ChemicalFormulaRacePage() {
                   onClick={handleJoin}
                   disabled={loading}
                 >
-                  {loading ? 'Joining...' : '🚪 Join Room'}
+                  {loading ? 'Joining...' : 'Join Room'}
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* ---- WAITING ---- */}
         {screen === 'waiting' && gameData && (
           <div className={styles.waitingContainer}>
             <div className={styles.roomCode}>
-              <p>Room Code:</p>
+              <p>Room Code</p>
               <h2>{gameData.id}</h2>
-              <p className={styles.shareText}>Share this code with your friend!</p>
+              <p className={styles.shareText}>Share this code with your friend.</p>
             </div>
 
             <div className={styles.playerWaiting}>
-              <p>Waiting for opponent...</p>
-              <div className={styles.spinner}></div>
+              <p>Waiting for an opponent to join...</p>
+              <div className={styles.spinner} />
             </div>
 
             <button className={styles.cancelBtn} onClick={handleLeave}>
-              Cancel
+              Cancel Room
             </button>
           </div>
         )}
 
-        {/* ---- GAME ---- */}
-        {screen === 'game' && gameData && currentCompound && (
+        {screen === 'game' && gameData && currentRecipe && (
           <div className={styles.gameContainer}>
-            <div className={styles.score}>
-              <div>
-                <strong>{gameData.p1Name}</strong>
-                <div className={styles.scoreValue}>{gameData.p1Score}</div>
+            <div className={styles.scoreboard}>
+              <div
+                className={`${styles.playerCard} ${myPlayerNum === 1 ? styles.playerCardActive : ''
+                  }`}
+              >
+                <span className={styles.playerLabel}>
+                  {gameData.p1Name}
+                  {myPlayerNum === 1 ? ' (You)' : ''}
+                </span>
+                <span className={styles.playerScore}>{gameData.p1Score}</span>
               </div>
-              <div className={styles.vs}>vs</div>
-              <div>
-                <div className={styles.scoreValue}>{gameData.p2Score}</div>
-                <strong>{gameData.p2Name}</strong>
+
+              <div className={styles.scoreDivider}>Race to {WINNING_ROUNDS}</div>
+
+              <div
+                className={`${styles.playerCard} ${myPlayerNum === 2 ? styles.playerCardActive : ''
+                  }`}
+              >
+                <span className={styles.playerLabel}>
+                  {gameData.p2Name || 'Opponent'}
+                  {myPlayerNum === 2 ? ' (You)' : ''}
+                </span>
+                <span className={styles.playerScore}>{gameData.p2Score}</span>
               </div>
             </div>
 
-            <div className={styles.roundInfo}>
-              <p>Round {gameData.currentRound} of {WINNING_ROUNDS}</p>
-              <div className={styles.timer}>{timeLeft}s</div>
+            <div className={styles.roundBar}>
+              <div className={styles.roundHeading}>
+                <span className={styles.roundEyebrow}>Round {gameData.currentRound}</span>
+                <strong className={styles.roundTarget}>{currentRecipe.product.name}</strong>
+              </div>
+
+              <div className={styles.roundMeta}>
+                <span className={styles.hintBadge}>
+                  {gameData.roundEnded
+                    ? 'Locked'
+                    : showHint
+                      ? 'Hint'
+                      : `Hint ${hintCountdown}s`}
+                </span>
+                <span className={styles.timer}>{timeLeft}s</span>
+              </div>
             </div>
 
-            <div className={styles.compoundDisplay}>
-              <div className={styles.compoundEmoji}>{currentCompound.emoji}</div>
-              <h2>What is the formula for...</h2>
-              <h3>{currentCompound.name}</h3>
-            </div>
-
-            {!gameData.roundEnded ? (
-              <form onSubmit={handleSubmit} className={styles.formulaForm}>
-                <input
-                  type="text"
-                  placeholder="Type the chemical formula..."
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  disabled={hasSubmitted || !isRoundActive}
-                  className={styles.formulaInput}
-                  autoFocus
-                />
-                <button
-                  type="submit"
-                  disabled={hasSubmitted || !isRoundActive || !inputValue.trim()}
-                  className={styles.submitBtn}
-                >
-                  Submit
-                </button>
-              </form>
-            ) : (
-              <div className={styles.roundEnd}>
-                {feedback === 'correct' && (
-                  <p className={styles.correct}>✓ Correct!</p>
-                )}
-                {feedback === 'incorrect' && (
-                  <p className={styles.incorrect}>✗ Incorrect</p>
-                )}
-                <p>The formula is: <strong>{currentCompound.formula}</strong></p>
+            {showHint && (
+              <div className={styles.hintPanel}>
+                <p className={styles.hintTitle}>Hint</p>
+                <div className={styles.hintChips}>
+                  {getHintLines(currentRecipe).map((hintLine) => (
+                    <span key={hintLine} className={styles.hintChip}>
+                      {hintLine}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 
-            {gameData.roundEnded && (
-              <button className={styles.nextRoundBtn} onClick={handleNextRound}>
-                Next Round
-              </button>
+            <div className={styles.boardGrid}>
+              <section className={styles.poolPanel}>
+                <div className={styles.panelHeaderCompact}>
+                  <h3>Elements</h3>
+                  <span className={styles.panelMeta}>Tap / drag</span>
+                </div>
+
+                <div className={styles.cardGrid}>
+                  {currentPoolElements.map((element) => (
+                    <button
+                      key={element.symbol}
+                      type="button"
+                      className={`${styles.ingredientCard} ${selectedElement?.symbol === element.symbol
+                        ? styles.ingredientCardSelected
+                        : ''
+                        }`}
+                      style={{ backgroundColor: element.color }}
+                      draggable={isRoundActive}
+                      onDragStart={(event) => handleDragStart(event, element)}
+                      onTouchStart={handleTouchStart(element)}
+                      onTouchMove={handleTouchMove}
+                      onTouchEnd={handleTouchEnd}
+                      onTouchCancel={handleTouchEnd}
+                      onClick={() => handleElementClick(element)}
+                    >
+                      <span className={styles.cardSymbol}>{element.symbol}</span>
+                      <span className={styles.cardName}>{element.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <section className={styles.chamberPanel}>
+                <div className={styles.panelHeaderCompact}>
+                  <h3>Chamber</h3>
+                  <span
+                    className={`${styles.panelMeta} ${
+                      selectedElement ? styles.panelMetaActive : ''
+                    }`}
+                  >
+                    {selectedElement
+                      ? `Selected ${selectedElement.symbol}`
+                      : 'Exact match'}
+                  </span>
+                </div>
+
+                <div
+                  className={`${styles.chamber} ${isDragOver ? styles.chamberActive : ''
+                    } ${selectedElement ? styles.chamberSelected : ''
+                    } ${isChamberHovered ? styles.chamberActive : ''}`}
+                  ref={chamberTouchRef}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDropToChamber}
+                  onTouchMove={handleTouchMove}
+                  onTouchEnd={handleTouchEnd}
+                  onTouchCancel={handleTouchEnd}
+                  onClick={handleChamberClick}
+                >
+                  {chamberGroups.length === 0 ? (
+                    <div className={styles.chamberEmpty}>
+                      <strong>Drop here</strong>
+                      <span>Tap or hold-drag</span>
+                    </div>
+                  ) : (
+                    <div className={styles.chamberGroups}>
+                      {chamberGroups.map((group) => (
+                        <div
+                          key={group.element.symbol}
+                          className={styles.chamberPill}
+                          style={{ backgroundColor: group.element.color }}
+                        >
+                          <span className={styles.chamberPillSymbol}>
+                            {group.element.symbol}
+                          </span>
+                          {group.count > 1 && (
+                            <span className={styles.chamberPillCount}>
+                              x{group.count}
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            className={styles.removePillBtn}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              const index =
+                                group.indices[group.indices.length - 1];
+                              removeFromChamber(index);
+                            }}
+                            disabled={!isRoundActive}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className={styles.actionRow}>
+                  <button
+                    type="button"
+                    className={styles.clearBtn}
+                    onClick={clearChamber}
+                    disabled={!isRoundActive || chamberElements.length === 0}
+                  >
+                    Clear
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.checkBtn}
+                    onClick={handleCheckChamber}
+                    disabled={!isRoundActive || chamberElements.length === 0 || checkBusy}
+                  >
+                    {checkBusy ? 'Checking...' : 'Check'}
+                  </button>
+                </div>
+              </section>
+            </div>
+
+            {checkFeedback && (
+              <div
+                className={`${styles.feedbackPanel} ${styles[`feedback${checkFeedback.kind[0].toUpperCase()}${checkFeedback.kind.slice(1)}`]
+                  }`}
+              >
+                <strong>{checkFeedback.title}</strong>
+                <span>{checkFeedback.message}</span>
+              </div>
+            )}
+
+            {gameData.roundEnded && gameData.status === 'playing' && roundSummary && (
+              <div className={styles.roundModalOverlay}>
+                <div
+                  className={`${styles.roundModal} ${gameData.roundWinner === 0
+                    ? styles.roundModalTimeout
+                    : styles.roundModalSolved
+                    }`}
+                >
+                  <p className={styles.roundModalEyebrow}>
+                    Round {gameData.currentRound} complete
+                  </p>
+                  <h3>{roundSummary.title}</h3>
+                  <p className={styles.roundModalText}>{roundSummary.message}</p>
+                  <div className={styles.answerLine}>
+                    <span>Formula:</span>
+                    <strong>{currentRecipe.product.symbol}</strong>
+                  </div>
+                  <div className={styles.roundModalFooter}>
+                    <span className={styles.roundModalTimer}>
+                      {roundResultCountdown > 0
+                        ? `Next round in ${roundResultCountdown}s`
+                        : 'Starting next round...'}
+                    </span>
+                    <button
+                      type="button"
+                      className={styles.roundModalSkipBtn}
+                      onClick={() => void handleNextRound()}
+                      disabled={checkBusy}
+                    >
+                      {checkBusy ? 'Starting...' : 'Skip Timer'}
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         )}
 
-        {/* ---- VICTORY ---- */}
         {screen === 'victory' && gameData && (
           <div className={styles.victoryContainer}>
             <h2 className={styles.victoryText}>{winnerText}</h2>
@@ -701,23 +1465,28 @@ export default function ChemicalFormulaRacePage() {
                 <p>{gameData.p1Name}</p>
                 <p className={styles.finalScoreValue}>{gameData.p1Score}</p>
               </div>
-              <span className={styles.finalVs}>—</span>
+
+              <span className={styles.finalVs}>-</span>
+
               <div>
-                <p className={styles.finalScoreValue}>{gameData.p2Score}</p>
                 <p>{gameData.p2Name}</p>
+                <p className={styles.finalScoreValue}>{gameData.p2Score}</p>
               </div>
             </div>
 
             <ShareGameScore
-              customMessage={`I scored ${myPlayerNum === 1 ? gameData.p1Score : gameData.p2Score} rounds in Chemical Formula Race! 🧪`}
+              customMessage={`I won ${myPlayerNum === 1 ? gameData.p1Score : gameData.p2Score} rounds in Chemical Formula Race.`}
               gameName="Chemical Formula Race"
             />
 
-            <GameRating gameId="chemical-formula-race" gameName="Chemical Formula Race" />
+            <GameRating
+              gameId="chemical-formula-race"
+              gameName="Chemical Formula Race"
+            />
 
             <div className={styles.victoryButtons}>
               <button className={styles.playAgainBtn} onClick={handlePlayAgain}>
-                ↻ Play Again
+                Play Again
               </button>
               <Link href="/games" className={styles.backToGamesBtn}>
                 Back to Games
@@ -726,6 +1495,24 @@ export default function ChemicalFormulaRacePage() {
           </div>
         )}
       </div>
+
+      {touchDrag.isDragging &&
+        touchDrag.element &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className={styles.touchGhost}
+            style={{
+              left: touchDrag.x - 56,
+              top: touchDrag.y - 56,
+              backgroundColor: touchDrag.element.color,
+            }}
+          >
+            <span className={styles.cardSymbol}>{touchDrag.element.symbol}</span>
+            <span className={styles.cardName}>{touchDrag.element.name}</span>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

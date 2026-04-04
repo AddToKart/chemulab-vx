@@ -548,8 +548,8 @@ export default function VolcanoPage() {
         {activeScreen === 'waiting' && currentGame && (
           <div className={`${styles.screen} ${styles.waitingScreen}`}>
             <h1 className={styles.title}>🌋 Waiting for Player 2</h1>
-            <p className={styles.waitingTitle}>Share this room code with your friend:</p>
-            <GameTutorial tutorial={gameTutorials.volcano} accentColor="#ef4444" className="mb-6" />
+            <p className={styles.subtitle}>Play with a friend to trigger the eruption!</p>
+            <GameTutorial tutorial={gameTutorials.volcano} accentColor="#ef4444" className="mb-4" />
 
             <div className={styles.roomCodeTag}>{currentGame.roomCode}</div>
 
@@ -609,9 +609,8 @@ export default function VolcanoPage() {
             {/* Turn indicator */}
             {currentGame.status === 'playing' && (
               <div
-                className={`${styles.turnIndicator} ${
-                  isMyTurn ? styles.turnIndicatorYou : styles.turnIndicatorOpponent
-                }`}
+                className={`${styles.turnIndicator} ${isMyTurn ? styles.turnIndicatorYou : styles.turnIndicatorOpponent
+                  }`}
               >
                 {isMyTurn
                   ? "🎯 Your Turn! Pick an ingredient!"
@@ -677,34 +676,30 @@ export default function VolcanoPage() {
               {/* Right: volcano */}
               <div className={styles.gameRight}>
                 <div
-                  className={`${styles.volcanoContainer} ${
-                    dropZoneActive ? styles.dropZoneActive : ''
-                  }`}
+                  className={`${styles.volcanoContainer} ${dropZoneActive ? styles.dropZoneActive : ''
+                    }`}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                 >
                   {/* Lava particles */}
                   <div
-                    className={`${styles.lavaParticles} ${
-                      erupting ? styles.lavaParticlesErupting : ''
-                    }`}
+                    className={`${styles.lavaParticles} ${erupting ? styles.lavaParticlesErupting : ''
+                      }`}
                   >
                     {[0, 1, 2, 3, 4].map((i) => (
                       <div
                         key={i}
-                        className={`${styles.particle} ${
-                          erupting ? styles.particleErupting : ''
-                        }`}
+                        className={`${styles.particle} ${erupting ? styles.particleErupting : ''
+                          }`}
                       />
                     ))}
                   </div>
 
                   {/* Lava */}
                   <div
-                    className={`${styles.lava} ${
-                      erupting ? styles.lavaErupting : ''
-                    }`}
+                    className={`${styles.lava} ${erupting ? styles.lavaErupting : ''
+                      }`}
                   />
 
                   {/* Volcano */}
@@ -734,9 +729,9 @@ export default function VolcanoPage() {
                 </p>
                 <div className={styles.gameOverActions}>
                   <div style={{ marginBottom: '1rem' }}>
-                    <ShareGameScore 
-                        gameName="Volcano Experiment" 
-                        customMessage="I just successfully triggered the volcano eruption in Volcano Experiment! 🌋" 
+                    <ShareGameScore
+                      gameName="Volcano Experiment"
+                      customMessage="I just successfully triggered the volcano eruption in Volcano Experiment! 🌋"
                     />
                   </div>
                   <button

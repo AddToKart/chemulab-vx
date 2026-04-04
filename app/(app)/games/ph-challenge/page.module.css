@@ -85,14 +85,14 @@
   display: flex;
   gap: 30px;
   max-width: 800px;
-  margin: 20px auto;
+  margin: 15px auto;
   flex: 1;
   align-items: center;
 }
 
 .lobbyCard {
   flex: 1;
-  padding: 30px;
+  padding: 20px;
   border-radius: 20px;
   border: 1px solid #e2e8f0;
   background: #faf5ff;
@@ -125,11 +125,11 @@
 }
 
 .codeInput {
-  padding: 15px;
+  padding: 12px;
   border-radius: 12px;
   border: 2px solid #e2e8f0;
   text-transform: uppercase;
-  font-size: 1.4em;
+  font-size: 1.25em;
   font-weight: 800;
   letter-spacing: 4px;
   text-align: center;

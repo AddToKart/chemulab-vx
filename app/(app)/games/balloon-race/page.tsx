@@ -400,7 +400,7 @@ export default function BalloonRacePage() {
         {/* ---- LOBBY ---- */}
         {screen === 'lobby' && (
           <div className={styles.gameScreen}>
-            <GameTutorial tutorial={gameTutorials.balloonRace} accentColor="#f59e0b" className="mb-6" />
+            <GameTutorial tutorial={gameTutorials.balloonRace} accentColor="#f59e0b" className="mb-3" />
             <div className={styles.lobbyOptions}>
               {/* Create */}
               <div className={styles.lobbyCard}>
@@ -456,7 +456,7 @@ export default function BalloonRacePage() {
         {screen === 'waiting' && gameData && (
           <div className={`${styles.gameScreen} ${styles.waitingScreen}`}>
             <h2 className={styles.waitingTitle}>Waiting for opponent&hellip;</h2>
-            <GameTutorial tutorial={gameTutorials.balloonRace} accentColor="#f59e0b" className="mb-6" />
+            <GameTutorial tutorial={gameTutorials.balloonRace} accentColor="#f59e0b" className="mb-3" />
             <div className={styles.roomCodeTag}>{gameData.id}</div>
             <p className={styles.waitingDots}>
               Share this code with a friend <span>.</span><span>.</span><span>.</span>
@@ -475,9 +475,8 @@ export default function BalloonRacePage() {
           <div className={styles.gameScreen}>
             {/* Turn indicator */}
             <div
-              className={`${styles.turnIndicator} ${
-                gameData.currentTurn === 1 ? styles.turnP1 : styles.turnP2
-              }`}
+              className={`${styles.turnIndicator} ${gameData.currentTurn === 1 ? styles.turnP1 : styles.turnP2
+                }`}
             >
               {isMyTurn
                 ? 'Your Turn — Pick an ingredient!'
@@ -630,9 +629,9 @@ export default function BalloonRacePage() {
 
             <div className={styles.victoryActions}>
               <div style={{ marginBottom: '1rem' }}>
-                <ShareGameScore 
-                  customMessage={`I inflated my balloon to a score of ${myPlayerNum === 1 ? gameData.p1Score : gameData.p2Score} in Balloon Race! 🎈`} 
-                  gameName="Balloon Race" 
+                <ShareGameScore
+                  customMessage={`I inflated my balloon to a score of ${myPlayerNum === 1 ? gameData.p1Score : gameData.p2Score} in Balloon Race! 🎈`}
+                  gameName="Balloon Race"
                 />
               </div>
               <button

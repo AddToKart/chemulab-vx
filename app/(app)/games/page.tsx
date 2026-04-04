@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback, useEffect, useRef, type MouseEvent } from 'react';
 import Link from 'next/link';
 import { StarRating } from '@/components/ui/star-rating';
 import { useAllGameRatings } from '@/lib/hooks/useGameRatings';
@@ -13,6 +14,11 @@ interface Game {
   cta: string;
   color: string;
 }
+
+const GAMES_SCROLL_STORAGE_KEY = 'chemulab:games:scrollY';
+const GAMES_SCROLL_PENDING_KEY = 'chemulab:games:restorePending';
+const SCROLL_RESTORE_RETRY_DELAY_MS = 100;
+const SCROLL_RESTORE_MAX_ATTEMPTS = 60;
 
 const singlePlayerGames: Game[] = [
   { id: 'element-match', href: '/games/element-match', emoji: '🧪', title: 'Element Match', description: 'Match symbols to element names', cta: 'Play Now', color: '#0ea5e9' },
@@ -30,7 +36,13 @@ const multiplayerGames: Game[] = [
   { id: 'chemical-formula-race', href: '/games/chemical-formula-race', emoji: '💨', title: 'Chemical Formula Race', description: 'Type formulas faster than opponent!', cta: 'Race Now', color: '#06b6d4' },
 ];
 
-function GamesGrid({ games }: { games: Game[] }) {
+function GamesGrid({
+  games,
+  onGameClick,
+}: {
+  games: Game[];
+  onGameClick: (event: MouseEvent<HTMLAnchorElement>) => void;
+}) {
   const { gameRatings } = useAllGameRatings();
 
   return (
@@ -43,6 +55,7 @@ function GamesGrid({ games }: { games: Game[] }) {
           <Link
             key={game.href}
             href={game.href}
+            onClick={onGameClick}
             className="group flex min-h-[15rem] flex-col gap-2 rounded-[20px] border border-[var(--glass-border)] border-l-4 p-6 backdrop-blur-[40px] transition-all duration-300 hover:-translate-y-1 hover:shadow-[var(--shadow-lg)]"
             style={{
               background: `linear-gradient(135deg, ${game.color}15 0%, var(--bg-card) 100%)`,
@@ -77,6 +90,88 @@ function GamesGrid({ games }: { games: Game[] }) {
 }
 
 export default function GamesPage() {
+  const restoreTimeoutRef = useRef<number | null>(null);
+
+  const clearRestoreTimer = useCallback(() => {
+    if (restoreTimeoutRef.current) {
+      window.clearTimeout(restoreTimeoutRef.current);
+      restoreTimeoutRef.current = null;
+    }
+  }, []);
+
+  const handleGameClick = useCallback((event: MouseEvent<HTMLAnchorElement>) => {
+    if (
+      event.defaultPrevented ||
+      event.button !== 0 ||
+      event.metaKey ||
+      event.ctrlKey ||
+      event.shiftKey ||
+      event.altKey
+    ) {
+      return;
+    }
+
+    sessionStorage.setItem(GAMES_SCROLL_STORAGE_KEY, String(window.scrollY));
+    sessionStorage.setItem(GAMES_SCROLL_PENDING_KEY, '1');
+  }, []);
+
+  const restoreScrollPosition = useCallback(() => {
+    clearRestoreTimer();
+
+    const shouldRestore = sessionStorage.getItem(GAMES_SCROLL_PENDING_KEY) === '1';
+    const storedScrollY = Number(sessionStorage.getItem(GAMES_SCROLL_STORAGE_KEY));
+
+    if (!shouldRestore || !Number.isFinite(storedScrollY) || storedScrollY < 0) {
+      sessionStorage.removeItem(GAMES_SCROLL_PENDING_KEY);
+      return;
+    }
+
+    let attempts = 0;
+
+    const attemptRestore = () => {
+      const scrollRoot = document.scrollingElement ?? document.documentElement;
+      const maxScrollY = Math.max(0, scrollRoot.scrollHeight - window.innerHeight);
+      const targetScrollY = Math.min(storedScrollY, maxScrollY);
+
+      window.scrollTo({ top: targetScrollY, behavior: 'auto' });
+
+      const pageCanReachStoredPosition = maxScrollY >= storedScrollY - 2;
+      const reachedTarget = Math.abs(window.scrollY - targetScrollY) <= 2;
+
+      if (
+        (pageCanReachStoredPosition && reachedTarget) ||
+        attempts >= SCROLL_RESTORE_MAX_ATTEMPTS
+      ) {
+        sessionStorage.removeItem(GAMES_SCROLL_PENDING_KEY);
+        restoreTimeoutRef.current = null;
+        return;
+      }
+
+      attempts += 1;
+      restoreTimeoutRef.current = window.setTimeout(
+        attemptRestore,
+        SCROLL_RESTORE_RETRY_DELAY_MS,
+      );
+    };
+
+    restoreTimeoutRef.current = window.setTimeout(attemptRestore, 0);
+  }, [clearRestoreTimer]);
+
+  useEffect(() => {
+    restoreScrollPosition();
+
+    const handlePageShow = () => {
+      restoreScrollPosition();
+    };
+
+    window.addEventListener('pageshow', handlePageShow);
+
+    return () => {
+      window.removeEventListener('pageshow', handlePageShow);
+      clearRestoreTimer();
+    };
+  }, [clearRestoreTimer, restoreScrollPosition]);
+
   return (
     <div className="relative space-y-8 overflow-hidden">
       <div className="pointer-events-none absolute right-0 top-0 h-[18rem] w-[18rem] rounded-full opacity-20 blur-[80px] sm:h-[22rem] sm:w-[22rem]" style={{ background: 'radial-gradient(circle, var(--accent-color), transparent)' }} />
@@ -107,7 +202,7 @@ export default function GamesPage() {
           <h2 className="text-xl font-bold text-[var(--text-main)]">Single Player</h2>
           <span className="rounded-full border border-[rgba(16,185,129,0.3)] bg-[rgba(16,185,129,0.15)] px-3 py-1 text-xs font-semibold text-emerald-400">{singlePlayerGames.length} Modules Active</span>
         </div>
-        <GamesGrid games={singlePlayerGames} />
+        <GamesGrid games={singlePlayerGames} onGameClick={handleGameClick} />
       </div>
 
       <div>
@@ -115,7 +210,7 @@ export default function GamesPage() {
           <h2 className="text-xl font-bold text-[var(--text-main)]">Multiplayer</h2>
           <span className="rounded-full border border-[rgba(14,165,233,0.3)] bg-[rgba(14,165,233,0.15)] px-3 py-1 text-xs font-semibold text-sky-400">{multiplayerGames.length} Modules Active</span>
         </div>
-        <GamesGrid games={multiplayerGames} />
+        <GamesGrid games={multiplayerGames} onGameClick={handleGameClick} />
       </div>
     </div>
   );
