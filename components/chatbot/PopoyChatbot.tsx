@@ -178,9 +178,9 @@ export default function PopoyChatbot() {
                 onClick={sendMessage}
                 disabled={loading || !input.trim()}
                 aria-label="Send message"
-                className="shrink-0 w-10 h-10 rounded-xl bg-[var(--accent-gradient)] flex items-center justify-center text-white transition-all hover:scale-105 active:scale-95 shadow-lg shadow-emerald-500/20 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+                className="shrink-0 w-10 h-10 rounded-xl bg-[var(--accent-gradient)] flex items-center justify-center text-white dark:text-white transition-all hover:scale-105 active:scale-95 shadow-lg shadow-emerald-500/20 disabled:opacity-40 disabled:pointer-events-none cursor-pointer border border-slate-300 dark:border-white/20"
               >
-                <svg className="w-4 h-4 fill-current transform rotate-45 -translate-y-0.5 -translate-x-0.5" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 fill-current text-slate-700 dark:text-white" viewBox="0 0 24 24">
                   <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
                 </svg>
               </button>
