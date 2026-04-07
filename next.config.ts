@@ -7,6 +7,10 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "images-of-elements.com",
       },
+      {
+        protocol: "https",
+        hostname: "media.tenor.com",
+      },
     ],
   },
 };

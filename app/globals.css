@@ -54,6 +54,9 @@
   --radius-xl: 32px;
   --radius-full: 9999px;
 
+  --font-inter: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-plus-jakarta: 'Plus Jakarta Sans', sans-serif;
+
   --header-height: 64px;
   --sidebar-width: 280px;
   --shell-gutter: clamp(0.75rem, 2vw, 1.5rem);

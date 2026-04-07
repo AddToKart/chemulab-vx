@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { login, register, forgotPassword } from '@/lib/firebase/auth';
 import { useAuthStore } from '@/store/auth-store';
@@ -33,12 +33,62 @@ export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showRegPassword, setShowRegPassword] = useState(false);
   const [showRegConfirm, setShowRegConfirm] = useState(false);
+  const [showVerificationOverlay, setShowVerificationOverlay] = useState(false);
+  const [overlayMessage, setOverlayMessage] = useState('');
+  const [overlayCountdown, setOverlayCountdown] = useState(5);
+  const overlayTimerRef = useRef<number | null>(null);
 
   const registering = useAuthStore((s) => s.registering);
 
   useEffect(() => {
     if (!loading && user && !registering) router.replace('/');
   }, [user, loading, registering, router]);
+
+  useEffect(() => {
+    if (!showVerificationOverlay) {
+      if (overlayTimerRef.current !== null) {
+        clearInterval(overlayTimerRef.current);
+        overlayTimerRef.current = null;
+      }
+      setOverlayCountdown(5);
+      return;
+    }
+
+    setOverlayCountdown(5);
+    if (overlayTimerRef.current !== null) {
+      clearInterval(overlayTimerRef.current);
+    }
+
+    overlayTimerRef.current = window.setInterval(() => {
+      setOverlayCountdown((prev) => {
+        if (prev <= 1) {
+          if (overlayTimerRef.current !== null) {
+            clearInterval(overlayTimerRef.current);
+            overlayTimerRef.current = null;
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (overlayTimerRef.current !== null) {
+        clearInterval(overlayTimerRef.current);
+        overlayTimerRef.current = null;
+      }
+    };
+  }, [showVerificationOverlay]);
+
+  const redirectToLogin = () => {
+    if (overlayTimerRef.current !== null) {
+      clearInterval(overlayTimerRef.current);
+      overlayTimerRef.current = null;
+    }
+    if (typeof window !== 'undefined') {
+      window.location.assign('/sign-in');
+    }
+  };
 
   const clearMessages = useCallback(() => { setError(''); setSuccess(''); }, []);
   const switchMode = (next: FormMode) => { clearMessages(); setMode(next); };
@@ -66,10 +116,15 @@ export default function SignInPage() {
     if (regPassword.length < 6) { setError('Password must be at least 6 characters long'); return; }
     if (regPassword !== regConfirm) { setError('Passwords do not match'); return; }
     setSubmitting(true);
+    setShowVerificationOverlay(false);
+    setOverlayMessage('');
+    setOverlayCountdown(5);
     try {
-      const result = await register(regUsername.toLowerCase().trim(), regEmail, regPassword);
-      setSuccess(result.emailSent ? result.message : 'Account created! You can now log in.');
+      const result = await register(regUsername.trim(), regEmail, regPassword);
       setRegUsername(''); setRegEmail(''); setRegPassword(''); setRegConfirm('');
+      setOverlayMessage(result.message);
+      setShowVerificationOverlay(true);
+      setSuccess('');
     } catch (err: unknown) {
       setError(getErrorMessage(err, 'Registration failed. Please try again.'));
     } finally { setSubmitting(false); }
@@ -130,7 +185,7 @@ export default function SignInPage() {
               {error}
             </div>
           )}
-          {success && (
+          {success && !showVerificationOverlay && (
             <div className="mb-4 px-4 py-3 rounded-[10px] text-center font-medium text-green-100 bg-green-600/40 border border-green-200/20 backdrop-blur-sm">
               {success}
             </div>
@@ -319,6 +374,25 @@ export default function SignInPage() {
           )}
         </div>
       </div>
+      {showVerificationOverlay && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 px-4 py-8 text-white">
+          <div className="w-full max-w-xl rounded-[28px] border border-white/20 bg-gradient-to-b from-slate-900/95 to-slate-900/70 p-8 text-center shadow-[0_0_40px_rgba(0,0,0,0.6)]">
+            <p className="text-sm font-semibold uppercase tracking-[0.4em] text-cyan-400/90">Account created</p>
+            <p className="mt-4 text-lg font-semibold leading-relaxed text-slate-100">{overlayMessage}</p>
+            <p className="mt-3 text-sm text-white/70">
+              Redirect ready in {overlayCountdown} second{overlayCountdown === 1 ? '' : 's'}.
+            </p>
+            <button
+              type="button"
+              disabled={overlayCountdown > 0}
+              onClick={redirectToLogin}
+              className="mt-6 inline-flex h-12 w-full items-center justify-center rounded-full bg-gradient-to-r from-cyan-500 to-emerald-500 text-base font-bold uppercase tracking-[0.08em] text-slate-900 shadow-[var(--shadow-md),var(--glow-accent)] transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {overlayCountdown > 0 ? 'Please wait…' : 'Go to Sign In'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

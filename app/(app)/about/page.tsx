@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import { db } from '@/lib/firebase/config';
 import { useAuthStore } from '@/store/auth-store';
 import {
   collection,
   doc,
+  getDoc,
   setDoc,
   updateDoc,
   deleteDoc,
@@ -52,6 +53,7 @@ export default function AboutPage() {
   
   // State for ratings
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [userProfiles, setUserProfiles] = useState<Record<string, { photoURL?: string }>>({});
   const [selectedRating, setSelectedRating] = useState<number>(0);
   const [comment, setComment] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
@@ -64,16 +66,7 @@ export default function AboutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState<{ type: 'success' | 'error' | null; message: string }>({ type: null, message: '' });
 
-  // Calculate average rating
-  const averageRating = reviews.length > 0 
-    ? reviews.reduce((acc, review) => acc + review.rating, 0) / reviews.length 
-    : 0;
-
-  const ratingCounts = [1, 2, 3, 4, 5].map(rating => ({
-    rating,
-    count: reviews.filter(r => r.rating === rating).length,
-    percentage: reviews.length > 0 ? (reviews.filter(r => r.rating === rating).length / reviews.length) * 100 : 0,
-  }));
+  // ... (Calculate average rating, rating counts)
 
   // Fetch reviews from Firestore
   useEffect(() => {
@@ -92,6 +85,36 @@ export default function AboutPage() {
 
     return () => unsubscribe();
   }, []);
+
+  // Fetch profile photos for reviews
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      const uniqueAuthors = Array.from(new Set(reviews.map(r => r.id)));
+      const missingProfiles = uniqueAuthors.filter(uid => !userProfiles[uid]);
+
+      if (missingProfiles.length === 0) return;
+
+      const newProfiles: Record<string, { photoURL?: string }> = { ...userProfiles };
+      
+      await Promise.all(missingProfiles.map(async (uid) => {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', uid));
+          if (userDoc.exists()) {
+            newProfiles[uid] = { photoURL: userDoc.data().photoURL };
+          } else {
+            newProfiles[uid] = { photoURL: undefined };
+          }
+        } catch (error) {
+          console.error(`Error fetching profile for ${uid}:`, error);
+          newProfiles[uid] = { photoURL: undefined };
+        }
+      }));
+
+      setUserProfiles(newProfiles);
+    };
+
+    if (reviews.length > 0) fetchProfiles();
+  }, [reviews, userProfiles]);
 
   // Pre-populate form if user has existing review
   useEffect(() => {
@@ -121,6 +144,7 @@ export default function AboutPage() {
       setVisibility({ showUsername: true, showProfilePicture: true, showEmail: false });
     }
   }, [user, reviews]);
+
 
   // Handle review submission
   const handleSubmitReview = async () => {
@@ -172,7 +196,7 @@ export default function AboutPage() {
       }
 
       if (!isAnonymous) {
-        if (profile?.photoURL) reviewData.authorPhoto = profile.photoURL;
+        // authorPhoto is no longer stored here as it is fetched dynamically from the user profile
         if (profile?.email) reviewData.authorEmail = profile.email;
       }
 
@@ -244,6 +268,20 @@ export default function AboutPage() {
   const isVerified = user?.emailVerified;
   const isSignedIn = !!user;
   const userReview = reviews.find(r => r.id === user?.uid);
+  const averageRating = useMemo(() => {
+    if (reviews.length === 0) return 0;
+    const sum = reviews.reduce((acc, review) => acc + (review.rating ?? 0), 0);
+    return sum / reviews.length;
+  }, [reviews]);
+
+  const ratingCounts = useMemo(() => {
+    const total = reviews.length;
+    return [5, 4, 3, 2, 1].map((rating) => {
+      const count = reviews.filter((review) => review.rating === rating).length;
+      const percentage = total === 0 ? 0 : (count / total) * 100;
+      return { rating, count, percentage };
+    });
+  }, [reviews]);
 
   return (
     <div>
@@ -482,9 +520,9 @@ export default function AboutPage() {
                 >
                   <div className="flex items-start gap-3">
                     {/* Avatar */}
-                    {review.visibility.showProfilePicture && review.authorPhoto ? (
+                    {review.visibility.showProfilePicture && userProfiles[review.id]?.photoURL ? (
                       <Image
-                        src={review.authorPhoto}
+                        src={userProfiles[review.id].photoURL!}
                         alt={review.authorName}
                         width={40}
                         height={40}
