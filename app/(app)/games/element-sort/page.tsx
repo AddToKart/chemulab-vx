@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import styles from './page.module.css';
@@ -16,6 +16,27 @@ import {
   ElementSortSettings,
   elementSortDifficulty,
 } from '@/lib/types/element-sort';
+import { ResumeModal } from '@/components/game/ResumeModal';
+import type { Vial, UndoSnapshot } from '@/lib/types/element-sort';
+
+interface SavedSession {
+  score: number;
+  moves: number;
+  timeBonus: number;
+  isGameActive: boolean;
+  difficulty: DifficultyLevel;
+  gameState: {
+    vials: Vial[];
+    selectedVialId: string | null;
+    moves: number;
+    undoStack: UndoSnapshot[];
+    completedVials: string[];
+    isWon: boolean;
+    timeLeft: number | undefined;
+  };
+}
+
+const SESSION_KEY = 'elementSortSession';
 
 export default function ElementSortPage() {
   const [score, setScore] = useState(0);
@@ -25,8 +46,116 @@ export default function ElementSortPage() {
   const [gameOver, setGameOver] = useState(false);
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('beginner');
   const [gameKey, setGameKey] = useState(0);
+  
+  const [showResumeModal, setShowResumeModal] = useState(false);
+  const [savedSession, setSavedSession] = useState<SavedSession | null>(null);
+  const [pendingRestoreState, setPendingRestoreState] = useState<{
+    vials: Vial[];
+    selectedVialId: string | null;
+    moves: number;
+    undoStack: UndoSnapshot[];
+    completedVials: string[];
+    isWon: boolean;
+    timeLeft: number | undefined;
+  } | null>(null);
 
   const difficultySettings: ElementSortSettings = elementSortDifficulty[difficulty];
+
+  /* ---------- Session restoration on mount ---------- */
+  useEffect(() => {
+    const storedSession = sessionStorage.getItem(SESSION_KEY);
+    if (storedSession) {
+      try {
+        const parsed = JSON.parse(storedSession) as SavedSession;
+        if (parsed.isGameActive && parsed.gameState) {
+          setSavedSession(parsed);
+          setShowResumeModal(true);
+        }
+      } catch {
+        sessionStorage.removeItem(SESSION_KEY);
+      }
+    }
+  }, []);
+
+  /* ---------- Save session on state change ---------- */
+  useEffect(() => {
+    if (isGameActive && pendingRestoreState) {
+      const session: SavedSession = {
+        score,
+        moves,
+        timeBonus,
+        isGameActive,
+        difficulty,
+        gameState: pendingRestoreState,
+      };
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    }
+  }, [score, moves, timeBonus, isGameActive, difficulty, pendingRestoreState]);
+
+  /* ---------- Clear session on game over ---------- */
+  useEffect(() => {
+    if (gameOver) {
+      sessionStorage.removeItem(SESSION_KEY);
+    }
+  }, [gameOver]);
+
+  /* ---------- Handle game state changes from child ---------- */
+  const handleGameStateChange = useCallback((state: {
+    vials: Vial[];
+    selectedVialId: string | null;
+    moves: number;
+    undoStack: UndoSnapshot[];
+    completedVials: string[];
+    isWon: boolean;
+    timeLeft: number | undefined;
+  }) => {
+    setPendingRestoreState(state);
+  }, []);
+
+  /* ---------- Handle resume ---------- */
+  const handleResume = useCallback(() => {
+    if (savedSession) {
+      setScore(savedSession.score);
+      setMoves(savedSession.moves);
+      setTimeBonus(savedSession.timeBonus);
+      setDifficulty(savedSession.difficulty);
+      setPendingRestoreState(savedSession.gameState);
+      setIsGameActive(true);
+      setGameOver(false);
+      setShowResumeModal(false);
+      
+      // Increment gameKey to signal child to use restored state
+      setGameKey((prev) => prev + 1);
+    }
+  }, [savedSession]);
+
+  /* ---------- Handle start new ---------- */
+  const handleStartNew = useCallback(() => {
+    sessionStorage.removeItem(SESSION_KEY);
+    setShowResumeModal(false);
+    setSavedSession(null);
+    setPendingRestoreState(null);
+    startGame();
+  }, []);
+
+  /* ---------- Clear session on back navigation ---------- */
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (isGameActive && pendingRestoreState) {
+        const session: SavedSession = {
+          score,
+          moves,
+          timeBonus,
+          isGameActive,
+          difficulty,
+          gameState: pendingRestoreState,
+        };
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [score, moves, timeBonus, isGameActive, difficulty, pendingRestoreState]);
 
   const startGame = useCallback(() => {
     setScore(0);
@@ -34,6 +163,7 @@ export default function ElementSortPage() {
     setTimeBonus(0);
     setIsGameActive(true);
     setGameOver(false);
+    setPendingRestoreState(null);
     setGameKey((prev) => prev + 1);
   }, []);
 
@@ -50,8 +180,18 @@ export default function ElementSortPage() {
 
   return (
     <div className={styles.container}>
+      {showResumeModal && (
+        <ResumeModal
+          gameName="Element Sort"
+          onResume={handleResume}
+          onStartNew={handleStartNew}
+          previousScore={savedSession?.score}
+          previousProgress={`Moves: ${savedSession?.moves}`}
+        />
+      )}
+
       <Link href="/games" className={styles.backLink}>
-        <ChevronLeft size={20} /> Back to Games
+        <ChevronLeft size={20} /> Leave Game
       </Link>
 
       <div className={styles.gameArea}>
@@ -88,6 +228,8 @@ export default function ElementSortPage() {
             settings={difficultySettings}
             onGameComplete={handleGameComplete}
             resetKey={gameKey}
+            initialState={pendingRestoreState || undefined}
+            onStateChange={handleGameStateChange}
           />
         )}
 

@@ -8,37 +8,23 @@ import styles from './MinerGame.module.css';
 import { ShareGameScore } from '@/components/game/ShareGameScore';
 import GameRating from '@/components/game/GameRating';
 import { MinerQuestion, generateMinerQuestions } from '@/lib/data/miner-game-data';
-import { db } from '@/lib/firebase/config';
-import { 
-  doc, 
-  setDoc, 
-  updateDoc, 
-  getDoc, 
-  serverTimestamp,
-  FieldValue 
-} from 'firebase/firestore';
+import { ResumeModal } from '@/components/game/ResumeModal';
 
 interface MinerSession {
   sessionId: string;
-  questions: Omit<MinerQuestion, 'correctAnswerId'>[];
+  questions: MinerQuestion[];
 }
 
-interface MinerGameDocument {
-  userId: string;
+interface SavedSession {
   difficulty: 'beginner' | 'intermediate' | 'advanced' | 'expert';
-  questions: MinerQuestion[]; // includes correctAnswerId
-  currentQuestionIndex: number;
+  session: MinerSession | null;
+  questionIndex: number;
   score: number;
   correctCount: number;
-  status: 'active' | 'completed';
-  createdAt: FieldValue;
-  updatedAt: FieldValue;
+  timeLeft: number | null;
 }
 
-type MinerGameUpdate = Partial<Pick<MinerGameDocument, 'score' | 'correctCount' | 'currentQuestionIndex' | 'status'>> & {
-  updatedAt: FieldValue;
-  [key: string]: any;
-};
+const SESSION_KEY = 'minerGameSession';
 
 export default function MinerGame({ userId }: { userId?: string }) {
   const [difficulty, setDifficulty] = useState<'beginner' | 'intermediate' | 'advanced' | 'expert'>('intermediate');
@@ -46,7 +32,75 @@ export default function MinerGame({ userId }: { userId?: string }) {
 
   const [questionIndex, setQuestionIndex] = useState(0);
   const [score, setScore] = useState(0);
+  const [correctCount, setCorrectCount] = useState(0);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
+  
+  const [showResumeModal, setShowResumeModal] = useState(false);
+  const [savedSession, setSavedSession] = useState<SavedSession | null>(null);
+
+  /* ---------- Session restoration on mount ---------- */
+  useEffect(() => {
+    const storedSession = sessionStorage.getItem(SESSION_KEY);
+    if (storedSession) {
+      try {
+        const parsed = JSON.parse(storedSession) as SavedSession;
+        if (parsed.session && parsed.session.questions.length > 0) {
+          setSavedSession(parsed);
+          setShowResumeModal(true);
+        }
+      } catch {
+        sessionStorage.removeItem(SESSION_KEY);
+      }
+    }
+  }, []);
+
+  /* ---------- Save session on state change ---------- */
+  useEffect(() => {
+    if (session && !sessionStorage.getItem(SESSION_KEY + '_gameOver')) {
+      const sessionData: SavedSession = {
+        difficulty,
+        session,
+        questionIndex,
+        score,
+        correctCount,
+        timeLeft,
+      };
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(sessionData));
+    }
+  }, [difficulty, session, questionIndex, score, correctCount, timeLeft]);
+
+  /* ---------- Clear session on game over ---------- */
+  useEffect(() => {
+    if (sessionStorage.getItem(SESSION_KEY + '_gameOver')) {
+      sessionStorage.removeItem(SESSION_KEY);
+      sessionStorage.removeItem(SESSION_KEY + '_gameOver');
+    }
+  }, []);
+
+  /* ---------- Handle resume ---------- */
+  const handleResume = useCallback(() => {
+    if (savedSession) {
+      setDifficulty(savedSession.difficulty);
+      setSession(savedSession.session);
+      setQuestionIndex(savedSession.questionIndex);
+      setScore(savedSession.score);
+      setCorrectCount(savedSession.correctCount);
+      setTimeLeft(savedSession.timeLeft);
+      setShowResumeModal(false);
+      
+      if (savedSession.session) {
+        initPositions(savedSession.session.questions[savedSession.questionIndex]);
+      }
+    }
+  }, [savedSession]);
+
+  /* ---------- Handle start new ---------- */
+  const handleStartNew = useCallback(() => {
+    sessionStorage.removeItem(SESSION_KEY);
+    setShowResumeModal(false);
+    setSavedSession(null);
+    startGame();
+  }, []);
 
   const [pullingItemId, setPullingItemId] = useState<string | null>(null);
   const [flashingItemId, setFlashingItemId] = useState<string | null>(null);
@@ -96,53 +150,25 @@ export default function MinerGame({ userId }: { userId?: string }) {
     questionStartTime.current = Date.now();
   }, []);
 
-  const startGame = async () => {
+  const startGame = () => {
     try {
       setLoading(true);
       setError('');
 
-      if (!userId) {
-        throw new Error('You must be logged in to play the Miner Game');
-      }
-
-      // Generate questions locally
       const questions = generateMinerQuestions(difficulty, 10);
       const sessionId = `mg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
-      // Create Firestore document
-      const sessionData: MinerGameDocument = {
-        userId,
-        difficulty,
-        questions,
-        currentQuestionIndex: 0,
-        score: 0,
-        correctCount: 0,
-        status: 'active',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
-
-      // Store in Firestore under users/{userId}/minerGameSessions/{sessionId}
-      const docPath = `users/${userId}/minerGameSessions/${sessionId}`;
-
-      await setDoc(doc(db, docPath), sessionData);
-
-      // Strip correct answers for client
-      const clientQuestions = questions.map(q => {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { correctAnswerId, ...rest } = q;
-        return rest;
-      });
-
+      // Keep correctAnswerId for local validation
       setSession({
         sessionId,
-        questions: clientQuestions
+        questions
       });
       setQuestionIndex(0);
       setScore(0);
+      setCorrectCount(0);
       setGameOver(false);
       setFinalStats(null);
-      initPositions(clientQuestions[0]);
+      initPositions(questions[0]);
       if (totalTime) setTimeLeft(totalTime);
       
     } catch (err: any) {
@@ -152,125 +178,50 @@ export default function MinerGame({ userId }: { userId?: string }) {
     }
   };
 
-  const endGame = useCallback(async (sid: string) => {
-    try {
-      if (!userId) throw new Error('User not authenticated');
-      const docPath = `users/${userId}/minerGameSessions/${sid}`;
-      const docRef = doc(db, docPath);
-      const docSnap = await getDoc(docRef);
-      
-      if (!docSnap.exists()) {
-        throw new Error('Session not found');
-      }
-      
-      const data = docSnap.data() as MinerGameDocument;
-      const accuracy = Math.round((data.correctCount / 10) * 100);
-      
-      // Update status to completed
-      await updateDoc(docRef, {
-        status: 'completed',
-        updatedAt: serverTimestamp(),
-      });
-      
-      // Achievements
-      const achievements = [];
-      if (data.score > 200) achievements.push('Golden Pickaxe');
-      if (data.correctCount === 10) achievements.push('Flawless Miner');
-      
-      setFinalStats({
-        accuracy,
-        achievements,
-        correctCount: data.correctCount
-      });
-      setGameOver(true);
-    } catch (err) {
-      console.error(err);
-    }
-  }, [userId]);
+  const endGame = useCallback(() => {
+    const accuracy = Math.round((correctCount / 10) * 100);
+    
+    const achievements = [];
+    if (score > 200) achievements.push('Golden Pickaxe');
+    if (correctCount === 10) achievements.push('Flawless Miner');
+    
+    setFinalStats({
+      accuracy,
+      achievements,
+      correctCount
+    });
+    setGameOver(true);
+    sessionStorage.setItem(SESSION_KEY + '_gameOver', 'true');
+  }, [score, correctCount]);
 
   const handleTimeUp = useCallback(async () => {
     if (!session || gameOver) return;
     
-    // Auto-fail the current question
-    setDisabledItems(_prev => new Set([...session.questions[questionIndex].items.map(i => i.id)]));
+    const currentQuestion = session.questions[questionIndex];
+    if (!currentQuestion) return;
     
-    try {
-      if (!userId) throw new Error('User not authenticated');
-      const docPath = `users/${userId}/minerGameSessions/${session.sessionId}`;
-      const docRef = doc(db, docPath);
-      const docSnap = await getDoc(docRef);
-      
-      if (!docSnap.exists()) {
-        throw new Error('Session not found');
-      }
-      
-      const data = docSnap.data() as MinerGameDocument;
-      if (!data.questions || !Array.isArray(data.questions)) {
-        throw new Error('Questions missing or invalid');
-      }
-      if (data.status !== 'active') {
-        throw new Error('Session is no longer active');
-      }
-      
-      const qIndex = data.currentQuestionIndex;
-      
-      // Handle out-of-bounds index (game should have ended)
-      if (qIndex >= data.questions.length) {
-        // Update status to completed if not already
-        await updateDoc(docRef, {
-          status: 'completed',
-          updatedAt: serverTimestamp(),
-        });
-        // Trigger end game UI
-        endGame(session.sessionId);
-        return;
-      }
-      
-      if (qIndex < 0) {
-        throw new Error('Invalid question index');
-      }
-      
-      // Timeout counts as wrong answer
-      let pointsAdded = 0;
-      if (data.difficulty === 'intermediate' || data.difficulty === 'advanced' || data.difficulty === 'expert') {
-        pointsAdded = -5;
-      }
-      
-      const newScore = Math.max(0, data.score + pointsAdded);
-      const newCorrectCount = data.correctCount; // no change
-      const newIndex = qIndex + 1;
-      
-      // Update Firestore
-      const updateData: MinerGameUpdate = {
-        score: newScore,
-        correctCount: newCorrectCount,
-        currentQuestionIndex: newIndex,
-        updatedAt: serverTimestamp(),
-      };
-      
-      // If this timeout completes the game, mark as completed
-      if (newIndex >= data.questions.length) {
-        updateData.status = 'completed';
-      }
-      
-      await updateDoc(docRef, updateData);
-      
-      setScore(newScore);
-      
-      setTimeout(() => {
-        if (newIndex < session.questions.length) {
-          setQuestionIndex(newIndex);
-          initPositions(session.questions[newIndex]);
-          if (totalTime) setTimeLeft(totalTime);
-        } else {
-          // Game should already be marked completed in Firestore, but ensure UI updates
-          endGame(session.sessionId);
-        }
-      }, 1000);
-    } catch (err) {
-      console.error(err);
+    setDisabledItems(new Set([...currentQuestion.items.map(i => i.id)]));
+    
+    let pointsAdded = 0;
+    if (difficulty === 'intermediate' || difficulty === 'advanced' || difficulty === 'expert') {
+      pointsAdded = -5;
     }
-  }, [session, questionIndex, gameOver, initPositions, totalTime, userId, endGame]);
+    
+    const newScore = Math.max(0, score + pointsAdded);
+    const newIndex = questionIndex + 1;
+    
+    setScore(newScore);
+    
+    setTimeout(() => {
+      if (newIndex < session.questions.length) {
+        setQuestionIndex(newIndex);
+        initPositions(session.questions[newIndex]);
+        if (totalTime) setTimeLeft(totalTime);
+      } else {
+        endGame();
+      }
+    }, 1000);
+  }, [session, gameOver, difficulty, questionIndex, score, totalTime, endGame, initPositions]);
 
   // Timer loop
   useEffect(() => {
@@ -303,216 +254,131 @@ export default function MinerGame({ userId }: { userId?: string }) {
     );
   };
 
-  const onAnswerClick = async (itemId: string) => {
+  const onAnswerClick = (itemId: string) => {
     if (!session || disabledItems.has(itemId) || pullingItemId || flashingItemId) return;
     
     const timeTakenMs = Date.now() - questionStartTime.current;
     
-    // Pause timer
     if (timerRef.current) clearInterval(timerRef.current);
     
-    try {
-      if (!userId) throw new Error('User not authenticated');
-      const docPath = `users/${userId}/minerGameSessions/${session.sessionId}`;
-      const docRef = doc(db, docPath);
-      const docSnap = await getDoc(docRef);
-      
-      if (!docSnap.exists()) {
-        throw new Error('Session not found');
+    const currentQuestion = session.questions[questionIndex];
+    if (!currentQuestion) return;
+    
+    const isCorrect = itemId === currentQuestion.correctAnswerId;
+    
+    let pointsAdded = 0;
+    if (isCorrect) {
+      pointsAdded = 15;
+      if (timeTakenMs && timeTakenMs < 5000) pointsAdded += 5;
+      if (difficulty === 'intermediate') pointsAdded = Math.round(pointsAdded * 1.5);
+      if (difficulty === 'advanced') pointsAdded = pointsAdded * 2;
+      if (difficulty === 'expert') pointsAdded = Math.round(pointsAdded * 3);
+    } else {
+      if (difficulty === 'intermediate' || difficulty === 'advanced' || difficulty === 'expert') {
+        pointsAdded = -5;
       }
+    }
+    
+    const newScore = Math.max(0, score + pointsAdded);
+    const newCorrectCount = isCorrect ? correctCount + 1 : correctCount;
+    
+    const shouldAdvance = isCorrect || difficulty === 'advanced' || difficulty === 'expert';
+    const newIndex = shouldAdvance ? questionIndex + 1 : questionIndex;
+    
+    setScore(newScore);
+    setCorrectCount(newCorrectCount);
+    
+    if (isCorrect) {
+      setPullingItemId(itemId);
+      setShakeScreen(true);
+      setRopePhase('extending');
       
-      const data = docSnap.data() as MinerGameDocument;
-      if (!data.questions || !Array.isArray(data.questions)) {
-        throw new Error('Questions missing or invalid');
-      }
-      if (data.status !== 'active') {
-        throw new Error('Session is no longer active');
-      }
+      const canvas = boardRef.current;
+      const width = canvas?.clientWidth || 1000;
+      const height = canvas?.clientHeight || 600;
+
+      const itemX_pct = itemCoords[itemId]?.x || 50;
+      const itemY_pct = itemCoords[itemId]?.y || 50;
       
-      const qIndex = data.currentQuestionIndex;
+      const targetX = (itemX_pct / 100) * width;
+      const targetY = (itemY_pct / 100) * height;
+      const centerX = width / 2;
+      const centerY = 0;
+
+      const dx = targetX - centerX;
+      const dy = targetY - centerY;
       
-      // Handle out-of-bounds index (game should have ended)
-      if (qIndex >= data.questions.length) {
-        // Update status to completed if not already
-        await updateDoc(docRef, {
-          status: 'completed',
-          updatedAt: serverTimestamp(),
-        });
-        // Trigger end game UI
-        endGame(session.sessionId);
-        return;
-      }
+      const targetDistancePx = Math.sqrt(dx * dx + dy * dy);
+      const targetAngle = -(Math.atan2(dx, dy) * (180 / Math.PI));
+
+      setTimeout(() => {
+        setRopeHeight(targetDistancePx);
+        setRopeAngle(targetAngle);
+      }, 50);
       
-      if (qIndex < 0) {
-        throw new Error('Invalid question index');
-      }
+      setTimeout(() => {
+        setRopePhase('attached');
+        setShowClank(true);
+        
+        const newParticles = Array.from({ length: 15 }, (_, i) => ({
+          id: Date.now() + i,
+          x: itemX_pct,
+          y: itemY_pct,
+          delay: i * 0.05
+        }));
+        setParticles(newParticles);
+        
+        setTimeout(() => setShowClank(false), 400);
+      }, 600);
       
-      const question = data.questions[qIndex];
-      const clientQuestion = session.questions[qIndex];
+      setTimeout(() => {
+        setRopePhase('retracting');
+        setRopeHeight(0);
+        setRopeAngle(0);
+      }, 800);
       
-      if (!question || !clientQuestion) {
-        throw new Error('Question not found');
-      }
+      setTimeout(() => setShakeScreen(false), 300);
+      setTimeout(() => setParticles([]), 2000);
       
-      if (question.id !== clientQuestion.id) {
-        throw new Error('Question mismatch');
-      }
+      setTimeout(() => {
+        setRopePhase('idle');
+        setRopeHeight(0);
+        setRopeAngle(0);
+        setPullingItemId(null);
+      }, 1700);
       
-      const isCorrect = itemId === question.correctAnswerId;
-      
-      // Calculate points
-      let pointsAdded = 0;
-      if (isCorrect) {
-        pointsAdded = 15;
-        if (timeTakenMs && timeTakenMs < 5000) pointsAdded += 5;
-        if (data.difficulty === 'intermediate') pointsAdded = Math.round(pointsAdded * 1.5);
-        if (data.difficulty === 'advanced') pointsAdded = pointsAdded * 2;
-        if (data.difficulty === 'expert') pointsAdded = Math.round(pointsAdded * 3);
-      } else {
-        if (data.difficulty === 'intermediate' || data.difficulty === 'advanced' || data.difficulty === 'expert') {
-          pointsAdded = -5;
+      setTimeout(() => {
+        if (newIndex < session.questions.length) {
+          setQuestionIndex(newIndex);
+          initPositions(session.questions[newIndex]);
+          if (totalTime) setTimeLeft(totalTime);
+        } else {
+          endGame();
         }
-      }
-      
-      const newScore = Math.max(0, data.score + pointsAdded);
-      const newCorrectCount = isCorrect ? data.correctCount + 1 : data.correctCount;
-      
-      // Advance to next question on correct answers, or on wrong answers for advanced/expert
-      const shouldAdvance = isCorrect || data.difficulty === 'advanced' || data.difficulty === 'expert';
-      const newIndex = shouldAdvance ? qIndex + 1 : qIndex;
-      
-      // Update Firestore
-      const updateData: MinerGameUpdate = {
-        score: newScore,
-        correctCount: newCorrectCount,
-        currentQuestionIndex: newIndex,
-        updatedAt: serverTimestamp(),
-      };
-      
-      // If this answer completes the game, mark as completed
-      if (newIndex >= data.questions.length) {
-        updateData.status = 'completed';
-      }
-      
-      await updateDoc(docRef, updateData);
-      
-      setScore(newScore);
-      
-      if (isCorrect) {
-        // Animation for correct - TWO-PHASE ROPE EXTENSION
-        setPullingItemId(itemId);
-        setShakeScreen(true);
-        setRopePhase('extending');
-        
-        // Get dimensions of the canvas for pixel-perfect calculation
-        const canvas = boardRef.current;
-        const width = canvas?.clientWidth || 1000;
-        const height = canvas?.clientHeight || 600;
+      }, 1700);
 
-        // Get the clicked item's position
-        const itemX_pct = itemCoords[itemId]?.x || 50;
-        const itemY_pct = itemCoords[itemId]?.y || 50;
-        
-        // Convert percentages to pixels for precise geometry
-        const targetX = (itemX_pct / 100) * width;
-        const targetY = (itemY_pct / 100) * height;
-        const centerX = width / 2;
-        const centerY = 0; // Rope starts at top
-
-        const dx = targetX - centerX;
-        const dy = targetY - centerY;
-        
-        // Calculate distance and angle in pixels to account for canvas aspect ratio
-        const targetDistancePx = Math.sqrt(dx * dx + dy * dy);
-        const targetAngle = -(Math.atan2(dx, dy) * (180 / Math.PI));
-
-        // Phase 1: Extend rope down (600ms)
+    } else {
+      setFlashingItemId(itemId);
+      
+      if (difficulty === 'advanced' || difficulty === 'expert') {
         setTimeout(() => {
-          setRopeHeight(targetDistancePx);
-          setRopeAngle(targetAngle);
-        }, 50);
-        
-        // Phase 2: Magnet attaches - show CLANK and particles (at 600ms)
-        setTimeout(() => {
-          setRopePhase('attached');
-          setShowClank(true);
-          
-          // Generate gold sparkle particles at contact point
-          const newParticles = Array.from({ length: 15 }, (_, i) => ({
-            id: Date.now() + i,
-            x: itemX_pct,
-            y: itemY_pct,
-            delay: i * 0.05
-          }));
-          setParticles(newParticles);
-          
-          // Hide CLANK after brief moment
-          setTimeout(() => setShowClank(false), 400);
-        }, 600);
-        
-        // Phase 3: Begin retracting and pulling element (after 800ms total = 600ms extend + 200ms pause)
-        setTimeout(() => {
-          setRopePhase('retracting');
-          setRopeHeight(0); // Retract all the way back up
-          setRopeAngle(0);  // Rotate back to center
-        }, 800);
-        
-        // Clear shake after animation starts
-        setTimeout(() => setShakeScreen(false), 300);
-        
-        // Clear particles after animation
-        setTimeout(() => setParticles([]), 2000);
-        
-        // Reset rope phase after animation completes (1700ms total)
-        setTimeout(() => {
-          setRopePhase('idle');
-          setRopeHeight(0);
-          setRopeAngle(0);
-          setPullingItemId(null);
-        }, 1700);
-        
-        // Wait for complete animation (1.7s) before next question
-        setTimeout(() => {
+          setFlashingItemId(null);
           if (newIndex < session.questions.length) {
             setQuestionIndex(newIndex);
             initPositions(session.questions[newIndex]);
             if (totalTime) setTimeLeft(totalTime);
           } else {
-            // Game should already be marked completed in Firestore, but ensure UI updates
-            endGame(session.sessionId);
+            endGame();
           }
-        }, 1700);
-
+        }, 800);
       } else {
-        // Animation for wrong
-        setFlashingItemId(itemId);
+        setDisabledItems(prev => new Set([...prev, itemId]));
         
-        // For advanced/expert, advance to next question after brief delay
-        if (data.difficulty === 'advanced' || data.difficulty === 'expert') {
-          setTimeout(() => {
-            setFlashingItemId(null);
-            if (newIndex < session.questions.length) {
-              setQuestionIndex(newIndex);
-              initPositions(session.questions[newIndex]);
-              if (totalTime) setTimeLeft(totalTime);
-            } else {
-              endGame(session.sessionId);
-            }
-          }, 800);
-        } else {
-          // For beginner/intermediate, stay on same question and disable the wrong item
-          setDisabledItems(prev => new Set([...prev, itemId]));
-          
-          setTimeout(() => {
-            setFlashingItemId(null);
-            // Resume timer but keep item disabled
-            questionStartTime.current += 500; // compensate for animation pause
-          }, 500);
-        }
+        setTimeout(() => {
+          setFlashingItemId(null);
+          questionStartTime.current += 500;
+        }, 500);
       }
-      
-    } catch (err) {
-      console.error(err);
     }
   };
 
@@ -524,56 +390,54 @@ export default function MinerGame({ userId }: { userId?: string }) {
 
   return (
     <div className={styles.container}>
+      {showResumeModal && (
+        <ResumeModal
+          gameName="Miner Game"
+          onResume={handleResume}
+          onStartNew={handleStartNew}
+          previousScore={savedSession?.score}
+          previousProgress={`Question: ${(savedSession?.questionIndex ?? 0) + 1}/10`}
+        />
+      )}
+
       <Link href="/games" className={styles.backLink}>
-        &larr; Back to Games
+        &larr; Leave Game
       </Link>
 
       <div className={styles.gameArea}>
         
         {!session && !gameOver && (
-           userId ? (
-             <div className={styles.startScreen}>
-                <h1 className={styles.title}>Miner Game</h1>
-                <p className={styles.subtitle}>
-                  Extract the correct elements using your reliable scientific magnet crane. 
-                  Beware of radioactive red flashes (wrong answers)!
-                </p>
-                
-                <div className="mb-6">
-                  <label className="mr-3 font-semibold text-[var(--text-main)]">Difficulty:</label>
-                  <select 
-                    value={difficulty} 
-                    onChange={(e) => setDifficulty(e.target.value as 'beginner' | 'intermediate' | 'advanced' | 'expert')}
-                    className="bg-black/30 text-white border border-gray-600 rounded px-3 py-1 outline-none"
-                  >
-                    <option value="beginner">🌱 Beginner</option>
-                    <option value="intermediate">📘 Intermediate</option>
-                    <option value="advanced">📕 Advanced</option>
-                    <option value="expert">🔥 Expert</option>
-                  </select>
-                </div>
-                
-                {error && <p className="text-red-400 mt-4">{error}</p>}
-                
-                <button 
-                  className={styles.startBtn} 
-                  onClick={startGame} 
-                  disabled={loading}
-                >
-                  {loading ? 'Initializing Crane...' : 'Start Mining'}
-                </button>
-             </div>
-           ) : (
-             <div className={styles.startScreen}>
-                <h1 className={styles.title}>Miner Game</h1>
-                <p className={styles.subtitle}>
-                  You need to be logged in to play the Miner Game.
-                </p>
-                <Link href="/sign-in">
-                  <button className={styles.startBtn}>Login</button>
-                </Link>
-             </div>
-           )
+          <div className={styles.startScreen}>
+            <h1 className={styles.title}>Miner Game</h1>
+            <p className={styles.subtitle}>
+              Extract the correct elements using your reliable scientific magnet crane. 
+              Beware of radioactive red flashes (wrong answers)!
+            </p>
+            
+            <div className="mb-6">
+              <label className="mr-3 font-semibold text-[var(--text-main)]">Difficulty:</label>
+              <select 
+                value={difficulty} 
+                onChange={(e) => setDifficulty(e.target.value as 'beginner' | 'intermediate' | 'advanced' | 'expert')}
+                className="bg-black/30 text-white border border-gray-600 rounded px-3 py-1 outline-none"
+              >
+                <option value="beginner">🌱 Beginner</option>
+                <option value="intermediate">📘 Intermediate</option>
+                <option value="advanced">📕 Advanced</option>
+                <option value="expert">🔥 Expert</option>
+              </select>
+            </div>
+            
+            {error && <p className="text-red-400 mt-4">{error}</p>}
+            
+            <button 
+              className={styles.startBtn} 
+              onClick={startGame} 
+              disabled={loading}
+            >
+              {loading ? 'Initializing Crane...' : 'Start Mining'}
+            </button>
+          </div>
         )}
 
         {session && !gameOver && (

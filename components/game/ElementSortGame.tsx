@@ -22,23 +22,60 @@ interface ElementSortGameProps {
   settings: ElementSortSettings;
   onGameComplete: (result: { totalScore: number; moves: number; timeBonus: number }) => void;
   resetKey: number;
+  initialState?: {
+    vials: Vial[];
+    selectedVialId: string | null;
+    moves: number;
+    undoStack: UndoSnapshot[];
+    completedVials: string[];
+    isWon: boolean;
+    timeLeft: number | undefined;
+  };
+  onStateChange?: (state: {
+    vials: Vial[];
+    selectedVialId: string | null;
+    moves: number;
+    undoStack: UndoSnapshot[];
+    completedVials: string[];
+    isWon: boolean;
+    timeLeft: number | undefined;
+  }) => void;
 }
 
 export default function ElementSortGame({
   settings,
   onGameComplete,
   resetKey,
+  initialState,
+  onStateChange,
 }: ElementSortGameProps) {
-  const [vials, setVials] = useState<Vial[]>(() => generateLevel(settings));
-  const [selectedVialId, setSelectedVialId] = useState<string | null>(null);
-  const [moves, setMoves] = useState(0);
-  const [undoStack, setUndoStack] = useState<UndoSnapshot[]>([]);
-  const [completedVials, setCompletedVials] = useState<Set<string>>(new Set());
-  const [isWon, setIsWon] = useState(false);
-  const [timeLeft, setTimeLeft] = useState<number | undefined>(settings.timeLimit);
+  const [vials, setVials] = useState<Vial[]>(initialState ? () => initialState.vials : () => generateLevel(settings));
+  const [selectedVialId, setSelectedVialId] = useState<string | null>(initialState?.selectedVialId || null);
+  const [moves, setMoves] = useState(initialState?.moves || 0);
+  const [undoStack, setUndoStack] = useState<UndoSnapshot[]>(initialState?.undoStack || []);
+  const [completedVials, setCompletedVials] = useState<Set<string>>(new Set(initialState?.completedVials || []));
+  const [isWon, setIsWon] = useState(initialState?.isWon || false);
+  const [timeLeft, setTimeLeft] = useState<number | undefined>(initialState?.timeLeft ?? settings.timeLimit);
   const [animatingVial, setAnimatingVial] = useState<string | null>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+
+  const isGameActive = !isWon && (settings.mode !== 'timed' || (timeLeft !== undefined && timeLeft > 0));
+
+  /* ---------- Notify parent of state changes ---------- */
+  useEffect(() => {
+    if (onStateChange && isGameActive) {
+      onStateChange({
+        vials,
+        selectedVialId,
+        moves,
+        undoStack,
+        completedVials: Array.from(completedVials),
+        isWon,
+        timeLeft,
+      });
+    }
+  }, [vials, selectedVialId, moves, undoStack, completedVials, isWon, timeLeft, onStateChange, isGameActive]);
 
   useEffect(() => {
     if (settings.mode === 'timed' && timeLeft !== undefined && timeLeft > 0 && !isWon) {

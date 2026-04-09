@@ -11,6 +11,7 @@ import {
   runTransaction,
   serverTimestamp,
   setDoc,
+  updateDoc,
   type Timestamp,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
@@ -24,11 +25,16 @@ import {
   type Recipe,
   type RecipeAttemptResult,
 } from '@/lib/data/lab-elements';
+import { useRouter } from 'next/navigation';
 import { ShareGameScore } from '@/components/game/ShareGameScore';
 import { GameTutorial } from '@/components/game/GameTutorial';
 import GameRating from '@/components/game/GameRating';
 import { gameTutorials } from '@/lib/data/game-tutorials';
-import styles from './page.module.css';
+import { cn } from '@/lib/utils';
+import { MultiplayerLobby } from '@/components/game/Multiplayer/MultiplayerLobby';
+import { MultiplayerWaiting } from '@/components/game/Multiplayer/MultiplayerWaiting';
+import { MultiplayerOverlay } from '@/components/game/Multiplayer/MultiplayerOverlay';
+import { MultiplayerContainer } from '@/components/game/Multiplayer/MultiplayerContainer';
 
 const WINNING_ROUNDS = 3;
 const ROUND_TIME = 30;
@@ -61,6 +67,20 @@ interface GameData {
   roundResolvedAt: SharedTimerValue;
   winner: RoundWinner;
   createdAt: unknown;
+  disconnected: {
+    player1?: boolean;
+    player2?: boolean;
+  };
+  disconnectedAt?: {
+    player1?: Timestamp;
+    player2?: Timestamp;
+  };
+}
+
+interface GameSession {
+  roomCode: string;
+  isHost: boolean;
+  playerRole: 1 | 2;
 }
 
 interface CheckFeedback {
@@ -272,8 +292,10 @@ async function getUserDisplayName(uid: string): Promise<string> {
 
 export default function ChemicalFormulaRacePage() {
   const { user } = useAuthStore();
+  const router = useRouter();
   const [screen, setScreen] = useState<Screen>('lobby');
   const [gameData, setGameData] = useState<GameData | null>(null);
+  const [isHost, setIsHost] = useState(false);
   const [joinCode, setJoinCode] = useState('');
   const [winnerText, setWinnerText] = useState('');
   const [error, setError] = useState('');
@@ -287,6 +309,16 @@ export default function ChemicalFormulaRacePage() {
   const [roundResultCountdown, setRoundResultCountdown] = useState(ROUND_RESULT_DELAY);
   const [touchDrag, setTouchDrag] = useState<TouchDragState>(createEmptyTouchDragState);
   const [isChamberHovered, setIsChamberHovered] = useState(false);
+
+  const [opponentDisconnected, setOpponentDisconnected] = useState(false);
+  const [reconnectTimeout, setReconnectTimeout] = useState(0);
+  const [showReconnectScreen, setShowReconnectScreen] = useState(false);
+  const [reconnectError, setReconnectError] = useState('');
+
+  const [showAfkWarning, setShowAfkWarning] = useState(false);
+  const [afkCountdown, setAfkCountdown] = useState(0);
+
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
   const unsubRef = useRef<(() => void) | undefined>(undefined);
   const timerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
@@ -307,6 +339,15 @@ export default function ChemicalFormulaRacePage() {
     currentRound: number;
     roundEnded: boolean;
   } | null>(null);
+  
+  const SESSION_KEY = 'chemFormulaRaceSession';
+  const lastActivityRef = useRef<number>(0);
+  const prevTurnRef = useRef<number | null>(null);
+  const afkWarningTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const afkTriggerTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const afkCountdownIntervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const handleOpponentTimeoutRef = useRef<(() => void) | undefined>(undefined);
 
   const myPlayerNum = gameData && user
     ? gameData.player1 === user.uid
@@ -407,121 +448,235 @@ export default function ChemicalFormulaRacePage() {
     isDraggingRef.current = false;
   }, []);
 
+  /* ---------- Session restoration on mount ---------- */
   useEffect(() => {
-    return () => cleanup();
-  }, [cleanup]);
+    if (!user) return;
 
-  useEffect(() => {
-    if (!touchDrag.isDragging) {
-      return;
-    }
+    const storedSession = sessionStorage.getItem(SESSION_KEY);
+    if (!storedSession) return;
 
-    const scrollY = window.scrollY;
-    document.body.style.touchAction = 'none';
-    document.body.style.overscrollBehavior = 'none';
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = '100%';
+    const session: GameSession = JSON.parse(storedSession);
 
-    return () => {
-      document.body.style.touchAction = '';
-      document.body.style.overscrollBehavior = '';
-      document.body.style.position = '';
-      document.body.style.top = '';
-      document.body.style.width = '';
-      window.scrollTo(0, scrollY);
+    const checkAndRestoreSession = async () => {
+      try {
+        const gameRef = doc(db, 'formulaRaceGames', session.roomCode);
+        const gameSnap = await getDoc(gameRef);
+
+        if (!gameSnap.exists()) {
+          sessionStorage.removeItem(SESSION_KEY);
+          return;
+        }
+
+        const gameDataInner = gameSnap.data() as GameData;
+
+        const isPlayer1 = gameDataInner.player1 === user.uid;
+        const isPlayer2 = gameDataInner.player2 === user.uid;
+        const myRole: 1 | 2 | null = isPlayer1 ? 1 : isPlayer2 ? 2 : null;
+
+        if (!myRole) {
+          sessionStorage.removeItem(SESSION_KEY);
+          return;
+        }
+
+        const isDisconnected = gameDataInner.disconnected?.[myRole === 1 ? 'player1' : 'player2'];
+
+        if (isDisconnected) {
+          const disconnectedAt = gameDataInner.disconnectedAt?.[myRole === 1 ? 'player1' : 'player2'] as Timestamp | undefined;
+          if (disconnectedAt && typeof disconnectedAt.toMillis === 'function') {
+            const elapsed = Date.now() - disconnectedAt.toMillis();
+            const TIMEOUT_MS = 2 * 60 * 1000;
+
+            if (elapsed >= TIMEOUT_MS) {
+              sessionStorage.removeItem(SESSION_KEY);
+              return;
+            }
+
+            setShowReconnectScreen(true);
+            setReconnectTimeout(Math.ceil((TIMEOUT_MS - elapsed) / 1000));
+            return;
+          }
+        }
+
+        setIsHost(session.isHost);
+        listenToGame(session.roomCode);
+      } catch {
+        sessionStorage.removeItem(SESSION_KEY);
+      }
     };
-  }, [touchDrag.isDragging]);
 
-  const listenToGame = useCallback(
-    (gameId: string) => {
-      cleanup();
+    checkAndRestoreSession();
+  }, [user]);
 
-      unsubRef.current = onSnapshot(
-        doc(db, 'formulaRaceGames', gameId),
-        (snap) => {
-          if (!snap.exists()) {
-            cleanup();
-            setGameData(null);
-            setScreen('lobby');
-            setError('Game was cancelled.');
-            return;
-          }
+  /* ---------- Cleanup on unmount ---------- */
+  useEffect(() => {
+    return () => {
+      if (unsubRef.current) unsubRef.current();
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (roundResultTimerRef.current) clearInterval(roundResultTimerRef.current);
+      if (reconnectTimeoutRef.current) clearInterval(reconnectTimeoutRef.current);
+      if (afkWarningTimeoutRef.current) clearTimeout(afkWarningTimeoutRef.current);
+      if (afkTriggerTimeoutRef.current) clearTimeout(afkTriggerTimeoutRef.current);
+      if (afkCountdownIntervalRef.current) clearInterval(afkCountdownIntervalRef.current);
+    };
+  }, []);
 
-          const raw = snap.data() as Partial<GameData>;
-          if (
-            typeof raw.currentRecipeIndex !== 'number' ||
-            !Array.isArray(raw.currentPoolSymbols)
-          ) {
-            cleanup();
-            setGameData(null);
-            setScreen('lobby');
-            setError('This room uses an outdated Formula Race version. Create a new room.');
-            return;
-          }
-
-          const nextGameData = { ...raw, id: gameId } as GameData;
-          setGameData(nextGameData);
-
-          if (nextGameData.status === 'waiting') {
-            setScreen('waiting');
-            return;
-          }
-
-          if (nextGameData.status === 'playing') {
-            setScreen('game');
-            return;
-          }
-
-          setWinnerText(getMatchWinnerText(nextGameData));
-          setScreen('victory');
-        },
-        (snapshotError) => {
-          console.error('[FormulaRace] Snapshot error:', snapshotError);
-          setError('Connection to the room was lost.');
-        },
-      );
-    },
-    [cleanup],
-  );
-
-  const handleRoundTimeout = useCallback(async () => {
-    if (!gameData) {
+  /* ---------- Opponent disconnection detection ---------- */
+  useEffect(() => {
+    if (!user || !gameData || gameData.status !== 'playing') {
+      setOpponentDisconnected(false);
+      if (reconnectTimeoutRef.current) clearInterval(reconnectTimeoutRef.current);
       return;
     }
+
+    const myPlayerNum = gameData.player1 === user.uid ? 1 : 
+                        gameData.player2 === user.uid ? 2 : null;
+    if (!myPlayerNum) return;
+
+    const opponentNum = myPlayerNum === 1 ? 2 : 1;
+    const opponentDisconnected = gameData.disconnected?.[opponentNum === 1 ? 'player1' : 'player2'];
+
+    if (opponentDisconnected) {
+      const disconnectedAt = gameData.disconnectedAt?.[opponentNum === 1 ? 'player1' : 'player2'] as Timestamp | undefined;
+      if (disconnectedAt && typeof disconnectedAt.toMillis === 'function') {
+        const disconnectTime = disconnectedAt.toMillis();
+        const elapsed = Date.now() - disconnectTime;
+        const TIMEOUT_MS = 2 * 60 * 1000;
+        const remaining = Math.max(0, Math.ceil((TIMEOUT_MS - elapsed) / 1000));
+
+        if (!reconnectTimeoutRef.current) {
+          setReconnectTimeout(remaining);
+          setOpponentDisconnected(true);
+
+          reconnectTimeoutRef.current = setInterval(async () => {
+            setReconnectTimeout((prev: number) => {
+              if (prev <= 1) {
+                if (reconnectTimeoutRef.current) clearInterval(reconnectTimeoutRef.current);
+                handleOpponentTimeoutRef.current?.();
+                return 0;
+              }
+              return prev - 1;
+            });
+          }, 1000);
+        } else {
+          setReconnectTimeout(remaining);
+        }
+      }
+    } else {
+      setOpponentDisconnected(false);
+      if (reconnectTimeoutRef.current) {
+        clearInterval(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = undefined;
+      }
+    }
+  }, [gameData, user]);
+
+  const handleOpponentTimeout = useCallback(async () => {
+    if (!gameData || !user) return;
 
     try {
-      await runTransaction(db, async (transaction) => {
-        const gameRef = doc(db, 'formulaRaceGames', gameData.id);
-        const snap = await transaction.get(gameRef);
-
-        if (!snap.exists()) {
-          return;
-        }
-
-        const latest = snap.data() as GameData;
-        if (latest.status !== 'playing' || latest.roundEnded) {
-          return;
-        }
-
-        const roundStartedAtMs = getSharedTimerMs(latest.roundStartTime);
-        if (
-          roundStartedAtMs != null
-          && Date.now() < roundStartedAtMs + ROUND_TIME_MS
-        ) {
-          return;
-        }
-
-        transaction.update(gameRef, {
-          roundEnded: true,
-          roundWinner: 0,
-          roundResolvedAt: serverTimestamp(),
-        });
-      });
-    } catch (transactionError) {
-      console.error('[FormulaRace] Timeout transaction failed:', transactionError);
+      const gameRef = doc(db, 'formulaRaceGames', gameData.id);
+      const myPlayerNum = user.uid === gameData.player1 ? 1 : 2;
+      const winnerNum = myPlayerNum === 1 ? 2 : 1;
+      await updateDoc(gameRef, { status: 'completed', winner: winnerNum });
+    } catch {
+      // ignore
     }
-  }, [gameData]);
+  }, [gameData, user]);
+
+  useEffect(() => {
+    handleOpponentTimeoutRef.current = handleOpponentTimeout;
+  }, [handleOpponentTimeout]);
+
+  /* ---------- Reconnect handling ---------- */
+  const handleReconnect = useCallback(async () => {
+    if (!gameData || !user) return;
+
+    try {
+      const gameRef = doc(db, 'formulaRaceGames', gameData.id);
+      const gameSnap = await getDoc(gameRef);
+
+      if (!gameSnap.exists()) {
+        setReconnectError('Game no longer exists');
+        return;
+      }
+
+      const gameDataInner = gameSnap.data() as GameData;
+      const myPlayerNum = gameDataInner.player1 === user.uid ? 1 : 2;
+      const myRoleKey = myPlayerNum === 1 ? 'player1' : 'player2';
+
+      const isDisconnected = gameDataInner.disconnected?.[myRoleKey];
+      const disconnectedAt = gameDataInner.disconnectedAt?.[myRoleKey];
+
+      if (!isDisconnected || !disconnectedAt) {
+        setShowReconnectScreen(false);
+        listenToGame(gameData.id);
+        return;
+      }
+
+      const disconnectedAtTs = disconnectedAt as Timestamp;
+      if (typeof disconnectedAtTs.toMillis !== 'function') {
+        setShowReconnectScreen(false);
+        listenToGame(gameData.id);
+        return;
+      }
+
+      const elapsed = Date.now() - disconnectedAtTs.toMillis();
+      const TIMEOUT_MS = 2 * 60 * 1000;
+
+      if (elapsed >= TIMEOUT_MS) {
+        setReconnectError('Reconnection time expired');
+        sessionStorage.removeItem(SESSION_KEY);
+        setTimeout(() => {
+          setShowReconnectScreen(false);
+          setScreen('lobby');
+        }, 2000);
+        return;
+      }
+
+      await updateDoc(gameRef, {
+        [`disconnected.${myRoleKey}`]: false,
+        disconnectedAt: { player1: null, player2: null },
+      });
+
+      setShowReconnectScreen(false);
+      listenToGame(gameData.id);
+    } catch {
+      setReconnectError('Failed to reconnect');
+    }
+  }, [gameData, user]);
+
+  const handleDropGame = useCallback(async () => {
+    if (!gameData || !user) return;
+
+    try {
+      const gameRef = doc(db, 'formulaRaceGames', gameData.id);
+      await updateDoc(gameRef, { status: 'completed' });
+    } catch {
+      // ignore
+    }
+
+    sessionStorage.removeItem(SESSION_KEY);
+    setShowReconnectScreen(false);
+    setScreen('lobby');
+  }, [gameData, user]);
+
+  /* ---------- Detect when player becomes disconnected while on page ---------- */
+  useEffect(() => {
+    if (!gameData || !user) return;
+
+    const myPlayerNum = gameData.player1 === user.uid ? 1 : 
+                        gameData.player2 === user.uid ? 2 : null;
+    if (!myPlayerNum) return;
+
+    const isDisconnected = gameData.disconnected?.[myPlayerNum === 1 ? 'player1' : 'player2'];
+
+    if (isDisconnected && screen === 'game') {
+      setShowReconnectScreen(true);
+    }
+  }, [gameData?.disconnected, screen, user]);
+
+  /* ---------- Note: AFK detection disabled for this game due to complex round structure ---------- */
+  /* ---------- Opponent disconnection detection is still active ---------- */
 
   useEffect(() => {
     if (!gameData || screen !== 'game') {
@@ -612,6 +767,44 @@ export default function ChemicalFormulaRacePage() {
     setIsChamberHovered(false);
   }, [isRoundActive]);
 
+  const handleRoundTimeout = useCallback(async () => {
+    if (!gameData) {
+      return;
+    }
+
+    try {
+      await runTransaction(db, async (transaction) => {
+        const gameRef = doc(db, 'formulaRaceGames', gameData.id);
+        const snap = await transaction.get(gameRef);
+
+        if (!snap.exists()) {
+          return;
+        }
+
+        const latest = snap.data() as GameData;
+        if (latest.status !== 'playing' || latest.roundEnded) {
+          return;
+        }
+
+        const roundStartedAtMs = getSharedTimerMs(latest.roundStartTime);
+        if (
+          roundStartedAtMs != null
+          && Date.now() < roundStartedAtMs + ROUND_TIME_MS
+        ) {
+          return;
+        }
+
+        transaction.update(gameRef, {
+          roundEnded: true,
+          roundWinner: 0,
+          roundResolvedAt: serverTimestamp(),
+        });
+      });
+    } catch (transactionError) {
+      console.error('[FormulaRace] Timeout transaction failed:', transactionError);
+    }
+  }, [gameData]);
+
   useEffect(() => {
     if (!gameData || screen !== 'game' || gameData.roundEnded || timeLeft > 0) {
       return;
@@ -624,6 +817,58 @@ export default function ChemicalFormulaRacePage() {
     timeoutRoundKeyRef.current = roundKey;
     void handleRoundTimeout();
   }, [gameData, handleRoundTimeout, roundKey, screen, timeLeft]);
+
+  const listenToGame = useCallback(
+    (gameId: string) => {
+      cleanup();
+
+      unsubRef.current = onSnapshot(
+        doc(db, 'formulaRaceGames', gameId),
+        (snap) => {
+          if (!snap.exists()) {
+            cleanup();
+            setGameData(null);
+            setScreen('lobby');
+            setError('Game was cancelled.');
+            return;
+          }
+
+          const raw = snap.data() as Partial<GameData>;
+          if (
+            typeof raw.currentRecipeIndex !== 'number' ||
+            !Array.isArray(raw.currentPoolSymbols)
+          ) {
+            cleanup();
+            setGameData(null);
+            setScreen('lobby');
+            setError('This room uses an outdated Formula Race version. Create a new room.');
+            return;
+          }
+
+          const nextGameData = { ...raw, id: gameId } as GameData;
+          setGameData(nextGameData);
+
+          if (nextGameData.status === 'waiting') {
+            setScreen('waiting');
+            return;
+          }
+
+          if (nextGameData.status === 'playing') {
+            setScreen('game');
+            return;
+          }
+
+          setWinnerText(getMatchWinnerText(nextGameData));
+          setScreen('victory');
+        },
+        (snapshotError) => {
+          console.error('[FormulaRace] Snapshot error:', snapshotError);
+          setError('Connection to the room was lost.');
+        },
+      );
+    },
+    [cleanup],
+  );
 
   const handleCreate = async () => {
     if (!user) {
@@ -658,8 +903,15 @@ export default function ChemicalFormulaRacePage() {
           ...roundState,
           winner: null,
           createdAt: serverTimestamp(),
+          disconnected: {},
         });
 
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+          roomCode: code,
+          isHost: true,
+          playerRole: 1,
+        } as GameSession));
+        setIsHost(true);
         listenToGame(code);
         setLoading(false);
         return;
@@ -730,6 +982,12 @@ export default function ChemicalFormulaRacePage() {
         });
       });
 
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+        roomCode: code,
+        isHost: false,
+        playerRole: 2,
+      } as GameSession));
+      setIsHost(false);
       listenToGame(code);
     } catch (joinError) {
       console.error('[FormulaRace] Join failed:', joinError);
@@ -743,6 +1001,127 @@ export default function ChemicalFormulaRacePage() {
     }
   };
 
+  /* ---------- Trigger AFK ---------- */
+  const triggerAfk = useCallback(async () => {
+    if (!gameData || !user) return;
+
+    const myPlayerNum = gameData.player1 === user.uid ? 1 : 2;
+    const myRoleKey = myPlayerNum === 1 ? 'player1' : 'player2';
+
+    try {
+      const gameRef = doc(db, 'formulaRaceGames', gameData.id);
+      const updateData: Record<string, unknown> = {};
+      updateData[`disconnected.${myRoleKey}`] = true;
+      updateData[`disconnectedAt.${myRoleKey}`] = serverTimestamp();
+      await updateDoc(gameRef, updateData);
+    } catch {
+      // ignore
+    }
+  }, [gameData, user]);
+
+  /* ---------- Clear AFK timers ---------- */
+  const clearAfkTimers = useCallback(() => {
+    if (afkWarningTimeoutRef.current) {
+      clearTimeout(afkWarningTimeoutRef.current);
+      afkWarningTimeoutRef.current = undefined;
+    }
+    if (afkTriggerTimeoutRef.current) {
+      clearTimeout(afkTriggerTimeoutRef.current);
+      afkTriggerTimeoutRef.current = undefined;
+    }
+    if (afkCountdownIntervalRef.current) {
+      clearInterval(afkCountdownIntervalRef.current);
+      afkCountdownIntervalRef.current = undefined;
+    }
+    setShowAfkWarning(false);
+    setAfkCountdown(0);
+  }, []);
+
+  /* ---------- Perform Leave Game ---------- */
+  const performLeaveGame = useCallback(async () => {
+    setShowLeaveConfirm(false);
+
+    if (unsubRef.current) {
+      unsubRef.current();
+      unsubRef.current = undefined;
+    }
+
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = undefined;
+    }
+
+    if (roundResultTimerRef.current) {
+      clearInterval(roundResultTimerRef.current);
+      roundResultTimerRef.current = undefined;
+    }
+
+    if (reconnectTimeoutRef.current) {
+      clearInterval(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = undefined;
+    }
+
+    if (afkWarningTimeoutRef.current) {
+      clearTimeout(afkWarningTimeoutRef.current);
+      afkWarningTimeoutRef.current = undefined;
+    }
+    if (afkTriggerTimeoutRef.current) {
+      clearTimeout(afkTriggerTimeoutRef.current);
+      afkTriggerTimeoutRef.current = undefined;
+    }
+    if (afkCountdownIntervalRef.current) {
+      clearInterval(afkCountdownIntervalRef.current);
+      afkCountdownIntervalRef.current = undefined;
+    }
+
+    if (gameData && gameData.id && user) {
+      try {
+        const gameRef = doc(db, 'formulaRaceGames', gameData.id);
+
+        if (gameData.status === 'playing') {
+          const myPlayerNum = user.uid === gameData.player1 ? 1 : 2;
+          const winnerNum = myPlayerNum === 1 ? 2 : 1;
+          await updateDoc(gameRef, {
+            status: 'completed',
+            winner: winnerNum,
+          });
+        } else if (gameData.status === 'waiting') {
+          if (gameData.player1 === user.uid) {
+            await deleteDoc(gameRef);
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    setGameData(null);
+    setIsHost(false);
+    setJoinCode('');
+    setWinnerText('');
+    setError('');
+    setScreen('lobby');
+    setShowReconnectScreen(false);
+    setOpponentDisconnected(false);
+    setShowAfkWarning(false);
+    setAfkCountdown(0);
+    sessionStorage.removeItem(SESSION_KEY);
+  }, [gameData, user]);
+
+  const handleLeaveGame = useCallback(async () => {
+    if (gameData?.status === 'playing') {
+      setShowLeaveConfirm(true);
+      return;
+    }
+
+    if (screen === 'lobby') {
+      router.push('/games');
+      return;
+    }
+
+    await performLeaveGame();
+  }, [screen, gameData, router, performLeaveGame]);
+
   const addToChamber = useCallback(
     (element: LabElement) => {
       if (!isRoundActive) {
@@ -753,6 +1132,23 @@ export default function ChemicalFormulaRacePage() {
     },
     [isRoundActive],
   );
+
+  const removeFromChamber = useCallback((symbol: string) => {
+    if (!isRoundActive) {
+      return;
+    }
+
+    setChamberElements((current) => {
+      const index = current.findLastIndex((el) => el.symbol === symbol);
+      if (index === -1) {
+        return current;
+      }
+
+      const next = [...current];
+      next.splice(index, 1);
+      return next;
+    });
+  }, [isRoundActive]);
 
   const handleDragStart = useCallback(
     (event: React.DragEvent<HTMLButtonElement>, element: LabElement) => {
@@ -798,83 +1194,82 @@ export default function ChemicalFormulaRacePage() {
         }
 
         const parsed = JSON.parse(payload) as LabElement;
-        const element = ELEMENT_BY_SYMBOL.get(parsed.symbol);
-        if (element) {
-          addToChamber(element);
-        }
+        addToChamber(parsed);
       } catch {
-        // Ignore invalid drop payloads.
+        // ignore
       }
     },
     [addToChamber, isRoundActive],
   );
 
   const handleTouchStart = useCallback(
-    (element: LabElement) => (event: React.TouchEvent<HTMLElement>) => {
+    (event: React.TouchEvent<HTMLButtonElement>, element: LabElement) => {
       if (!isRoundActive) {
         return;
       }
-
-      const touch = event.touches[0];
-      setTouchDrag({
-        isDragging: false,
-        element,
-        x: touch.clientX,
-        y: touch.clientY,
-        startX: touch.clientX,
-        startY: touch.clientY,
-      });
 
       if (dragTimerRef.current) {
         clearTimeout(dragTimerRef.current);
       }
 
+      const touch = event.touches[0];
+      const startX = touch.clientX;
+      const startY = touch.clientY;
+
+      setTouchDrag({
+        isDragging: false,
+        element,
+        x: startX,
+        y: startY,
+        startX,
+        startY,
+      });
+
       dragTimerRef.current = setTimeout(() => {
-        setTouchDrag((current) => {
-          const dx = current.x - current.startX;
-          const dy = current.y - current.startY;
-
-          if (Math.sqrt(dx * dx + dy * dy) > 15) {
-            isDraggingRef.current = false;
-            return createEmptyTouchDragState();
-          }
-
-          isDraggingRef.current = true;
-          return { ...current, isDragging: true };
-        });
+        isDraggingRef.current = true;
+        setTouchDrag((current) => ({ ...current, isDragging: true }));
+        if (navigator.vibrate) {
+          navigator.vibrate(20);
+        }
       }, TOUCH_DRAG_HOLD_DELAY);
     },
     [isRoundActive],
   );
 
   const handleTouchMove = useCallback(
-    (event: React.TouchEvent<HTMLElement>) => {
+    (event: TouchEvent) => {
       if (!touchDrag.element) {
         return;
       }
 
       const touch = event.touches[0];
-      setTouchDrag((current) => ({
-        ...current,
-        x: touch.clientX,
-        y: touch.clientY,
-      }));
+      const x = touch.clientX;
+      const y = touch.clientY;
 
-      if (isDraggingRef.current) {
-        event.preventDefault();
+      if (!isDraggingRef.current) {
+        const distance = Math.sqrt(
+          (x - touchDrag.startX) ** 2 + (y - touchDrag.startY) ** 2,
+        );
+        if (distance > 10) {
+          if (dragTimerRef.current) {
+            clearTimeout(dragTimerRef.current);
+            dragTimerRef.current = null;
+          }
+        }
+        return;
       }
+
+      event.preventDefault();
+      setTouchDrag((current) => ({ ...current, x, y }));
 
       if (chamberTouchRef.current) {
         const rect = chamberTouchRef.current.getBoundingClientRect();
-        const isOver =
-          touch.clientX >= rect.left &&
-          touch.clientX <= rect.right &&
-          touch.clientY >= rect.top &&
-          touch.clientY <= rect.bottom;
-        setIsChamberHovered(isOver);
+        const hovered =
+          x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+        setIsChamberHovered(hovered);
       }
     },
-    [touchDrag.element],
+    [touchDrag.element, touchDrag.startX, touchDrag.startY],
   );
 
   const handleTouchEnd = useCallback(() => {
@@ -883,214 +1278,167 @@ export default function ChemicalFormulaRacePage() {
       dragTimerRef.current = null;
     }
 
-    if (isDraggingRef.current && touchDrag.element && isChamberHovered && isRoundActive) {
+    if (isDraggingRef.current && touchDrag.element && isChamberHovered) {
       addToChamber(touchDrag.element);
     }
 
     isDraggingRef.current = false;
     setTouchDrag(createEmptyTouchDragState());
     setIsChamberHovered(false);
-  }, [addToChamber, isChamberHovered, isRoundActive, touchDrag.element]);
+  }, [addToChamber, isChamberHovered, touchDrag.element]);
 
-  const handleElementClick = useCallback(
-    (element: LabElement) => {
-      if (!isRoundActive) {
-        return;
-      }
-
-      setSelectedElement((current) =>
-        current?.symbol === element.symbol ? null : element,
-      );
-    },
-    [isRoundActive],
-  );
-
-  const handleChamberClick = useCallback(() => {
-    if (!selectedElement || !isRoundActive) {
-      return;
+  useEffect(() => {
+    if (touchDrag.element) {
+      window.addEventListener('touchmove', handleTouchMove, { passive: false });
+      window.addEventListener('touchend', handleTouchEnd);
+      window.addEventListener('touchcancel', handleTouchEnd);
     }
 
-    addToChamber(selectedElement);
-    setSelectedElement(null);
-  }, [addToChamber, isRoundActive, selectedElement]);
+    return () => {
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('touchcancel', handleTouchEnd);
+    };
+  }, [handleTouchEnd, handleTouchMove, touchDrag.element]);
 
-  const removeFromChamber = useCallback(
-    (index: number) => {
-      if (!isRoundActive) {
-        return;
-      }
-
-      setChamberElements((current) =>
-        current.filter((_, currentIndex) => currentIndex !== index),
-      );
-    },
-    [isRoundActive],
-  );
-
-  const clearChamber = useCallback(() => {
-    if (!isRoundActive) {
-      return;
-    }
-
-    setChamberElements([]);
-    setSelectedElement(null);
-  }, [isRoundActive]);
-
-  const handleCheckChamber = useCallback(async () => {
-    if (!gameData || !currentRecipe || !myPlayerNum || checkBusy || !isRoundActive) {
-      return;
-    }
-
-    const attempt = attemptRecipeCombination(chamberElements, currentRecipe);
-    setCheckFeedback(getCheckFeedback(attempt, currentRecipe));
-
-    if (attempt.kind !== 'success') {
+  const handleCheck = useCallback(async () => {
+    if (!gameData || !isRoundActive || chamberElements.length === 0 || !user || !currentRecipe) {
       return;
     }
 
     setCheckBusy(true);
+    setCheckFeedback(null);
 
     try {
-      const outcome = await runTransaction(db, async (transaction) => {
+      const counts = chamberElements.reduce<Record<string, number>>((acc, el) => {
+        acc[el.symbol] = (acc[el.symbol] || 0) + 1;
+        return acc;
+      }, {});
+
+      const result = attemptRecipeCombination(chamberElements, currentRecipe);
+      const feedback = getCheckFeedback(result, currentRecipe);
+      setCheckFeedback(feedback);
+
+      if (result.kind === 'success') {
         const gameRef = doc(db, 'formulaRaceGames', gameData.id);
-        const snap = await transaction.get(gameRef);
 
-        if (!snap.exists()) {
-          return 'missing';
-        }
+        await runTransaction(db, async (transaction) => {
+          const snap = await transaction.get(gameRef);
+          if (!snap.exists()) {
+            return;
+          }
 
-        const latest = snap.data() as GameData;
-        if (latest.status !== 'playing' || latest.roundEnded) {
-          return 'closed';
-        }
+          const latest = snap.data() as GameData;
+          if (latest.status !== 'playing' || latest.roundEnded) {
+            return;
+          }
 
-        const nextP1Score = latest.p1Score + (myPlayerNum === 1 ? 1 : 0);
-        const nextP2Score = latest.p2Score + (myPlayerNum === 2 ? 1 : 0);
-        const didWinMatch =
-          nextP1Score >= WINNING_ROUNDS || nextP2Score >= WINNING_ROUNDS;
-
-        transaction.update(gameRef, {
-          roundEnded: true,
-          roundWinner: myPlayerNum,
-          roundResolvedAt: serverTimestamp(),
-          p1Score: nextP1Score,
-          p2Score: nextP2Score,
-          ...(didWinMatch
-            ? {
-              status: 'completed' as MatchStatus,
-              winner: myPlayerNum,
-            }
-            : {}),
-        });
-
-        return 'won';
-      });
-
-      if (outcome !== 'won') {
-        setCheckFeedback({
-          kind: 'info',
-          title: 'Round already finished',
-          message: 'Your opponent locked in the result before this check completed.',
+          const isPlayer1 = latest.player1 === user.uid;
+          transaction.update(gameRef, {
+            roundEnded: true,
+            roundWinner: isPlayer1 ? 1 : 2,
+            roundResolvedAt: serverTimestamp(),
+            p1Score: isPlayer1 ? latest.p1Score + 1 : latest.p1Score,
+            p2Score: isPlayer1 ? latest.p2Score : latest.p2Score + 1,
+          });
         });
       }
-    } catch (transactionError) {
-      console.error('[FormulaRace] Check transaction failed:', transactionError);
-      setCheckFeedback({
-        kind: 'error',
-        title: 'Check failed',
-        message: 'Could not submit your chamber. Try again.',
-      });
+    } catch (checkError) {
+      console.error('[FormulaRace] Check failed:', checkError);
+      setCheckFeedback({ kind: 'error', title: 'System Error', message: 'Failed to validate combination.' });
     } finally {
       setCheckBusy(false);
     }
-  }, [
-    chamberElements,
-    checkBusy,
-    currentRecipe,
-    gameData,
-    isRoundActive,
-    myPlayerNum,
-  ]);
+  }, [gameData, isRoundActive, chamberElements, user, currentRecipe]);
 
-  const handleNextRound = useCallback(async () => {
-    if (!gameData || gameData.status !== 'playing') {
+  const handleMatchComplete = useCallback(async () => {
+    if (!gameData) {
       return;
     }
 
-    setCheckBusy(true);
-
     try {
-      await runTransaction(db, async (transaction) => {
-        const gameRef = doc(db, 'formulaRaceGames', gameData.id);
-        const snap = await transaction.get(gameRef);
+      const gameRef = doc(db, 'formulaRaceGames', gameData.id);
+      let winner: RoundWinner = 0;
+      if (gameData.p1Score > gameData.p2Score) {
+        winner = 1;
+      } else if (gameData.p2Score > gameData.p1Score) {
+        winner = 2;
+      }
 
-        if (!snap.exists()) {
-          return;
-        }
-
-        const latest = snap.data() as GameData;
-        if (latest.status !== 'playing' || !latest.roundEnded) {
-          return;
-        }
-
-        const nextRoundState = createRoundState(latest.currentRecipeIndex);
-        transaction.update(gameRef, {
-          currentRound: latest.currentRound + 1,
-          ...nextRoundState,
-        });
+      await updateDoc(gameRef, {
+        status: 'completed',
+        winner,
       });
-    } catch (transactionError) {
-      console.error('[FormulaRace] Next round transaction failed:', transactionError);
-      setError('Could not start the next round. Please try again.');
-    } finally {
-      setCheckBusy(false);
+    } catch {
+      // ignore
     }
   }, [gameData]);
 
+  const handleManualAdvance = useCallback(async () => {
+    if (!gameData || myPlayerNum !== 1) {
+      return;
+    }
+
+    try {
+      const nextIndex = pickRecipeIndex(gameData.currentRecipeIndex);
+      const gameRef = doc(db, 'formulaRaceGames', gameData.id);
+
+      await updateDoc(gameRef, {
+        currentRound: gameData.currentRound + 1,
+        currentRecipeIndex: nextIndex,
+        currentPoolSymbols: buildRoundPoolSymbols(nextIndex),
+        roundStartTime: serverTimestamp(),
+        roundEnded: false,
+        roundWinner: null,
+        roundResolvedAt: null,
+      });
+    } catch {
+      // ignore
+    }
+  }, [gameData, myPlayerNum]);
+
   useEffect(() => {
     if (
-      !gameData ||
       screen !== 'game' ||
+      !gameData ||
       gameData.status !== 'playing' ||
-      !gameData.roundEnded
+      !gameData.roundEnded ||
+      gameData.winner != null
     ) {
       if (roundResultTimerRef.current) {
         clearInterval(roundResultTimerRef.current);
         roundResultTimerRef.current = undefined;
       }
-      setRoundResultCountdown(ROUND_RESULT_DELAY);
       return;
     }
 
-    const resultKey = `${gameData.currentRound}:ended`;
-    if (activeResultKeyRef.current !== resultKey) {
-      const previousGameState = previousGameStateRef.current;
-      const isLiveRoundEnd = previousGameState != null
-        && previousGameState.currentRound === gameData.currentRound
-        && !previousGameState.roundEnded;
-      const initialElapsedMs = isLiveRoundEnd
-        ? 0
-        : getElapsedFromSharedTimer(gameData.roundResolvedAt, ROUND_RESULT_DELAY_MS);
-      activeResultKeyRef.current = resultKey;
-      resultElapsedBaseMsRef.current = initialElapsedMs;
-      resultTickStartedAtRef.current = performance.now();
-      setRoundResultCountdown(getRemainingSeconds(ROUND_RESULT_DELAY_MS, initialElapsedMs));
+    if (activeResultKeyRef.current === roundKey) {
+      return;
     }
 
-    const syncCountdown = () => {
-      const elapsedMs =
-        resultElapsedBaseMsRef.current + (performance.now() - resultTickStartedAtRef.current);
-      const remaining = getRemainingSeconds(ROUND_RESULT_DELAY_MS, elapsedMs);
-      setRoundResultCountdown(remaining);
+    const resolvedAtMs = getSharedTimerMs(gameData.roundResolvedAt);
+    if (!resolvedAtMs) {
+      return;
+    }
 
-      if (remaining === 0 && autoAdvanceRoundKeyRef.current !== roundKey) {
-        autoAdvanceRoundKeyRef.current = roundKey;
-        void handleNextRound();
-      }
+    activeResultKeyRef.current = roundKey;
+    const initialElapsedMs = getElapsedFromSharedTimer(
+      gameData.roundResolvedAt,
+      ROUND_RESULT_DELAY_MS,
+    );
+    resultElapsedBaseMsRef.current = initialElapsedMs;
+    resultTickStartedAtRef.current = performance.now();
+    setRoundResultCountdown(getRemainingSeconds(ROUND_RESULT_DELAY_MS, initialElapsedMs));
+
+    const syncResultTimer = () => {
+      const elapsedMs =
+        resultElapsedBaseMsRef.current +
+        (performance.now() - resultTickStartedAtRef.current);
+      setRoundResultCountdown(getRemainingSeconds(ROUND_RESULT_DELAY_MS, elapsedMs));
     };
 
-    syncCountdown();
-    roundResultTimerRef.current = setInterval(syncCountdown, 250);
+    syncResultTimer();
+    roundResultTimerRef.current = setInterval(syncResultTimer, 250);
 
     return () => {
       if (roundResultTimerRef.current) {
@@ -1098,421 +1446,453 @@ export default function ChemicalFormulaRacePage() {
         roundResultTimerRef.current = undefined;
       }
     };
-  }, [gameData, handleNextRound, roundKey, screen]);
+  }, [gameData, gameData?.roundEnded, gameData?.status, roundKey, screen]);
 
   useEffect(() => {
-    previousGameStateRef.current = gameData
-      ? {
-          status: gameData.status,
-          currentRound: gameData.currentRound,
-          roundEnded: gameData.roundEnded,
-        }
-      : null;
+    if (
+      myPlayerNum !== 1 ||
+      !gameData ||
+      !gameData.roundEnded ||
+      gameData.winner != null ||
+      roundResultCountdown > 0
+    ) {
+      return;
+    }
+
+    if (autoAdvanceRoundKeyRef.current === roundKey) {
+      return;
+    }
+
+    autoAdvanceRoundKeyRef.current = roundKey;
+    if (gameData.currentRound >= 5) {
+      void handleMatchComplete();
+    } else {
+      void handleManualAdvance();
+    }
+  }, [gameData, handleManualAdvance, handleMatchComplete, myPlayerNum, roundKey, roundResultCountdown]);
+
+  useEffect(() => {
+    if (gameData) {
+      previousGameStateRef.current = {
+        status: gameData.status,
+        currentRound: gameData.currentRound,
+        roundEnded: gameData.roundEnded,
+      };
+    }
   }, [gameData]);
-
-  const handleLeave = async () => {
-    if (!gameData || !user) {
-      return;
-    }
-
-    if (gameData.player1 !== user.uid) {
-      setError('Only the host can cancel this room.');
-      return;
-    }
-
-    try {
-      await deleteDoc(doc(db, 'formulaRaceGames', gameData.id));
-    } catch {
-      // Ignore delete errors during cleanup.
-    }
-
-    cleanup();
-    setGameData(null);
-    setScreen('lobby');
-  };
-
-  const handlePlayAgain = () => {
-    cleanup();
-    setGameData(null);
-    setJoinCode('');
-    setWinnerText('');
-    setError('');
-    setTimeLeft(ROUND_TIME);
-    setSelectedElement(null);
-    setChamberElements([]);
-    setCheckFeedback(null);
-    setCheckBusy(false);
-    setIsDragOver(false);
-    setScreen('lobby');
-  };
 
   if (!user) {
     return (
-      <div className={styles.container}>
-        <div className={styles.gameArea}>
-          <p className={styles.errorMsg}>You must be logged in to play.</p>
+      <div className="w-full max-w-full mx-auto p-5 min-h-screen flex flex-col items-center justify-center">
+        <Link href="/games" className="self-start mb-4 text-cyan-500 font-medium hover:opacity-80 transition-opacity">
+          &larr; Leave Game
+        </Link>
+        <div className="relative w-full max-w-[1000px] h-[400px] bg-[var(--bg-card)] p-8 rounded-[32px] text-center shadow-2xl flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-500">
+          <h1 className="text-4xl font-extrabold mb-4">🧪 Formula Race</h1>
+          <p className="text-xl text-[var(--text-light)]">Please sign in to play.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={styles.container}>
-      <Link href="/games" className={styles.backLink}>
-        &larr; Back to Games
-      </Link>
+    <MultiplayerContainer
+      gameTitle="Chemical Formula Race"
+      onLeave={handleLeaveGame}
+      className={screen === 'game' ? 'h-full' : ''}
+    >
+      {/* Reconnection Screen */}
+      {showReconnectScreen && (
+        <MultiplayerOverlay
+          type="reconnecting"
+          timeout={reconnectTimeout}
+          onReconnect={handleReconnect}
+          onDrop={handleDropGame}
+          error={reconnectError}
+        />
+      )}
 
-      <div className={styles.gameArea}>
-        <h1 className={styles.title}>Chemical Formula Race</h1>
-        <p className={styles.subtitle}>
-          Build first. Win the round.
-        </p>
-
-        {error && <p className={styles.errorMsg}>{error}</p>}
-
-        {screen === 'lobby' && (
-          <div className={styles.lobbyContainer}>
-            <GameTutorial
-              tutorial={gameTutorials.chemFormulaRace}
-              accentColor="#06b6d4"
-              className="mb-6"
-            />
-
-            <div className={styles.lobbyButtons}>
+      {/* Leave Confirmation Modal */}
+      {showLeaveConfirm && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50">
+          <div className="mx-4 max-w-sm rounded-lg bg-[var(--bg-card)] p-6 text-center shadow-xl">
+            <h3 className="mb-4 text-xl font-bold text-[var(--text-main)]">
+              Leave Game?
+            </h3>
+            <p className="mb-6 text-[var(--text-secondary)]">
+              Are you sure you want to leave? The other player will win!
+            </p>
+            <div className="flex gap-3">
               <button
-                className={styles.createBtn}
-                onClick={handleCreate}
-                disabled={loading}
+                className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg font-semibold hover:bg-gray-600 transition-colors"
+                onClick={() => setShowLeaveConfirm(false)}
               >
-                {loading ? 'Creating...' : 'Create Room'}
+                Cancel
               </button>
-
-              <div className={styles.divider}>or</div>
-
-              <div className={styles.joinSection}>
-                <input
-                  type="text"
-                  placeholder="Enter room code"
-                  value={joinCode}
-                  onChange={(event) => setJoinCode(event.target.value)}
-                  className={styles.joinInput}
-                  maxLength={5}
-                />
-                <button
-                  className={styles.joinBtn}
-                  onClick={handleJoin}
-                  disabled={loading}
-                >
-                  {loading ? 'Joining...' : 'Join Room'}
-                </button>
-              </div>
+              <button
+                className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg font-semibold hover:bg-red-600 transition-colors"
+                onClick={performLeaveGame}
+              >
+                Leave Game
+              </button>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {screen === 'waiting' && gameData && (
-          <div className={styles.waitingContainer}>
-            <div className={styles.roomCode}>
-              <p>Room Code</p>
-              <h2>{gameData.id}</h2>
-              <p className={styles.shareText}>Share this code with your friend.</p>
+      {/* ======================== Lobby Screen ======================== */}
+      {screen === 'lobby' && (
+        <MultiplayerLobby
+          title="🧪 Formula Race"
+          description="Build chemical formulas faster than your opponent to win rounds and the match!"
+          tutorial={gameTutorials.chemFormulaRace}
+          accentColor="#0ea5e9"
+          onCreateRoom={handleCreate}
+          onJoinRoom={handleJoin}
+          roomCodeInput={joinCode}
+          setRoomCodeInput={setJoinCode}
+          errorMessage={error}
+          isLoading={loading}
+        />
+      )}
+
+      {/* ======================== Waiting Screen ======================== */}
+      {screen === 'waiting' && gameData && (
+        <MultiplayerWaiting
+          title="🧪 Waiting for Player 2"
+          subtitle="Share the code to start the formula race!"
+          roomCode={gameData.id}
+          tutorial={gameTutorials.chemFormulaRace}
+          accentColor="#0ea5e9"
+          onCopyCode={() => {
+            navigator.clipboard.writeText(gameData.id);
+          }}
+          onCancel={handleLeaveGame}
+        />
+      )}
+
+      {/* ======================== Game Screen ======================== */}
+      {screen === 'game' && gameData && (
+        <div className="flex flex-col h-full overflow-hidden">
+          {/* Header Stats */}
+          <div className="flex justify-between items-center mb-4 sm:mb-6 gap-2">
+            <div className="flex flex-col">
+              <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest">Round</span>
+              <span className="text-xl sm:text-2xl font-black">{gameData.currentRound} / 5</span>
+            </div>
+            
+            <div className="flex gap-2 sm:gap-4 overflow-x-auto scrollbar-hide">
+              <div className={cn(
+                "p-3 sm:p-4 rounded-2xl border-2 transition-all flex flex-col items-center min-w-[100px] sm:min-w-[120px]",
+                myPlayerNum === 1 ? "bg-white dark:bg-slate-800 border-sky-500 shadow-lg scale-105" : "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 opacity-80"
+              )}>
+                <span className="text-[8px] sm:text-[10px] font-bold text-slate-500 uppercase truncate w-full text-center px-1">{gameData.p1Name}</span>
+                <span className="text-xl sm:text-2xl font-black text-sky-600">{gameData.p1Score}</span>
+              </div>
+              <div className={cn(
+                "p-3 sm:p-4 rounded-2xl border-2 transition-all flex flex-col items-center min-w-[100px] sm:min-w-[120px]",
+                myPlayerNum === 2 ? "bg-white dark:bg-slate-800 border-sky-500 shadow-lg scale-105" : "bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 opacity-80"
+              )}>
+                <span className="text-[8px] sm:text-[10px] font-bold text-slate-500 uppercase truncate w-full text-center px-1">{gameData.p2Name}</span>
+                <span className="text-xl sm:text-2xl font-black text-sky-600">{gameData.p2Score}</span>
+              </div>
             </div>
 
-            <div className={styles.playerWaiting}>
-              <p>Waiting for an opponent to join...</p>
-              <div className={styles.spinner} />
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase tracking-widest">Time</span>
+              <span className={cn(
+                "text-xl sm:text-2xl font-black transition-colors",
+                timeLeft <= 5 ? "text-red-500 animate-pulse" : "text-slate-700 dark:text-slate-200"
+              )}>
+                {timeLeft}s
+              </span>
+            </div>
+          </div>
+
+          {/* Target Recipe */}
+          <div className="mb-8 flex justify-center">
+            <div className="glass-panel p-6 rounded-[32px] border-2 border-sky-500/20 max-w-xl w-full flex flex-col items-center relative overflow-hidden group">
+               <div className="absolute top-0 left-0 w-full h-1 bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                  <div 
+                    className="h-full bg-sky-500 transition-all duration-300 ease-linear"
+                    style={{ width: `${(timeLeft / ROUND_TIME) * 100}%` }}
+                  />
+               </div>
+               <span className="text-[10px] font-bold text-sky-500 uppercase tracking-[0.2em] mb-2 sm:mb-4 px-2 text-center">Build Target</span>
+               <h2 className="text-2xl sm:text-4xl font-black mb-1 sm:mb-2 tracking-tighter text-center px-4">
+                 {currentRecipe?.product.name}
+               </h2>
+               <p className="text-lg sm:text-xl font-bold text-slate-400 mb-4 sm:mb-6">{currentRecipe?.product.symbol}</p>
+               
+               {/* Hint Section */}
+               <div className="flex items-center gap-3">
+                 {showHint ? (
+                   <div className="flex flex-wrap justify-center gap-2 animate-in slide-in-from-bottom-2 duration-300">
+                     {currentRecipe && Object.entries(currentRecipe.reactants).map(([symbol, count]) => (
+                       <div key={symbol} className="bg-sky-100 dark:bg-sky-900/30 px-2 sm:px-3 py-1 rounded-full text-[10px] sm:text-sm font-bold text-sky-600 dark:text-sky-400 border border-sky-200 dark:border-sky-800">
+                         {count}x {symbol}
+                       </div>
+                     ))}
+                   </div>
+                 ) : (
+                   <div className="flex items-center gap-2 text-slate-400 text-sm font-medium italic">
+                     <span className="w-5 h-5 flex items-center justify-center rounded-full border border-slate-300 dark:border-slate-700 not-italic text-[10px] font-bold">?</span>
+                     Hint in {hintCountdown}s
+                   </div>
+                 )}
+               </div>
+            </div>
+          </div>
+
+          {/* Chamber & Pool */}
+          <div className="flex-1 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-8 min-h-0">
+            {/* Reaction Chamber */}
+            <div className="flex flex-col min-h-0">
+              <div 
+                ref={chamberTouchRef}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDropToChamber}
+                className={cn(
+                  "flex-1 relative glass-panel rounded-[40px] border-4 border-dashed transition-all flex flex-wrap content-start justify-center p-8 gap-4 overflow-y-auto",
+                  isDragOver ? "border-sky-500 bg-sky-500/5" : "border-slate-200 dark:border-slate-800",
+                  "scrollbar-hide"
+                )}
+              >
+                {chamberElements.length === 0 && !isDragOver && (
+                   <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 opacity-50 select-none pointer-events-none">
+                      <div className="w-20 h-20 mb-4 rounded-full border-4 border-dashed border-current flex items-center justify-center">
+                         <span className="text-4xl">+</span>
+                      </div>
+                      <p className="font-bold uppercase tracking-widest text-sm">Drop elements here</p>
+                   </div>
+                )}
+
+                {chamberGroups.map((group) => (
+                   <button
+                     key={group.element.symbol}
+                     onClick={() => removeFromChamber(group.element.symbol)}
+                     className="relative group/atom animate-in zoom-in duration-300"
+                   >
+                     <div className={cn(
+                       "w-16 h-16 rounded-3xl flex items-center justify-center text-xl font-bold text-white shadow-lg transition-transform hover:scale-105 active:scale-95",
+                       getElementColorClass(group.element.type)
+                     )}>
+                       {group.element.symbol}
+                     </div>
+                     {group.count > 1 && (
+                       <div className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-slate-900 border-2 border-white flex items-center justify-center text-[10px] font-black text-white shadow-md">
+                         {group.count}
+                       </div>
+                     )}
+                     <div className="absolute inset-0 flex items-center justify-center bg-red-500/80 rounded-3xl opacity-0 group-hover/atom:opacity-100 transition-opacity">
+                        <span className="text-white text-xs font-black uppercase">Remove</span>
+                     </div>
+                   </button>
+                ))}
+              </div>
+
+              {/* Action Bar */}
+              <div className="mt-4 flex gap-4">
+                 <button 
+                   onClick={() => setChamberElements([])}
+                   disabled={chamberElements.length === 0 || !isRoundActive}
+                   className="px-6 py-4 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold hover:bg-slate-200 transition-colors disabled:opacity-50"
+                 >
+                   Clear All
+                 </button>
+                 <button 
+                   onClick={handleCheck}
+                   disabled={chamberElements.length === 0 || !isRoundActive || checkBusy}
+                   className="flex-1 py-4 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xl shadow-lg shadow-sky-500/20 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center"
+                 >
+                   {checkBusy ? <span className="w-6 h-6 border-4 border-white border-t-transparent rounded-full animate-spin" /> : "🚀 COMBINE & CHECK"}
+                 </button>
+              </div>
             </div>
 
-            <button className={styles.cancelBtn} onClick={handleLeave}>
-              Cancel Room
+            {/* Element Pool */}
+            <div className="glass-panel p-6 rounded-[40px] border-2 border-slate-200 dark:border-slate-800 flex flex-col min-h-0">
+               <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-6 block text-center">Your Lab Essentials</span>
+               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-3 sm:gap-4 overflow-y-auto scrollbar-hide flex-1">
+                 {currentPoolElements.map((element) => (
+                   <button
+                     key={element.symbol}
+                     draggable
+                     onDragStart={(e) => handleDragStart(e, element)}
+                     onTouchStart={(e) => handleTouchStart(e, element)}
+                     onClick={() => addToChamber(element)}
+                     className="h-28 glass-panel rounded-3xl p-4 flex flex-col items-center justify-center transition-all hover:scale-105 active:scale-95 hover:shadow-xl group"
+                   >
+                     <div className={cn(
+                       "w-12 h-12 rounded-2xl flex items-center justify-center text-lg font-bold text-white mb-2 shadow-md group-hover:rotate-12 transition-transform",
+                       getElementColorClass(element.type)
+                     )}>
+                       {element.symbol}
+                     </div>
+                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter truncate w-full text-center">{element.name}</span>
+                   </button>
+                 ))}
+               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ======================== Round Over Modal ======================== */}
+      {gameData && gameData.roundEnded && !gameData.winner && screen === 'game' && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+           <div className="glass-panel max-w-lg w-full mx-4 rounded-[40px] p-10 text-center shadow-2xl animate-in zoom-in-95 duration-500">
+              <span className="text-8xl mb-6 block animate-bounce">
+                {gameData.roundWinner === 0 ? '🏁' : '✨'}
+              </span>
+              <h3 className="text-4xl font-black mb-4 tracking-tighter uppercase">
+                {roundSummary?.title}
+              </h3>
+              <p className="text-xl text-slate-500 mb-8 font-medium leading-relaxed">
+                {roundSummary?.message}
+              </p>
+              
+              <div className="bg-slate-100 dark:bg-slate-800/50 p-6 rounded-3xl mb-8">
+                 <p className="text-xs font-bold text-slate-500 uppercase tracking-[0.2em] mb-4">Round Result</p>
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="flex flex-col p-3 sm:p-4 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 text-center sm:text-left">
+                       <span className="text-[10px] font-bold text-slate-400 uppercase truncate px-2">{gameData.p1Name}</span>
+                       <span className={cn("text-2xl sm:text-3xl font-black", gameData.roundWinner === 1 ? "text-sky-500" : "text-slate-700 dark:text-slate-300")}>
+                         {gameData.p1Score}
+                       </span>
+                    </div>
+                    <div className="flex flex-col p-3 sm:p-4 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 text-center sm:text-left">
+                       <span className="text-[10px] font-bold text-slate-400 uppercase truncate px-2">{gameData.p2Name}</span>
+                       <span className={cn("text-2xl sm:text-3xl font-black", gameData.roundWinner === 2 ? "text-sky-500" : "text-slate-700 dark:text-slate-300")}>
+                         {gameData.p2Score}
+                       </span>
+                    </div>
+                 </div>
+              </div>
+
+              <div className="flex flex-col items-center gap-2">
+                 <div className="w-16 h-1 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mb-2">
+                    <div 
+                      className="h-full bg-sky-500 transition-all duration-100 ease-linear"
+                      style={{ width: `${(roundResultCountdown / ROUND_RESULT_DELAY) * 100}%` }}
+                    />
+                 </div>
+                 <p className="text-slate-400 font-bold text-sm uppercase">Next round in {roundResultCountdown}s...</p>
+                 {myPlayerNum === 1 && (
+                   <button 
+                     onClick={handleManualAdvance}
+                     className="mt-6 text-sky-500 font-bold hover:underline"
+                   >
+                     Skip Waiting &rarr;
+                   </button>
+                 )}
+              </div>
+           </div>
+        </div>
+      )}
+
+      {/* ======================== Victory Screen ======================== */}
+      {screen === 'victory' && gameData && (
+        <div className="flex flex-col items-center justify-center h-full animate-in fade-in zoom-in-95">
+          <div className="text-8xl mb-6 animate-bounce">
+             {gameData.winner === 0 ? '🏁' : '🏆'}
+          </div>
+          <h2 className="text-6xl font-black mb-4 text-[var(--text-main)] uppercase tracking-tighter text-center leading-none">
+            {winnerText}
+          </h2>
+          <p className="text-2xl text-slate-500 mb-10 font-medium">
+             The formula race match has concluded.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8 mb-12 w-full max-w-xl">
+            <div className={cn(
+               "text-center p-6 sm:p-8 glass-panel rounded-[32px] sm:rounded-[40px] border-4 transition-all",
+               gameData.winner === 1 ? "border-sky-500 shadow-xl scale-105" : "border-slate-100 dark:border-slate-900/40 opacity-80"
+            )}>
+              <div className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase mb-2 sm:mb-4 tracking-[0.2em] truncate px-2">{gameData.p1Name}</div>
+              <div className="text-4xl sm:text-6xl font-black">{gameData.p1Score}</div>
+              <div className="text-[10px] sm:text-xs font-bold text-slate-400 mt-2">TOTAL POINTS</div>
+            </div>
+            <div className={cn(
+               "text-center p-6 sm:p-8 glass-panel rounded-[32px] sm:rounded-[40px] border-4 transition-all",
+               gameData.winner === 2 ? "border-sky-500 shadow-xl scale-105" : "border-slate-100 dark:border-slate-900/40 opacity-80"
+            )}>
+              <div className="text-[10px] sm:text-xs font-bold text-slate-500 uppercase mb-2 sm:mb-4 tracking-[0.2em] truncate px-2">{gameData.p2Name}</div>
+              <div className="text-4xl sm:text-6xl font-black">{gameData.p2Score}</div>
+              <div className="text-[10px] sm:text-xs font-bold text-slate-400 mt-2">TOTAL POINTS</div>
+            </div>
+          </div>
+          
+          <div className="flex flex-col gap-4 w-full max-w-sm">
+            <ShareGameScore 
+              gameName="Chemical Formula Race" 
+              customMessage={`I scored ${myPlayerNum === 1 ? gameData.p1Score : gameData.p2Score} points in the Chemical Formula Race! 🧪`} 
+            />
+            <button
+               onClick={handleLeaveGame}
+               className="w-full py-4 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xl shadow-lg shadow-sky-500/20 transition-all active:scale-95"
+            >
+              🔄 Play Again
             </button>
+            <GameRating gameId="chemical-formula-race" gameName="Chemical Formula Race" />
           </div>
-        )}
+        </div>
+      )}
 
-        {screen === 'game' && gameData && currentRecipe && (
-          <div className={styles.gameContainer}>
-            <div className={styles.scoreboard}>
-              <div
-                className={`${styles.playerCard} ${myPlayerNum === 1 ? styles.playerCardActive : ''
-                  }`}
-              >
-                <span className={styles.playerLabel}>
-                  {gameData.p1Name}
-                  {myPlayerNum === 1 ? ' (You)' : ''}
-                </span>
-                <span className={styles.playerScore}>{gameData.p1Score}</span>
-              </div>
-
-              <div className={styles.scoreDivider}>Race to {WINNING_ROUNDS}</div>
-
-              <div
-                className={`${styles.playerCard} ${myPlayerNum === 2 ? styles.playerCardActive : ''
-                  }`}
-              >
-                <span className={styles.playerLabel}>
-                  {gameData.p2Name || 'Opponent'}
-                  {myPlayerNum === 2 ? ' (You)' : ''}
-                </span>
-                <span className={styles.playerScore}>{gameData.p2Score}</span>
-              </div>
+      {/* ======================== Feedback Toast ======================== */}
+      {checkFeedback && (
+         <div 
+           className={cn(
+             "fixed bottom-24 left-1/2 -translate-x-1/2 z-[150] px-8 py-4 rounded-3xl shadow-2xl flex items-center gap-4 animate-in slide-in-from-bottom-8 duration-500",
+             checkFeedback.kind === 'success' && "bg-emerald-500 text-white",
+             checkFeedback.kind === 'warning' && "bg-amber-500 text-white",
+             checkFeedback.kind === 'error' && "bg-red-500 text-white",
+             checkFeedback.kind === 'info' && "bg-sky-500 text-white"
+           )}
+         >
+            <div className="flex flex-col">
+               <span className="font-black text-sm uppercase tracking-widest">{checkFeedback.title}</span>
+               <span className="text-sm font-medium opacity-90">{checkFeedback.message}</span>
             </div>
+            <button 
+              onClick={() => setCheckFeedback(null)}
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-black/10 hover:bg-black/20"
+            >
+              ✕
+            </button>
+         </div>
+      )}
 
-            <div className={styles.roundBar}>
-              <div className={styles.roundHeading}>
-                <span className={styles.roundEyebrow}>Round {gameData.currentRound}</span>
-                <strong className={styles.roundTarget}>{currentRecipe.product.name}</strong>
-              </div>
-
-              <div className={styles.roundMeta}>
-                <span className={styles.hintBadge}>
-                  {gameData.roundEnded
-                    ? 'Locked'
-                    : showHint
-                      ? 'Hint'
-                      : `Hint ${hintCountdown}s`}
-                </span>
-                <span className={styles.timer}>{timeLeft}s</span>
-              </div>
-            </div>
-
-            {showHint && (
-              <div className={styles.hintPanel}>
-                <p className={styles.hintTitle}>Hint</p>
-                <div className={styles.hintChips}>
-                  {getHintLines(currentRecipe).map((hintLine) => (
-                    <span key={hintLine} className={styles.hintChip}>
-                      {hintLine}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className={styles.boardGrid}>
-              <section className={styles.poolPanel}>
-                <div className={styles.panelHeaderCompact}>
-                  <h3>Elements</h3>
-                  <span className={styles.panelMeta}>Tap / drag</span>
-                </div>
-
-                <div className={styles.cardGrid}>
-                  {currentPoolElements.map((element) => (
-                    <button
-                      key={element.symbol}
-                      type="button"
-                      className={`${styles.ingredientCard} ${selectedElement?.symbol === element.symbol
-                        ? styles.ingredientCardSelected
-                        : ''
-                        }`}
-                      style={{ backgroundColor: element.color }}
-                      draggable={isRoundActive}
-                      onDragStart={(event) => handleDragStart(event, element)}
-                      onTouchStart={handleTouchStart(element)}
-                      onTouchMove={handleTouchMove}
-                      onTouchEnd={handleTouchEnd}
-                      onTouchCancel={handleTouchEnd}
-                      onClick={() => handleElementClick(element)}
-                    >
-                      <span className={styles.cardSymbol}>{element.symbol}</span>
-                      <span className={styles.cardName}>{element.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </section>
-
-              <section className={styles.chamberPanel}>
-                <div className={styles.panelHeaderCompact}>
-                  <h3>Chamber</h3>
-                  <span
-                    className={`${styles.panelMeta} ${
-                      selectedElement ? styles.panelMetaActive : ''
-                    }`}
-                  >
-                    {selectedElement
-                      ? `Selected ${selectedElement.symbol}`
-                      : 'Exact match'}
-                  </span>
-                </div>
-
-                <div
-                  className={`${styles.chamber} ${isDragOver ? styles.chamberActive : ''
-                    } ${selectedElement ? styles.chamberSelected : ''
-                    } ${isChamberHovered ? styles.chamberActive : ''}`}
-                  ref={chamberTouchRef}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDropToChamber}
-                  onTouchMove={handleTouchMove}
-                  onTouchEnd={handleTouchEnd}
-                  onTouchCancel={handleTouchEnd}
-                  onClick={handleChamberClick}
-                >
-                  {chamberGroups.length === 0 ? (
-                    <div className={styles.chamberEmpty}>
-                      <strong>Drop here</strong>
-                      <span>Tap or hold-drag</span>
-                    </div>
-                  ) : (
-                    <div className={styles.chamberGroups}>
-                      {chamberGroups.map((group) => (
-                        <div
-                          key={group.element.symbol}
-                          className={styles.chamberPill}
-                          style={{ backgroundColor: group.element.color }}
-                        >
-                          <span className={styles.chamberPillSymbol}>
-                            {group.element.symbol}
-                          </span>
-                          {group.count > 1 && (
-                            <span className={styles.chamberPillCount}>
-                              x{group.count}
-                            </span>
-                          )}
-                          <button
-                            type="button"
-                            className={styles.removePillBtn}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              const index =
-                                group.indices[group.indices.length - 1];
-                              removeFromChamber(index);
-                            }}
-                            disabled={!isRoundActive}
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className={styles.actionRow}>
-                  <button
-                    type="button"
-                    className={styles.clearBtn}
-                    onClick={clearChamber}
-                    disabled={!isRoundActive || chamberElements.length === 0}
-                  >
-                    Clear
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.checkBtn}
-                    onClick={handleCheckChamber}
-                    disabled={!isRoundActive || chamberElements.length === 0 || checkBusy}
-                  >
-                    {checkBusy ? 'Checking...' : 'Check'}
-                  </button>
-                </div>
-              </section>
-            </div>
-
-            {checkFeedback && (
-              <div
-                className={`${styles.feedbackPanel} ${styles[`feedback${checkFeedback.kind[0].toUpperCase()}${checkFeedback.kind.slice(1)}`]
-                  }`}
-              >
-                <strong>{checkFeedback.title}</strong>
-                <span>{checkFeedback.message}</span>
-              </div>
-            )}
-
-            {gameData.roundEnded && gameData.status === 'playing' && roundSummary && (
-              <div className={styles.roundModalOverlay}>
-                <div
-                  className={`${styles.roundModal} ${gameData.roundWinner === 0
-                    ? styles.roundModalTimeout
-                    : styles.roundModalSolved
-                    }`}
-                >
-                  <p className={styles.roundModalEyebrow}>
-                    Round {gameData.currentRound} complete
-                  </p>
-                  <h3>{roundSummary.title}</h3>
-                  <p className={styles.roundModalText}>{roundSummary.message}</p>
-                  <div className={styles.answerLine}>
-                    <span>Formula:</span>
-                    <strong>{currentRecipe.product.symbol}</strong>
-                  </div>
-                  <div className={styles.roundModalFooter}>
-                    <span className={styles.roundModalTimer}>
-                      {roundResultCountdown > 0
-                        ? `Next round in ${roundResultCountdown}s`
-                        : 'Starting next round...'}
-                    </span>
-                    <button
-                      type="button"
-                      className={styles.roundModalSkipBtn}
-                      onClick={() => void handleNextRound()}
-                      disabled={checkBusy}
-                    >
-                      {checkBusy ? 'Starting...' : 'Skip Timer'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {screen === 'victory' && gameData && (
-          <div className={styles.victoryContainer}>
-            <h2 className={styles.victoryText}>{winnerText}</h2>
-
-            <div className={styles.finalScore}>
-              <div>
-                <p>{gameData.p1Name}</p>
-                <p className={styles.finalScoreValue}>{gameData.p1Score}</p>
-              </div>
-
-              <span className={styles.finalVs}>-</span>
-
-              <div>
-                <p>{gameData.p2Name}</p>
-                <p className={styles.finalScoreValue}>{gameData.p2Score}</p>
-              </div>
-            </div>
-
-            <ShareGameScore
-              customMessage={`I won ${myPlayerNum === 1 ? gameData.p1Score : gameData.p2Score} rounds in Chemical Formula Race.`}
-              gameName="Chemical Formula Race"
-            />
-
-            <GameRating
-              gameId="chemical-formula-race"
-              gameName="Chemical Formula Race"
-            />
-
-            <div className={styles.victoryButtons}>
-              <button className={styles.playAgainBtn} onClick={handlePlayAgain}>
-                Play Again
-              </button>
-              <Link href="/games" className={styles.backToGamesBtn}>
-                Back to Games
-              </Link>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {touchDrag.isDragging &&
-        touchDrag.element &&
-        typeof document !== 'undefined' &&
+      {/* Portals for Touch Drag */}
+      {touchDrag.isDragging && touchDrag.element &&
         createPortal(
           <div
-            className={styles.touchGhost}
+            className={cn(
+              "fixed pointer-events-none z-[1000] w-16 h-16 rounded-2xl flex items-center justify-center text-lg font-bold text-white shadow-2xl transition-transform",
+              getElementColorClass(touchDrag.element.type)
+            )}
             style={{
-              left: touchDrag.x - 56,
-              top: touchDrag.y - 56,
-              backgroundColor: touchDrag.element.color,
+              left: touchDrag.x - 32,
+              top: touchDrag.y - 32,
+              transform: isChamberHovered ? 'scale(1.2)' : 'scale(1)',
             }}
           >
-            <span className={styles.cardSymbol}>{touchDrag.element.symbol}</span>
-            <span className={styles.cardName}>{touchDrag.element.name}</span>
+            {touchDrag.element.symbol}
           </div>,
           document.body,
         )}
-    </div>
+    </MultiplayerContainer>
   );
+}
+
+function getElementColorClass(category: string): string {
+  if (category.includes('noble')) return 'bg-purple-500';
+  if (category.includes('alkali')) return 'bg-red-500';
+  if (category.includes('alkaline')) return 'bg-orange-500';
+  if (category.includes('metalloid')) return 'bg-emerald-500';
+  if (category.includes('nonmetal')) return 'bg-sky-500';
+  if (category.includes('halogen')) return 'bg-indigo-500';
+  if (category.includes('transition')) return 'bg-amber-500';
+  return 'bg-slate-500';
 }

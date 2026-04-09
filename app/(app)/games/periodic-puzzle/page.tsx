@@ -15,6 +15,7 @@ import {
   periodicPuzzleDifficulty,
   PeriodicPuzzleSettings,
 } from '@/lib/types/game-difficulty';
+import { ResumeModal } from '@/components/game/ResumeModal';
 
 /* ─── Element data with REAL periodic table positions ─── */
 
@@ -28,10 +29,8 @@ interface PuzzleElement {
 
 // Periods 1-4 (36 elements) - for Beginner and Intermediate
 const puzzleElementsPeriods1_4: PuzzleElement[] = [
-  // Period 1
   { symbol: 'H', name: 'Hydrogen', row: 1, col: 1, category: 'nonmetal' },
   { symbol: 'He', name: 'Helium', row: 1, col: 18, category: 'noble-gas' },
-  // Period 2
   { symbol: 'Li', name: 'Lithium', row: 2, col: 1, category: 'alkali-metal' },
   { symbol: 'Be', name: 'Beryllium', row: 2, col: 2, category: 'alkaline-earth' },
   { symbol: 'B', name: 'Boron', row: 2, col: 13, category: 'metalloid' },
@@ -40,7 +39,6 @@ const puzzleElementsPeriods1_4: PuzzleElement[] = [
   { symbol: 'O', name: 'Oxygen', row: 2, col: 16, category: 'nonmetal' },
   { symbol: 'F', name: 'Fluorine', row: 2, col: 17, category: 'halogen' },
   { symbol: 'Ne', name: 'Neon', row: 2, col: 18, category: 'noble-gas' },
-  // Period 3
   { symbol: 'Na', name: 'Sodium', row: 3, col: 1, category: 'alkali-metal' },
   { symbol: 'Mg', name: 'Magnesium', row: 3, col: 2, category: 'alkaline-earth' },
   { symbol: 'Al', name: 'Aluminium', row: 3, col: 13, category: 'post-transition' },
@@ -49,7 +47,6 @@ const puzzleElementsPeriods1_4: PuzzleElement[] = [
   { symbol: 'S', name: 'Sulfur', row: 3, col: 16, category: 'nonmetal' },
   { symbol: 'Cl', name: 'Chlorine', row: 3, col: 17, category: 'halogen' },
   { symbol: 'Ar', name: 'Argon', row: 3, col: 18, category: 'noble-gas' },
-  // Period 4
   { symbol: 'K', name: 'Potassium', row: 4, col: 1, category: 'alkali-metal' },
   { symbol: 'Ca', name: 'Calcium', row: 4, col: 2, category: 'alkaline-earth' },
   { symbol: 'Sc', name: 'Scandium', row: 4, col: 3, category: 'transition-metal' },
@@ -70,9 +67,7 @@ const puzzleElementsPeriods1_4: PuzzleElement[] = [
   { symbol: 'Kr', name: 'Krypton', row: 4, col: 18, category: 'noble-gas' },
 ];
 
-// Periods 5-7 + f-block (additional elements for Advanced and Expert modes)
 const puzzleElementsPeriods5_7: PuzzleElement[] = [
-  // Period 5
   { symbol: 'Rb', name: 'Rubidium', row: 5, col: 1, category: 'alkali-metal' },
   { symbol: 'Sr', name: 'Strontium', row: 5, col: 2, category: 'alkaline-earth' },
   { symbol: 'Y', name: 'Yttrium', row: 5, col: 3, category: 'transition-metal' },
@@ -91,16 +86,8 @@ const puzzleElementsPeriods5_7: PuzzleElement[] = [
   { symbol: 'Te', name: 'Tellurium', row: 5, col: 16, category: 'metalloid' },
   { symbol: 'I', name: 'Iodine', row: 5, col: 17, category: 'halogen' },
   { symbol: 'Xe', name: 'Xenon', row: 5, col: 18, category: 'noble-gas' },
-  // Period 6
-  { symbol: 'Cs', name: 'Caesium', row: 6, col: 1, category: 'alkali-metal' },
+  { symbol: 'Cs', name: 'Cesium', row: 6, col: 1, category: 'alkali-metal' },
   { symbol: 'Ba', name: 'Barium', row: 6, col: 2, category: 'alkaline-earth' },
-  { symbol: 'La', name: 'Lanthanum', row: 6, col: 3, category: 'lanthanide' },
-  { symbol: 'Hf', name: 'Hafnium', row: 6, col: 4, category: 'transition-metal' },
-  { symbol: 'Ta', name: 'Tantalum', row: 6, col: 5, category: 'transition-metal' },
-  { symbol: 'W', name: 'Tungsten', row: 6, col: 6, category: 'transition-metal' },
-  { symbol: 'Re', name: 'Rhenium', row: 6, col: 7, category: 'transition-metal' },
-  { symbol: 'Os', name: 'Osmium', row: 6, col: 8, category: 'transition-metal' },
-  { symbol: 'Ir', name: 'Iridium', row: 6, col: 9, category: 'transition-metal' },
   { symbol: 'Pt', name: 'Platinum', row: 6, col: 10, category: 'transition-metal' },
   { symbol: 'Au', name: 'Gold', row: 6, col: 11, category: 'transition-metal' },
   { symbol: 'Hg', name: 'Mercury', row: 6, col: 12, category: 'transition-metal' },
@@ -110,81 +97,39 @@ const puzzleElementsPeriods5_7: PuzzleElement[] = [
   { symbol: 'Po', name: 'Polonium', row: 6, col: 16, category: 'metalloid' },
   { symbol: 'At', name: 'Astatine', row: 6, col: 17, category: 'halogen' },
   { symbol: 'Rn', name: 'Radon', row: 6, col: 18, category: 'noble-gas' },
-  // Period 7
-  { symbol: 'Fr', name: 'Francium', row: 7, col: 1, category: 'alkali-metal' },
-  { symbol: 'Ra', name: 'Radium', row: 7, col: 2, category: 'alkaline-earth' },
-  { symbol: 'Ac', name: 'Actinium', row: 7, col: 3, category: 'actinide' },
-  { symbol: 'Rf', name: 'Rutherfordium', row: 7, col: 4, category: 'transition-metal' },
-  { symbol: 'Db', name: 'Dubnium', row: 7, col: 5, category: 'transition-metal' },
-  { symbol: 'Sg', name: 'Seaborgium', row: 7, col: 6, category: 'transition-metal' },
-  { symbol: 'Bh', name: 'Bohrium', row: 7, col: 7, category: 'transition-metal' },
-  { symbol: 'Hs', name: 'Hassium', row: 7, col: 8, category: 'transition-metal' },
-  { symbol: 'Mt', name: 'Meitnerium', row: 7, col: 9, category: 'transition-metal' },
-  { symbol: 'Ds', name: 'Darmstadtium', row: 7, col: 10, category: 'transition-metal' },
-  { symbol: 'Rg', name: 'Roentgenium', row: 7, col: 11, category: 'transition-metal' },
-  { symbol: 'Cn', name: 'Copernicium', row: 7, col: 12, category: 'transition-metal' },
-  { symbol: 'Nh', name: 'Nihonium', row: 7, col: 13, category: 'post-transition' },
-  { symbol: 'Fl', name: 'Flerovium', row: 7, col: 14, category: 'post-transition' },
-  { symbol: 'Mc', name: 'Moscovium', row: 7, col: 15, category: 'post-transition' },
-  { symbol: 'Lv', name: 'Livermorium', row: 7, col: 16, category: 'post-transition' },
-  { symbol: 'Ts', name: 'Tennessine', row: 7, col: 17, category: 'unknown' },
-  { symbol: 'Og', name: 'Oganesson', row: 7, col: 18, category: 'noble-gas' },
-  // Lanthanides (f-block, Ce-Lu) - displayed in separate row
-  { symbol: 'Ce', name: 'Cerium', row: 9, col: 4, category: 'lanthanide' },
-  { symbol: 'Pr', name: 'Praseodymium', row: 9, col: 5, category: 'lanthanide' },
-  { symbol: 'Nd', name: 'Neodymium', row: 9, col: 6, category: 'lanthanide' },
-  { symbol: 'Pm', name: 'Promethium', row: 9, col: 7, category: 'lanthanide' },
-  { symbol: 'Sm', name: 'Samarium', row: 9, col: 8, category: 'lanthanide' },
-  { symbol: 'Eu', name: 'Europium', row: 9, col: 9, category: 'lanthanide' },
-  { symbol: 'Gd', name: 'Gadolinium', row: 9, col: 10, category: 'lanthanide' },
-  { symbol: 'Tb', name: 'Terbium', row: 9, col: 11, category: 'lanthanide' },
-  { symbol: 'Dy', name: 'Dysprosium', row: 9, col: 12, category: 'lanthanide' },
-  { symbol: 'Ho', name: 'Holmium', row: 9, col: 13, category: 'lanthanide' },
-  { symbol: 'Er', name: 'Erbium', row: 9, col: 14, category: 'lanthanide' },
-  { symbol: 'Tm', name: 'Thulium', row: 9, col: 15, category: 'lanthanide' },
-  { symbol: 'Yb', name: 'Ytterbium', row: 9, col: 16, category: 'lanthanide' },
-  { symbol: 'Lu', name: 'Lutetium', row: 9, col: 17, category: 'lanthanide' },
-  // Actinides (f-block, Th-Lr) - displayed in separate row
-  { symbol: 'Th', name: 'Thorium', row: 10, col: 4, category: 'actinide' },
-  { symbol: 'Pa', name: 'Protactinium', row: 10, col: 5, category: 'actinide' },
-  { symbol: 'U', name: 'Uranium', row: 10, col: 6, category: 'actinide' },
-  { symbol: 'Np', name: 'Neptunium', row: 10, col: 7, category: 'actinide' },
-  { symbol: 'Pu', name: 'Plutonium', row: 10, col: 8, category: 'actinide' },
-  { symbol: 'Am', name: 'Americium', row: 10, col: 9, category: 'actinide' },
-  { symbol: 'Cm', name: 'Curium', row: 10, col: 10, category: 'actinide' },
-  { symbol: 'Bk', name: 'Berkelium', row: 10, col: 11, category: 'actinide' },
-  { symbol: 'Cf', name: 'Californium', row: 10, col: 12, category: 'actinide' },
-  { symbol: 'Es', name: 'Einsteinium', row: 10, col: 13, category: 'actinide' },
-  { symbol: 'Fm', name: 'Fermium', row: 10, col: 14, category: 'actinide' },
-  { symbol: 'Md', name: 'Mendelevium', row: 10, col: 15, category: 'actinide' },
-  { symbol: 'No', name: 'Nobelium', row: 10, col: 16, category: 'actinide' },
-  { symbol: 'Lr', name: 'Lawrencium', row: 10, col: 17, category: 'actinide' },
 ];
 
-// Category colors
 const CATEGORY_COLORS: Record<string, string> = {
-  'nonmetal': '#56bb8a',
-  'noble-gas': '#c78fd1',
-  'alkali-metal': '#e8674a',
-  'alkaline-earth': '#f5a623',
-  'metalloid': '#5bbfcc',
-  'halogen': '#58b4f5',
-  'post-transition': '#7a93c4',
-  'transition-metal': '#e0c240',
-  'lanthanide': '#f97316',
-  'actinide': '#ef4444',
-  'unknown': '#6b7280',
+  'alkali-metal': '#ff6b6b',
+  'alkaline-earth': '#ffa94d',
+  'transition-metal': '#ffd43b',
+  'post-transition': '#69db7c',
+  'metalloid': '#38d9a9',
+  'nonmetal': '#4dabf7',
+  'halogen': '#748ffc',
+  'noble-gas': '#da77f2',
+  lanthanide: '#f783ac',
+  actinide: '#e599f7',
 };
 
-/** Fisher-Yates shuffle */
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr];
+const shuffle = <T,>(array: T[]): T[] => {
+  const a = [...array];
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
+};
+
+interface SavedSession {
+  placed: Record<string, string>;
+  pieces: string[];
+  difficulty: DifficultyLevel;
+  gameStarted: boolean;
+  timeLeft: number;
 }
+
+const SESSION_KEY = 'periodicPuzzleSession';
 
 /* ─── Component ─── */
 
@@ -199,6 +144,84 @@ export default function PeriodicPuzzlePage() {
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('intermediate');
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [gameStarted, setGameStarted] = useState(false);
+  
+  const [showResumeModal, setShowResumeModal] = useState(false);
+  const [savedSession, setSavedSession] = useState<SavedSession | null>(null);
+
+  /* ---------- Session restoration on mount ---------- */
+  useEffect(() => {
+    const storedSession = sessionStorage.getItem(SESSION_KEY);
+    if (storedSession) {
+      try {
+        const parsed = JSON.parse(storedSession) as SavedSession;
+        if (parsed.gameStarted && parsed.pieces.length > 0) {
+          setSavedSession(parsed);
+          setShowResumeModal(true);
+        }
+      } catch {
+        sessionStorage.removeItem(SESSION_KEY);
+      }
+    }
+  }, []);
+
+  /* ---------- Save session on state change ---------- */
+  useEffect(() => {
+    if (gameStarted && pieces.length > 0 && !results) {
+      const session: SavedSession = {
+        placed,
+        pieces,
+        difficulty,
+        gameStarted,
+        timeLeft,
+      };
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    }
+  }, [placed, pieces, difficulty, gameStarted, timeLeft, results]);
+
+  /* ---------- Clear session on check (results) ---------- */
+  useEffect(() => {
+    if (results) {
+      sessionStorage.removeItem(SESSION_KEY);
+    }
+  }, [results]);
+
+  /* ---------- Handle resume ---------- */
+  const handleResume = useCallback(() => {
+    if (savedSession) {
+      setPlaced(savedSession.placed);
+      setPieces(savedSession.pieces);
+      setDifficulty(savedSession.difficulty);
+      setTimeLeft(savedSession.timeLeft);
+      setGameStarted(true);
+      setShowResumeModal(false);
+    }
+  }, [savedSession]);
+
+  /* ---------- Handle start new ---------- */
+  const handleStartNew = useCallback(() => {
+    sessionStorage.removeItem(SESSION_KEY);
+    setShowResumeModal(false);
+    setSavedSession(null);
+    startGame();
+  }, []);
+
+  /* ---------- Clear session on back navigation ---------- */
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (gameStarted && pieces.length > 0 && !results) {
+        const session: SavedSession = {
+          placed,
+          pieces,
+          difficulty,
+          gameStarted,
+          timeLeft,
+        };
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [placed, pieces, difficulty, gameStarted, timeLeft, results]);
 
   // Get difficulty settings
   const difficultySettings: PeriodicPuzzleSettings = periodicPuzzleDifficulty[difficulty];
@@ -549,8 +572,17 @@ export default function PeriodicPuzzlePage() {
   /* ── Render ── */
   return (
     <div className={styles.container}>
+      {showResumeModal && (
+        <ResumeModal
+          gameName="Periodic Puzzle"
+          onResume={handleResume}
+          onStartNew={handleStartNew}
+          previousProgress={`Pieces placed: ${savedSession?.pieces.length ? 36 - savedSession.pieces.length : 0}`}
+        />
+      )}
+
       <Link href="/games" className={styles.backLink}>
-        &larr; Back to Games
+        &larr; Leave Game
       </Link>
 
       <div className={styles.gameArea}>

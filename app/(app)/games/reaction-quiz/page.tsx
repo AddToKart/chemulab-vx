@@ -16,6 +16,7 @@ import {
   reactionQuizDifficulty,
   ReactionQuizSettings,
 } from '@/lib/types/game-difficulty';
+import { ResumeModal } from '@/components/game/ResumeModal';
 
 interface Question {
   reactants: string;
@@ -24,6 +25,18 @@ interface Question {
   reactionName: string;
   options: { formula: string; name: string }[];
 }
+
+interface SavedSession {
+  score: number;
+  streak: number;
+  lives: number;
+  isGameActive: boolean;
+  question: Question | null;
+  difficulty: DifficultyLevel;
+  timeLeft: number;
+}
+
+const SESSION_KEY = 'reactionQuizSession';
 
 export default function ReactionQuizPage() {
   const [score, setScore] = useState(0);
@@ -38,7 +51,98 @@ export default function ReactionQuizPage() {
   const [showName, setShowName] = useState(false);
   const [difficulty, setDifficulty] = useState<DifficultyLevel>('intermediate');
   const [timeLeft, setTimeLeft] = useState<number>(0);
+  const [showResumeModal, setShowResumeModal] = useState(false);
+  const [savedSession, setSavedSession] = useState<SavedSession | null>(null);
   const autoAdvanceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  /* ---------- Session restoration on mount ---------- */
+  useEffect(() => {
+    const storedSession = sessionStorage.getItem(SESSION_KEY);
+    if (storedSession) {
+      try {
+        const parsed = JSON.parse(storedSession) as SavedSession;
+        if (parsed.isGameActive && !parsed.question?.correctAnswer) {
+          sessionStorage.removeItem(SESSION_KEY);
+          return;
+        }
+        if (parsed.isGameActive) {
+          setSavedSession(parsed);
+          setShowResumeModal(true);
+        }
+      } catch {
+        sessionStorage.removeItem(SESSION_KEY);
+      }
+    }
+  }, []);
+
+  /* ---------- Save session on state change ---------- */
+  useEffect(() => {
+    if (isGameActive && question) {
+      const session: SavedSession = {
+        score,
+        streak,
+        lives,
+        isGameActive,
+        question,
+        difficulty,
+        timeLeft,
+      };
+      sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    }
+  }, [score, streak, lives, isGameActive, question, difficulty, timeLeft]);
+
+  /* ---------- Clear session on game over ---------- */
+  useEffect(() => {
+    if (gameOver) {
+      sessionStorage.removeItem(SESSION_KEY);
+    }
+  }, [gameOver]);
+
+  /* ---------- Handle resume ---------- */
+  const handleResume = useCallback(() => {
+    if (savedSession) {
+      setScore(savedSession.score);
+      setStreak(savedSession.streak);
+      setLives(savedSession.lives);
+      setQuestion(savedSession.question);
+      setDifficulty(savedSession.difficulty);
+      setTimeLeft(savedSession.timeLeft);
+      setIsGameActive(true);
+      setGameOver(false);
+      setShowResumeModal(false);
+      
+      const settings = reactionQuizDifficulty[savedSession.difficulty];
+      setShowName(settings.displayMode === 'name');
+    }
+  }, [savedSession]);
+
+  /* ---------- Handle start new ---------- */
+  const handleStartNew = useCallback(() => {
+    sessionStorage.removeItem(SESSION_KEY);
+    setShowResumeModal(false);
+    setSavedSession(null);
+    startGame();
+  }, []);
+
+  /* ---------- Clear session on back navigation ---------- */
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (isGameActive && question) {
+        const session: SavedSession = {
+          score,
+          streak,
+          lives,
+          isGameActive,
+          question,
+          difficulty,
+          timeLeft,
+        };
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [score, streak, lives, isGameActive, question, difficulty, timeLeft]);
 
   // Get difficulty settings
   const difficultySettings: ReactionQuizSettings = reactionQuizDifficulty[difficulty];
@@ -234,8 +338,18 @@ export default function ReactionQuizPage() {
 
   return (
     <div className={styles.container}>
+      {showResumeModal && (
+        <ResumeModal
+          gameName="Reaction Quiz"
+          onResume={handleResume}
+          onStartNew={handleStartNew}
+          previousScore={savedSession?.score}
+          previousProgress={`Streak: ${savedSession?.streak} | Lives: ${savedSession?.lives}`}
+        />
+      )}
+
       <Link href="/games" className={styles.backLink}>
-        &larr; Back to Games
+        &larr; Leave Game
       </Link>
 
       <div className={styles.gameArea}>
