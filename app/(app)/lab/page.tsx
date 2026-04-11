@@ -854,7 +854,7 @@ export default function LabPage() {
             {discoveries.map((d) => (
               <div
                 key={d.symbol}
-                className="group relative flex items-center gap-4 p-3 bg-black/5 dark:bg-white/5 border border-white/5 rounded-xl cursor-pointer hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all shadow-sm overflow-hidden"
+                className="shrink-0 group relative flex items-center gap-4 p-3 bg-black/5 dark:bg-white/5 border border-white/5 rounded-xl cursor-pointer hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all shadow-sm overflow-hidden"
                 draggable
                 onDragStart={(e) => handleDiscoveryDragStart(e, d)}
                 onTouchStart={handleDiscoveryTouchStart(d)}
