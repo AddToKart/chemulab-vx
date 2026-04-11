@@ -15,31 +15,40 @@
 - **Framework:** Next.js 16 (App Router, React 19)
 - **Language:** TypeScript
 - **Styling:** Tailwind CSS v4, Lucide React (icons)
-- **Backend:** Firebase (Authentication, Firestore)
+- **Backend:** Firebase (Authentication, Firestore, Storage)
 - **State Management:** Zustand
 - **UI Components:** Shadcn UI (Radix UI primitives)
 - **AI:** Google Generative AI (Gemini)
+- **Utilities:** `clsx`, `tailwind-merge` (for class merging), `react-easy-crop` (image cropping).
 
 ## Directory Structure
 - `app/(app)`: Main application routes (lab, elements, progress, profile, friends, games).
 - `app/(auth)`: Authentication routes (sign-in, registration).
 - `components/`:
     - `auth/`: Auth provider and protected layout wrappers.
-    - `chatbot/`: Popoy chatbot UI components.
-    - `game/`: Reusable game components and logic.
+    - `chatbot/`: Popoy chatbot UI components and logic.
+    - `game/`: Reusable game components, logic, and multiplayer overlays.
     - `layout/`: App shell, sidebar, and theme management.
-    - `ui/`: Base UI components (shadcn/ui).
+    - `ui/`: Base UI components (shadcn/ui), mostly kebab-case.
 - `lib/`:
-    - `firebase/`: Firebase initialization and service wrappers (auth, firestore, groups).
-    - `data/`: Static data (elements, reactions, tutorials).
-    - `hooks/`: Custom React hooks for business logic (discovery, progress, sound).
+    - `firebase/`: Firebase initialization and service wrappers (auth, firestore, groups, notebook).
+    - `data/`: Static data (elements, reactions, tutorials, game-specific data).
+    - `hooks/`: Custom React hooks for business logic (discovery, progress, sound, bookmarks).
+    - `utils/`: Common utilities (class merging, image cropping, profanity filter).
 - `store/`: Zustand stores for global state (auth, theme).
 
 ## Core Logic & Conventions
-- ** stoichiometric Recipes:** Located in `lib/data/lab-elements.ts`. The lab uses these to validate element combinations.
+
+### Coding Patterns
+- **Stoichiometric Recipes:** Located in `lib/data/lab-elements.ts`. The lab uses these to validate element combinations.
 - **Auth Flow:** Managed by `components/auth/AuthProvider.tsx`, which synchronizes Firebase Auth state with the Zustand `auth-store.ts` and Firestore user profiles.
+- **Service-First Architecture:** UI components should never call Firebase SDKs directly. Always use wrappers in `lib/firebase/`.
+- **Zustand Stores:** Use the `useAuthStore` and `useThemeStore` for global application state.
+
+### Design Standards
 - **Theming:** Supports light/dark modes via `ThemeProvider` and CSS variables in `app/globals.css`.
-- **Data Persistence:** Discoveries and progress are stored in Firestore under the `users` collection.
+- **Responsive Design:** Mobile-first approach using Tailwind's responsive prefixes.
+- **Consistency:** Follow PascalCase for component filenames and kebab-case for utility/hook/UI filenames.
 
 ## Building and Running
 
@@ -71,7 +80,8 @@ IMAGE_PROXY_ALLOWED_HOSTS=images.unsplash.com,lh3.googleusercontent.com
 ```
 
 ## Development Guidelines
-- **Type Safety:** Always define interfaces for new data structures in `lib/types` or alongside the logic.
+- **Type Safety:** Always define interfaces for new data structures in `lib/types` or alongside the logic. Avoid `any`.
 - **Components:** Use shadcn/ui components from `components/ui` whenever possible.
 - **Firebase:** Use the service wrappers in `lib/firebase` rather than direct Firestore calls in components.
-- **Styling:** Follow Tailwind CSS v4 patterns; avoid inline styles.
+- **Styling:** Follow Tailwind CSS v4 patterns; avoid inline styles. Use the `cn()` utility for merging classes.
+- **Error Handling:** Catch Firebase errors and re-throw with user-friendly messages.

@@ -72,7 +72,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, [collapsed, isDesktop]);
 
   return (
-    <div className="relative min-h-screen w-full overflow-x-hidden pb-6 pt-[calc(var(--header-height)+1.25rem)] sm:pt-[calc(var(--header-height)+1.5rem)]">
+    <div className="relative min-h-screen w-full overflow-x-hidden pb-6 pt-20 sm:pt-24 lg:pt-[calc(var(--header-height)+1.5rem)]">
       <TopBar onToggleSidebar={toggleSidebar} />
       {!collapsed && !isDesktop && (
         <button

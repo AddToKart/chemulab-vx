@@ -43,14 +43,14 @@ export interface UserProgressDoc {
   created?: string;
 }
 
-export const TOTAL_ELEMENTS = 118;
+export const TOTAL_DISCOVERIES = 28;
 const BACKUP_KEY = (uid: string) => `chemulab_discoveries_backup_${uid}`;
 
 /* ---------- helpers ---------- */
 
 export function computeProgress(discoveries: Discovery[]): ProgressData {
   const count = discoveries.length;
-  const pct = (count / TOTAL_ELEMENTS) * 100;
+  const pct = (count / TOTAL_DISCOVERIES) * 100;
   return {
     completedDiscoveries: count,
     totalDiscoveries: count,

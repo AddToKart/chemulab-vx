@@ -2,17 +2,19 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
-import { db } from '@/lib/firebase/config';
-import {
-  doc,
-  updateDoc,
-} from 'firebase/firestore';
 import { useAuthStore } from '@/store/auth-store';
 import { cn } from '@/lib/utils';
 import Cropper, { Area } from 'react-easy-crop';
 import { getCroppedImg } from '@/lib/utils/crop-image';
 import { useUserProgress } from '@/lib/hooks/use-user-progress';
-import { TOTAL_ELEMENTS as CANONICAL_TOTAL_ELEMENTS } from '@/lib/firebase/discoveries';
+import { TOTAL_DISCOVERIES as CANONICAL_TOTAL_DISCOVERIES } from '@/lib/firebase/discoveries';
+import { BadgeList } from '@/components/badge/badge-list';
+import { loadUserBadges } from '@/lib/firebase/badges';
+import {
+  updateUserProfile,
+  type ProfileUpdateData,
+} from '@/lib/firebase/profile';
+import type { UserBadges } from '@/lib/types/badge';
 
 const DEFAULT_AVATAR = '/img/default-avatar.png';
 const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,20}$/;
@@ -44,6 +46,31 @@ export default function ProfilePage() {
 
   // Real-time progress and discoveries
   const { discoveries, progress, loading: discoveriesLoading, syncState } = useUserProgress(uid);
+
+  // Badges state
+  const [userBadges, setUserBadges] = useState<UserBadges>({
+    beginner: false,
+    intermediate: false,
+    advanced: false,
+    master: false,
+  });
+  const [badgesLoading, setBadgesLoading] = useState(true);
+
+  useEffect(() => {
+    if (!uid) {
+      setBadgesLoading(false);
+      return;
+    }
+
+    loadUserBadges(uid)
+      .then((badges) => {
+        setUserBadges(badges);
+      })
+      .catch(console.error)
+      .finally(() => {
+        setBadgesLoading(false);
+      });
+  }, [uid]);
 
   // Profile data state
   const [photoURL, setPhotoURL] = useState(profile?.photoURL || '');
@@ -209,7 +236,7 @@ export default function ProfilePage() {
 
     try {
       // Build update object
-      const updateData: Record<string, unknown> = {};
+      const updateData: ProfileUpdateData = {};
       if (usernameChanged) {
         updateData.username = trimmedUsername;
       }
@@ -223,7 +250,7 @@ export default function ProfilePage() {
       }
 
       // Update user doc
-      await updateDoc(doc(db, 'users', uid as string), updateData);
+      await updateUserProfile(uid, updateData);
 
       // Update local state
       if (photoChanged) {
@@ -239,7 +266,7 @@ export default function ProfilePage() {
           photoURL: finalPhotoURL,
           photoSourceURL: finalPhotoSourceURL
         } : {}),
-        ...(bioChanged ? { bio: (updateData.bio as string) } : {}),
+        ...(bioChanged ? { bio: updateData.bio ?? '' } : {}),
       });
 
       setEditSuccess('Profile updated successfully!');
@@ -302,7 +329,8 @@ export default function ProfilePage() {
   const syncStatus = syncState === 'synced' ? 'Synced' : 'Syncing...';
 
   return (
-    <section className="space-y-6">
+    <>
+      <section className="space-y-6">
       {/* Header */}
       <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-[2rem] font-extrabold tracking-tight text-[var(--text-main)]">Profile</h1>
@@ -373,7 +401,7 @@ export default function ProfilePage() {
           <div className="bg-[var(--bg-sidebar)] rounded-[16px] p-5 border border-[var(--border-color)] hover:border-[var(--accent-color)]/30 transition-colors group">
             <h3 className="text-xs font-semibold text-[var(--text-light)] uppercase tracking-wide mb-2 group-hover:text-[var(--accent-color)] transition-colors">Discoveries</h3>
             <p className="text-2xl font-extrabold text-[var(--text-main)] flex items-baseline gap-1">
-              {progress.completedDiscoveries} <span className="text-xs font-medium text-[var(--text-light)]">/ {CANONICAL_TOTAL_ELEMENTS}</span>
+              {progress.completedDiscoveries} <span className="text-xs font-medium text-[var(--text-light)]">/ {CANONICAL_TOTAL_DISCOVERIES}</span>
             </p>
           </div>
           <div className="bg-[var(--bg-sidebar)] rounded-[16px] p-5 border border-[var(--border-color)]">
@@ -399,13 +427,25 @@ export default function ProfilePage() {
               ))}
             </div>
           </div>
+
+          {/* Badges */}
+          <div className="bg-[var(--bg-sidebar)] rounded-[16px] p-5 border border-[var(--border-color)]">
+            <h3 className="text-xs font-semibold text-[var(--text-light)] uppercase tracking-wide mb-4">Badges</h3>
+            {badgesLoading ? (
+              <div className="flex justify-center py-4">
+                <div className="w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+              </div>
+            ) : (
+              <BadgeList userBadges={userBadges} showLabels size="md" />
+            )}
+          </div>
         </div>
       </div>
 
       {/* Discoveries Section */}
       <div className="space-y-4 rounded-[28px] border border-[var(--glass-border)] bg-[var(--bg-card)] p-5 backdrop-blur-[40px] sm:p-8">
         <h2 className="text-lg font-bold text-[var(--text-main)] mb-4">
-          Discoveries ({progress.completedDiscoveries} / {CANONICAL_TOTAL_ELEMENTS})
+          Discoveries ({progress.completedDiscoveries} / {CANONICAL_TOTAL_DISCOVERIES})
         </h2>
 
         {discoveriesLoading ? (
@@ -635,5 +675,6 @@ export default function ProfilePage() {
         </div>
       )}
     </section>
+    </>
   );
 }

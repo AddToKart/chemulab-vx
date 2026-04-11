@@ -1,12 +1,40 @@
 'use client';
 
 import { useAuthStore } from '@/store/auth-store';
-import { TOTAL_ELEMENTS, type ProgressData } from '@/lib/firebase/discoveries';
+import { TOTAL_DISCOVERIES, type ProgressData } from '@/lib/firebase/discoveries';
 import { useUserProgress } from '@/lib/hooks/use-user-progress';
+import { BadgeList } from '@/components/badge/badge-list';
+import { loadUserBadges } from '@/lib/firebase/badges';
+import type { UserBadges } from '@/lib/types/badge';
+import { useState, useEffect } from 'react';
 
 export default function ProgressPage() {
   const { user, loading: authLoading } = useAuthStore();
   const { discoveries, progress, syncState } = useUserProgress(user?.uid);
+
+  const [userBadges, setUserBadges] = useState<UserBadges>({
+    beginner: false,
+    intermediate: false,
+    advanced: false,
+    master: false,
+  });
+  const [badgesLoading, setBadgesLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setBadgesLoading(false);
+      return;
+    }
+
+    loadUserBadges(user.uid)
+      .then((badges) => {
+        setUserBadges(badges);
+      })
+      .catch(console.error)
+      .finally(() => {
+        setBadgesLoading(false);
+      });
+  }, [user?.uid]);
 
   const milestoneLabels: { key: keyof ProgressData['milestones']; label: string }[] = [
     { key: 'beginner', label: 'Beginner (10%)' },
@@ -64,7 +92,7 @@ export default function ProgressPage() {
           <div className="bg-[var(--bg-sidebar)] rounded-[16px] p-5 border border-[var(--border-color)]">
             <h3 className="text-xs font-semibold text-[var(--text-light)] uppercase tracking-wide mb-2">Discovered</h3>
             <div className="text-3xl font-extrabold text-[var(--text-main)]">
-              {progress.completedDiscoveries} <span className="text-lg text-[var(--text-light)]">/ {TOTAL_ELEMENTS}</span>
+              {progress.completedDiscoveries} <span className="text-lg text-[var(--text-light)]">/ {TOTAL_DISCOVERIES}</span>
             </div>
           </div>
 
@@ -85,6 +113,17 @@ export default function ProgressPage() {
                 </span>
               ))}
             </div>
+          </div>
+
+          <div className="bg-[var(--bg-sidebar)] rounded-[16px] p-5 border border-[var(--border-color)]">
+            <h3 className="text-xs font-semibold text-[var(--text-light)] uppercase tracking-wide mb-4">Badges</h3>
+            {badgesLoading ? (
+              <div className="flex justify-center py-4">
+                <div className="w-6 h-6 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
+              </div>
+            ) : (
+              <BadgeList userBadges={userBadges} showLabels size="md" />
+            )}
           </div>
         </div>
       </section>

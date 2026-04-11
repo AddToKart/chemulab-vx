@@ -18,6 +18,9 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
+import { DailyMissionsDialog } from '@/components/daily-missions/daily-missions-dialog';
+import { useDailyMissions } from '@/lib/hooks/use-daily-missions';
+import { Target, Trophy } from 'lucide-react';
 
 interface TopBarProps {
   onToggleSidebar: () => void;
@@ -50,6 +53,9 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [requests, setRequests] = useState<FriendRequestNotification[]>([]);
   const [unreadChats, setUnreadChats] = useState<ChatNotification[]>([]);
+  const [isDailyMissionsOpen, setIsDailyMissionsOpen] = useState(false);
+
+  const { completedCount, totalCount } = useDailyMissions(user?.uid);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -151,58 +157,59 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
   const breadcrumbs = getBreadcrumbs();
 
   return (
-    <header
-      className={cn(
-        'fixed left-3 right-3 top-3 z-[1300] min-h-16 sm:left-4 sm:right-4 sm:top-4',
-        'flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-3 py-3 sm:px-4 lg:px-6',
-        'bg-background/95 text-foreground shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/60',
-        'border border-border rounded-2xl',
-        'transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]',
-        scrolled && 'border-b shadow-md',
-      )}
-    >
-      <div className="flex min-w-0 items-center gap-2 sm:gap-4">
-        <button
-          data-sidebar-toggle
-          onClick={onToggleSidebar}
-          aria-label="Toggle sidebar"
-          className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-sm transition-all duration-200 hover:scale-105 hover:bg-accent hover:text-accent-foreground cursor-pointer"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" />
-          </svg>
-        </button>
-
-        <Link href="/" className="flex min-w-0 items-center gap-2 no-underline transition-transform duration-200 hover:scale-[1.02]">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="url(#chemGradientTB)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <defs>
-              <linearGradient id="chemGradientTB" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#00D4FF" />
-                <stop offset="100%" stopColor="#10b981" />
-              </linearGradient>
-            </defs>
-            <path d="M10 2v7.31" /><path d="M14 9.3V1.99" /><path d="M8.5 2h7" />
-            <path d="M14 9.3a6.5 6.5 0 1 1-4 0" /><path d="M5.52 16h12.96" />
-          </svg>
-          <span
-            className="max-[380px]:hidden truncate bg-gradient-to-r from-cyan-500 to-emerald-500 bg-clip-text text-xl font-extrabold tracking-[-0.04em] text-transparent sm:text-2xl"
-            style={{ backgroundSize: '200% auto', animation: 'shimmer 4s linear infinite' }}
+    <>
+      <header
+        className={cn(
+          'fixed left-3 right-3 top-3 z-[1300] min-h-16 sm:left-4 sm:right-4 sm:top-4',
+          'flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-3 py-3 sm:px-4 lg:px-6',
+          'bg-background/95 text-foreground shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/60',
+          'border border-border rounded-2xl',
+          'transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]',
+          scrolled && 'border-b shadow-md',
+        )}
+      >
+        <div className="flex min-w-0 items-center gap-2 sm:gap-4">
+          <button
+            data-sidebar-toggle
+            onClick={onToggleSidebar}
+            aria-label="Toggle sidebar"
+            className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-sm transition-all duration-200 hover:scale-105 hover:bg-accent hover:text-accent-foreground cursor-pointer"
           >
-            CheMuLab
-          </span>
-        </Link>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" />
+            </svg>
+          </button>
 
-        <div className="ml-4 hidden items-center border-l border-border pl-4 text-sm font-medium text-muted-foreground xl:flex">
-          {breadcrumbs.map((crumb, idx) => (
-            <span key={idx} className="flex items-center">
-              {idx > 0 && <span className="mx-2 text-xs opacity-40">/</span>}
-              {crumb}
+          <Link href="/" className="flex min-w-0 items-center gap-2 no-underline transition-transform duration-200 hover:scale-[1.02]">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="url(#chemGradientTB)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <defs>
+                <linearGradient id="chemGradientTB" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#00D4FF" />
+                  <stop offset="100%" stopColor="#10b981" />
+                </linearGradient>
+              </defs>
+              <path d="M10 2v7.31" /><path d="M14 9.3V1.99" /><path d="M8.5 2h7" />
+              <path d="M14 9.3a6.5 6.5 0 1 1-4 0" /><path d="M5.52 16h12.96" />
+            </svg>
+            <span
+              className="max-[380px]:hidden truncate bg-gradient-to-r from-cyan-500 to-emerald-500 bg-clip-text text-xl font-extrabold tracking-[-0.04em] text-transparent sm:text-2xl"
+              style={{ backgroundSize: '200% auto', animation: 'shimmer 4s linear infinite' }}
+            >
+              CheMuLab
             </span>
-          ))}
-        </div>
-      </div>
+          </Link>
 
-      <div className="ml-auto flex items-center gap-2 sm:gap-3">
+          <div className="ml-4 hidden items-center border-l border-border pl-4 text-sm font-medium text-muted-foreground xl:flex">
+            {breadcrumbs.map((crumb, idx) => (
+              <span key={idx} className="flex items-center">
+                {idx > 0 && <span className="mx-2 text-xs opacity-40">/</span>}
+                {crumb}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="ml-auto flex items-center gap-2 sm:gap-3">
         <button
           onClick={toggleTheme}
           aria-label="Toggle Dark Mode"
@@ -214,6 +221,18 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
           <span className={cn('absolute text-lg transition-all duration-500', theme === 'dark' ? 'rotate-0 scale-100 opacity-100' : 'rotate-180 scale-50 opacity-0')}>
             🌙
           </span>
+        </button>
+
+        <button
+          onClick={() => setIsDailyMissionsOpen(true)}
+          aria-label="Daily Missions"
+          className="relative flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card shadow-sm transition-all duration-200 hover:scale-105 hover:border-primary hover:shadow-md cursor-pointer"
+        >
+          {completedCount === totalCount && totalCount > 0 ? (
+            <Trophy className="h-5 w-5 text-yellow-500" />
+          ) : (
+            <Target className="h-5 w-5 text-primary" />
+          )}
         </button>
 
         {!loading && profile && (
@@ -357,6 +376,9 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
           </>
         )}
       </div>
-    </header>
+      </header>
+
+      <DailyMissionsDialog open={isDailyMissionsOpen} onOpenChange={setIsDailyMissionsOpen} />
+    </>
   );
 }

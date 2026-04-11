@@ -37,7 +37,7 @@ export default function Sidebar({ collapsed }: { collapsed: boolean }) {
         'border border-border bg-card/95 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-card/60',
         'rounded-[28px] transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]',
         collapsed ? 'w-20' : 'w-[17rem] xl:w-[18rem]',
-        'max-[1023px]:left-3 max-[1023px]:top-3 max-[1023px]:h-[calc(100dvh-1.5rem)] max-[1023px]:w-[min(20rem,calc(100vw-1.5rem))] max-[1023px]:rounded-[28px] max-[1023px]:bg-card max-[1023px]:shadow-2xl',
+        'max-[1023px]:left-3 max-[1023px]:top-3 max-[1023px]:z-[1500] max-[1023px]:h-[calc(100dvh-1.5rem)] max-[1023px]:w-[min(20rem,calc(100vw-1.5rem))] max-[1023px]:rounded-[28px] max-[1023px]:bg-card max-[1023px]:shadow-2xl',
         collapsed && 'max-[1023px]:-translate-x-[calc(100%+1rem)]',
       )}
     >

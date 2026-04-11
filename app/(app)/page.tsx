@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
+import { DailyMissionsWidget } from '@/components/daily-missions/daily-missions-widget';
 
 export default function HomePage() {
   return (
@@ -41,6 +42,10 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className="mb-6">
+        <DailyMissionsWidget />
+      </section>
+
       <div className="mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {[
           { href: '/elements', emoji: '⚗️', title: 'Start Discovery', desc: 'Explore elements and try combinations', accent: 'bg-blue-500' },
@@ -63,20 +68,6 @@ export default function HomePage() {
           </Link>
         ))}
       </div>
-
-      <section className="mt-12">
-        <h2 className="mb-6 text-2xl font-bold tracking-tight text-foreground">Recent Activity</h2>
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-4 rounded-xl border border-border bg-card px-5 py-4 shadow-sm transition-all duration-200 hover:border-primary hover:shadow-md sm:px-6">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-2xl">🎉</div>
-            <div className="min-w-0 flex-1">
-              <strong className="text-base font-semibold text-foreground">Welcome to CheMuLab!</strong>
-              <div className="text-sm text-muted-foreground">Started your chemistry journey</div>
-            </div>
-            <span className="text-xs whitespace-nowrap text-muted-foreground">Just now</span>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }

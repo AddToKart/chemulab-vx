@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { User } from 'firebase/auth';
 import type { Timestamp } from 'firebase/firestore';
+import type { UserBadges } from '@/lib/types/badge';
 
 export interface UserProfile {
   uid: string;
@@ -13,6 +14,7 @@ export interface UserProfile {
   bio?: string;
   registrationDate?: Timestamp;
   createdAt?: Timestamp;
+  badges?: UserBadges;
 }
 
 interface AuthState {

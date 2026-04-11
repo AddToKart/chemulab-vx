@@ -204,7 +204,7 @@ export default function SignInPage() {
               <h2 className="text-center text-2xl font-bold tracking-[-0.01em] mb-1">Log In</h2>
               <Input
                 type="text"
-                placeholder="Email or Username"
+                placeholder="Email"
                 value={loginEmail}
                 onChange={(e) => setLoginEmail(e.target.value)}
                 required

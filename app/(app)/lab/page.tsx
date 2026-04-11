@@ -14,8 +14,13 @@ import type { Discovery } from '@/lib/firebase/discoveries';
 import { useLabDiscoveries } from '@/lib/hooks/use-lab-discoveries';
 import { useIdle } from '@/lib/hooks/use-idle';
 import { useReactionSound } from '@/lib/hooks/use-reaction-sound';
+import { completeReactionMission } from '@/lib/firebase/daily-missions';
 import Image from 'next/image';
 import { NotebookModal } from '@/components/lab/NotebookModal';
+import { BadgeUnlockModal } from '@/components/badge/badge-unlock-modal';
+import { useBadgeModalStore } from '@/store/badge-modal';
+import { checkAndAwardBadges, loadUserBadges } from '@/lib/firebase/badges';
+import { TOTAL_DISCOVERIES } from '@/lib/firebase/discoveries';
 
 
 const ELEMENT_DETAILS_BY_SYMBOL = new Map(
@@ -362,12 +367,14 @@ export default function LabPage() {
     const combinedResult = combination.product;
 
     // Wait for animation to complete before showing results
-    setTimeout(() => {
+    setTimeout(async () => {
       setResult(combinedResult);
+      
       setSuccessReaction({
         product: combinedResult,
         reactionType: combination.reactionType,
       });
+      
       setChamberElements([]);
       setIsReacting(false);
 
@@ -377,14 +384,44 @@ export default function LabPage() {
       }
 
       // Add discovery
-      addDiscovery({
+      const newDiscoveries = await addDiscovery({
         symbol: combinedResult.symbol,
         name: combinedResult.name,
         color: combinedResult.color,
         type: combinedResult.type,
       });
+
+      // Track daily mission: complete a reaction
+      completeReactionMission(user?.uid ?? '').catch(console.error);
+
+      // Check for new badges
+      if (user?.uid && newDiscoveries) {
+        console.log('[Lab] Discovery made! Checking badges...');
+        const percentage = (newDiscoveries.length / TOTAL_DISCOVERIES) * 100;
+        console.log('[Lab] Discovery percentage:', percentage, '%');
+        const { openBadgeModal } = useBadgeModalStore.getState();
+        
+        // Load current badges from Firestore
+        console.log('[Lab] Loading current badges...');
+        const currentBadges = await loadUserBadges(user.uid);
+        console.log('[Lab] Current badges loaded:', currentBadges);
+        
+        // Check and award any new badges
+        console.log('[Lab] Checking for new badges...');
+        try {
+          const newBadges = await checkAndAwardBadges(user.uid, currentBadges, percentage);
+          console.log('[Lab] New badges result:', newBadges);
+          
+          if (newBadges.length > 0) {
+            console.log('[Lab] Opening badge modal for:', newBadges[0]);
+            useBadgeModalStore.getState().openBadgeModal(newBadges[0]);
+          }
+        } catch (error) {
+          console.error('[Lab] Error checking badges:', error);
+        }
+      }
     }, 1500); // 1.5 second animation duration
-  }, [chamberElements, discoveries, addDiscovery, showToast, playReactionSound]);
+  }, [chamberElements, discoveries, addDiscovery, showToast, playReactionSound, user?.uid]);
 
 
 
@@ -476,6 +513,7 @@ export default function LabPage() {
           isSelected
             ? 'border-emerald-500 ring-2 ring-emerald-500/30 ring-offset-2 ring-offset-background'
             : 'border-white/10',
+          'dark:brightness-75 dark:saturate-150',
         )}
         style={{ backgroundColor: el.color }}
         draggable
@@ -486,9 +524,9 @@ export default function LabPage() {
         onClick={() => handleElementClick(el)}
         title={`${el.name} (${el.symbol})`}
       >
-        <div className="absolute inset-0 rounded-xl xl:rounded-2xl bg-gradient-to-br from-white/18 via-transparent to-black/10" />
+        <div className="absolute inset-0 rounded-xl xl:rounded-2xl bg-gradient-to-br from-white/18 via-transparent to-black/10 dark:bg-black/40" />
         <div className="relative flex w-full items-center xl:items-start gap-3 xl:gap-4">
-          <div className="flex h-12 w-12 xl:h-16 xl:w-16 shrink-0 flex-col items-center justify-center rounded-lg xl:rounded-xl border border-white/15 bg-black/10 text-white shadow-inner">
+          <div className="flex h-12 w-12 xl:h-16 xl:w-16 shrink-0 flex-col items-center justify-center rounded-lg xl:rounded-xl border border-white/15 bg-black/10 text-slate-900 dark:text-white shadow-inner">
             <span className="text-[8px] xl:text-[10px] font-bold leading-none opacity-70">
               {extra?.atomic_number ?? '--'}
             </span>
@@ -501,7 +539,7 @@ export default function LabPage() {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <p className="text-sm font-black uppercase tracking-[0.12em] text-white/95 break-words">
+                  <p className="text-sm font-black uppercase tracking-[0.12em] text-slate-900 dark:text-white/95 break-words">
                     {el.name}
                   </p>
                   <button
@@ -510,7 +548,7 @@ export default function LabPage() {
                       e.stopPropagation();
                       speakElementName(el.name);
                     }}
-                    className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-black/20 text-white/60 hover:bg-white/25 hover:text-white transition-all cursor-pointer hover:scale-110 active:scale-90"
+                    className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-black/20 text-slate-900/60 dark:text-white/60 hover:bg-white/25 hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer hover:scale-110 active:scale-90"
                     aria-label={`Pronounce ${el.name}`}
                     title={`Hear pronunciation`}
                     draggable={false}
@@ -520,21 +558,21 @@ export default function LabPage() {
                     </svg>
                   </button>
                 </div>
-                <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/65 break-words">
+                <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-800/70 dark:text-white/65 break-words">
                   {extra?.category?.replace(/-/g, ' ') ?? el.type}
                 </p>
               </div>
-              <span className="hidden xl:inline-block rounded-full border border-white/15 bg-black/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white/75">
+              <span className="hidden xl:inline-block rounded-full border border-white/15 bg-black/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-900/80 dark:text-white/75">
                 Drag
               </span>
             </div>
 
             <div className="mt-1 xl:mt-3 flex items-center justify-between gap-3 max-xl:hidden">
-              <span className="text-[11px] font-medium text-white/70">
+              <span className="text-[11px] font-medium text-slate-900/70 dark:text-white/70">
                 Tap to place
               </span>
               <div className="h-1.5 w-16 overflow-hidden rounded-full bg-white/15">
-                <div className="h-full w-2/3 rounded-full bg-white/60 transition-all duration-200 group-hover:w-full" />
+                <div className="h-full w-2/3 rounded-full bg-slate-900/60 dark:bg-white/60 transition-all duration-200 group-hover:w-full" />
               </div>
             </div>
           </div>
@@ -545,8 +583,8 @@ export default function LabPage() {
 
   /* ---------- render ---------- */
   return (
-    <div className="flex flex-col gap-2 pb-2 h-[calc(100dvh-7rem)] xl:gap-5 xl:pb-6 xl:h-[calc(100dvh-10rem)] xl:flex-row max-xl:overflow-hidden">
-      <div className="flex-none w-full z-30 block xl:hidden">
+    <div className="flex flex-col gap-2 pb-2 min-h-[calc(100dvh-6rem)] xl:gap-5 xl:pb-6 xl:h-[calc(100dvh-10rem)] xl:flex-row max-xl:overflow-y-auto">
+      <div className="flex-none w-full z-30 block xl:hidden sticky top-0">
         <div className="glass-panel p-2 bg-white/90 dark:bg-[#0a0f1c]/90 backdrop-blur-2xl border-b border-white/5 shadow-md">
           <div className="grid grid-cols-2 gap-2">
             {[
@@ -825,14 +863,15 @@ export default function LabPage() {
                 onClick={() => handleDiscoveryClick(d)}
               >
                 <div
-                  className="w-10 h-10 flex flex-col items-center justify-center rounded-lg font-black text-white text-[10px] flex-shrink-0 shadow-lg group-hover:scale-110 transition-transform"
+                  className="relative w-10 h-10 flex flex-col items-center justify-center rounded-lg font-black text-slate-900 dark:text-white text-[10px] flex-shrink-0 shadow-lg group-hover:scale-110 transition-transform overflow-hidden dark:brightness-75 dark:saturate-150"
                   style={{ backgroundColor: d.color || '#10b981' }}
                 >
-                  {d.symbol}
+                  <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-black/10 dark:bg-black/40" />
+                  <span className="relative z-10">{d.symbol}</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[var(--text-main)] text-[13px] font-bold truncate group-hover:text-emerald-500 transition-colors">{d.name}</p>
-                  <p className="text-[10px] text-[var(--text-light)] font-medium uppercase tracking-tighter opacity-60">{d.type || 'Compound'}</p>
+                  <p className="text-slate-900 dark:text-white/95 text-[13px] font-bold truncate group-hover:text-emerald-500 transition-colors">{d.name}</p>
+                  <p className="text-[10px] text-slate-800/70 dark:text-white/65 font-medium uppercase tracking-tighter opacity-60">{d.type || 'Compound'}</p>
                 </div>
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                   <svg className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1030,6 +1069,8 @@ export default function LabPage() {
         </div>,
         document.body
       )}
+
+      <BadgeUnlockModal />
     </div>
   );
 }

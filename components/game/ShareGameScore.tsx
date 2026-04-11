@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '@/store/auth-store';
 import { db } from '@/lib/firebase/config';
 import { collection, onSnapshot, addDoc, serverTimestamp, getDoc, doc } from 'firebase/firestore';
@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Share2, Send, Check } from 'lucide-react';
 import Image from 'next/image';
+import { completeGameMission } from '@/lib/firebase/daily-missions';
 
 interface FriendData {
   uid: string;
@@ -28,14 +29,56 @@ interface ShareGameScoreProps {
   gameName: string;
   className?: string;
   customMessage?: string;
+  isMultiplayer?: boolean;
+  onGameComplete?: () => void;
 }
 
-export function ShareGameScore({ score, gameName, className, customMessage }: ShareGameScoreProps) {
+export function ShareGameScore({ score, gameName, className, customMessage, isMultiplayer = false, onGameComplete }: ShareGameScoreProps) {
   const { user, profile } = useAuthStore();
   const [friends, setFriends] = useState<FriendData[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [sendingTo, setSendingTo] = useState<Record<string, boolean>>({}); // track sending state per friend
   const [sentTo, setSentTo] = useState<Record<string, boolean>>({}); // track sent state per friend
+  const missionCompletedRef = useRef(false);
+
+  const gameIdMap: Record<string, string> = {
+    // Single-player games
+    'Element Match': 'element-match',
+    'Reaction Quiz': 'reaction-quiz',
+    'Element Sort': 'element-sort',
+    'Periodic Puzzle': 'periodic-puzzle',
+    'Miner Game': 'miner-game',
+    // Multiplayer games
+    'Volcano Race': 'volcano',
+    'Foam Race': 'foam-race',
+    'Balloon Race': 'balloon-race',
+    'pH Challenge': 'ph-challenge',
+    'Chemical Formula Race': 'chemical-formula-race',
+  };
+
+  const mappedGameId = gameIdMap[gameName];
+  const isMultiplayerGame = mappedGameId && ['volcano', 'foam-race', 'balloon-race', 'ph-challenge', 'chemical-formula-race'].includes(mappedGameId) ? true : isMultiplayer;
+
+  // Track mission completion when component mounts (game finished)
+  useEffect(() => {
+    if (user?.uid && mappedGameId && !missionCompletedRef.current) {
+      missionCompletedRef.current = true;
+      completeGameMission(user.uid, mappedGameId, isMultiplayerGame).catch(console.error);
+    }
+  }, [user?.uid, mappedGameId, isMultiplayerGame]);
+
+  useEffect(() => {
+    if (user?.uid && gameIdMap[gameName] && onGameComplete) {
+      onGameComplete();
+    }
+  }, [user?.uid, gameName, onGameComplete]);
+
+  useEffect(() => {
+    if (user?.uid && gameIdMap[gameName] && isOpen) {
+      const gid = gameIdMap[gameName];
+      completeGameMission(user.uid, gid, isMultiplayerGame).catch(console.error);
+    }
+  }, [user?.uid, gameName, isMultiplayerGame, isOpen]);
 
   useEffect(() => {
     if (!user?.uid || !isOpen) return;

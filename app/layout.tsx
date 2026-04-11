@@ -3,7 +3,6 @@ import './globals.css';
 import AuthProvider from '@/components/auth/AuthProvider';
 import ThemeProvider from '@/components/layout/ThemeProvider';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import PopoyChatbot from '@/components/chatbot/PopoyChatbot';
 
 
 export const metadata: Metadata = {
@@ -24,7 +23,6 @@ export default function RootLayout({
           <ThemeProvider>
             <TooltipProvider>
               {children}
-              <PopoyChatbot />
             </TooltipProvider>
           </ThemeProvider>
         </AuthProvider>

@@ -161,51 +161,56 @@ export default function ElementsPage() {
         Click any element here, and I will provide all the information you need to know!
       </p>
 
-      <div className="overflow-x-auto rounded-2xl border border-border bg-card p-3 text-center shadow-sm sm:p-5">
-        {/* Main 18-column grid */}
-        <div className="grid min-w-[760px] grid-cols-[repeat(18,1fr)] gap-1 text-[12px] max-[900px]:gap-[2px] sm:min-w-[800px]">
-          {mainElements.map((el) => {
-            const pos = mainGridPositions[el.atomic_number];
-            const visible = isElementVisible(el);
-            return (
-              <button
-                key={el.atomic_number}
-                className={`element-cell cat-${el.category} ${!visible ? 'opacity-30 grayscale-[50%]' : ''}`}
-                style={{ gridRow: pos.row, gridColumn: pos.col }}
-                onClick={() => handleElementClick(el)}
-                aria-label={`${el.name} (${el.symbol})`}
-              >
-                <span className="el-num">{el.atomic_number}</span>
-                <span className="el-sym">{el.symbol}</span>
-              </button>
-            );
-          })}
-        </div>
+      <div className="relative overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+        {/* Mobile Scroll Hint */}
+        <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-card/80 to-transparent z-10 pointer-events-none md:hidden" />
+        
+        <div className="overflow-x-auto p-3 text-center sm:p-5 custom-scrollbar">
+          {/* Main 18-column grid */}
+          <div className="grid min-w-[760px] grid-cols-[repeat(18,1fr)] gap-1 text-[12px] max-[900px]:gap-[2px] sm:min-w-[800px]">
+            {mainElements.map((el) => {
+              const pos = mainGridPositions[el.atomic_number];
+              const visible = isElementVisible(el);
+              return (
+                <button
+                  key={el.atomic_number}
+                  className={`element-cell cat-${el.category} ${!visible ? 'opacity-30 grayscale-[50%]' : ''}`}
+                  style={{ gridRow: pos.row, gridColumn: pos.col }}
+                  onClick={() => handleElementClick(el)}
+                  aria-label={`${el.name} (${el.symbol})`}
+                >
+                  <span className="el-num">{el.atomic_number}</span>
+                  <span className="el-sym">{el.symbol}</span>
+                </button>
+              );
+            })}
+          </div>
 
-        {/* F-block */}
-        <div className="mt-4 flex min-w-[760px] flex-col gap-1 max-[900px]:gap-[2px] sm:min-w-[800px]">
-          {[lanthanides, actinides].map((group, gi) => (
-            <div
-              key={gi}
-              className="grid grid-cols-[repeat(18,1fr)] gap-1 max-[900px]:gap-[2px]"
-            >
-              {group.map((el, index) => {
-                const visible = isElementVisible(el);
-                return (
-                  <button
-                    key={el.atomic_number}
-                    className={`element-cell cat-${el.category} ${!visible ? 'opacity-30 grayscale-[50%]' : ''}`}
-                    style={{ gridColumn: F_BLOCK_START_COLUMN + index }}
-                    onClick={() => handleElementClick(el)}
-                    aria-label={`${el.name} (${el.symbol})`}
-                  >
-                    <span className="el-num">{el.atomic_number}</span>
-                    <span className="el-sym">{el.symbol}</span>
-                  </button>
-                );
-              })}
-            </div>
-          ))}
+          {/* F-block */}
+          <div className="mt-4 flex min-w-[760px] flex-col gap-1 max-[900px]:gap-[2px] sm:min-w-[800px]">
+            {[lanthanides, actinides].map((group, gi) => (
+              <div
+                key={gi}
+                className="grid grid-cols-[repeat(18,1fr)] gap-1 max-[900px]:gap-[2px]"
+              >
+                {group.map((el, index) => {
+                  const visible = isElementVisible(el);
+                  return (
+                    <button
+                      key={el.atomic_number}
+                      className={`element-cell cat-${el.category} ${!visible ? 'opacity-30 grayscale-[50%]' : ''}`}
+                      style={{ gridColumn: F_BLOCK_START_COLUMN + index }}
+                      onClick={() => handleElementClick(el)}
+                      aria-label={`${el.name} (${el.symbol})`}
+                    >
+                      <span className="el-num">{el.atomic_number}</span>
+                      <span className="el-sym">{el.symbol}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -216,7 +221,7 @@ export default function ElementsPage() {
           onClick={closeModal}
         >
           <div
-            className="relative w-full max-w-[450px] max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-3xl border border-border bg-card p-5 shadow-xl animate-in zoom-in-95 duration-200 sm:p-8 md:p-10"
+            className="relative w-full max-w-[450px] max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-3xl border border-border bg-card p-4 shadow-xl animate-in zoom-in-95 duration-200 sm:p-8 md:p-10"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -571,4 +576,3 @@ export default function ElementsPage() {
     </>
   );
 }
-
