@@ -37,9 +37,13 @@ interface FriendRequestNotification {
 
 interface ChatNotification {
   id: string;
+  type?: string;
   fromUsername?: string;
+  fromPhotoURL?: string;
   message?: string;
-  chatId: string;
+  chatId?: string;
+  groupId?: string;
+  groupName?: string;
 }
 
 export default function TopBar({ onToggleSidebar }: TopBarProps) {
@@ -314,45 +318,56 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
                           </div>
                         ))}
 
-                        {unreadChats.map((notif) => (
-                          <div
-                            key={notif.id}
-                            className="rounded-xl border border-transparent bg-muted/40 p-3 transition-colors hover:border-border/50 hover:bg-muted/80"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-blue-500/20 bg-blue-500/10 text-lg text-blue-500">
-                                💬
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-semibold leading-tight text-foreground">
-                                  <span className="text-primary">{notif.fromUsername || 'Someone'}</span>
-                                  <span className="font-normal text-muted-foreground"> sent you a message:</span>
-                                </p>
-                                <p className="mt-1 truncate text-xs italic text-muted-foreground">
-                                  &quot;{notif.message}&quot;
-                                </p>
-                              </div>
-                              <div className="flex shrink-0 gap-1.5">
-                                <Link
-                                  href={`/friends?chatId=${notif.chatId}`}
-                                  onClick={() => {
-                                    handleDismissNotification(notif.id);
-                                    setIsNotificationsOpen(false);
-                                  }}
-                                  className="flex h-7 items-center rounded-lg bg-primary/10 px-2.5 text-[10px] font-bold text-primary no-underline transition-colors hover:bg-primary/20 cursor-pointer"
-                                >
-                                  View
-                                </Link>
-                                <button
-                                  onClick={() => handleDismissNotification(notif.id)}
-                                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-muted text-xs text-muted-foreground transition-colors hover:bg-accent cursor-pointer"
-                                >
-                                  ✕
-                                </button>
+                        {unreadChats.map((notif) => {
+                          const isGroupMessage = notif.type === 'groupMessage' || notif.groupId;
+                          const navigateTo = isGroupMessage 
+                            ? `/groups?groupId=${notif.groupId}` 
+                            : `/friends?chatId=${notif.chatId}`;
+                          
+                          return (
+                            <div
+                              key={notif.id}
+                              className="rounded-xl border border-transparent bg-muted/40 p-3 transition-colors hover:border-border/50 hover:bg-muted/80"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-green-500/20 bg-green-500/10 text-lg text-green-500">
+                                  {isGroupMessage ? '👥' : '💬'}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-semibold leading-tight text-foreground">
+                                    <span className="text-primary">{notif.fromUsername || 'Someone'}</span>
+                                    <span className="font-normal text-muted-foreground">
+                                      {isGroupMessage 
+                                        ? ` in ${notif.groupName || 'a group'}:` 
+                                        : ' sent you a message:'}
+                                    </span>
+                                  </p>
+                                  <p className="mt-1 truncate text-xs italic text-muted-foreground">
+                                    &quot;{notif.message}&quot;
+                                  </p>
+                                </div>
+                                <div className="flex shrink-0 gap-1.5">
+                                  <Link
+                                    href={navigateTo}
+                                    onClick={() => {
+                                      handleDismissNotification(notif.id);
+                                      setIsNotificationsOpen(false);
+                                    }}
+                                    className="flex h-7 items-center rounded-lg bg-primary/10 px-2.5 text-[10px] font-bold text-primary no-underline transition-colors hover:bg-primary/20 cursor-pointer"
+                                  >
+                                    View
+                                  </Link>
+                                  <button
+                                    onClick={() => handleDismissNotification(notif.id)}
+                                    className="flex h-7 w-7 items-center justify-center rounded-lg border border-border bg-muted text-xs text-muted-foreground transition-colors hover:bg-accent cursor-pointer"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>

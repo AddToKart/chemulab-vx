@@ -90,10 +90,10 @@ export function ChatView({
           return (
             <div
               key={msg.id}
-              className={`relative flex flex-col max-w-[70%] group${msg.fromUid === uid ? ' self-end items-end' : ' self-start items-start'}`}
+              className={`relative flex flex-col max-w-[50%] group${msg.fromUid === uid ? ' self-end items-end' : ' self-start items-start'}`}
             >
               <div className={cn(
-                "relative text-sm shadow-sm",
+                "relative text-sm shadow-sm break-words max-w-full",
                 msg.fromUid === uid
                   ? 'bg-[var(--accent-color)] text-white px-4 py-2.5 rounded-[16px] rounded-br-[4px]'
                   : 'bg-[var(--bg-sidebar)] text-[var(--text-main)] border border-[var(--border-color)] px-4 py-2.5 rounded-[16px] rounded-bl-[4px]',

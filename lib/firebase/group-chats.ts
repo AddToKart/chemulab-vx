@@ -355,6 +355,30 @@ export async function sendGroupMessage(
   });
 
   await batch.commit();
+
+  // Create notifications for all group members (except sender)
+  const groupDoc = await getDoc(doc(db, 'groupChats', groupId));
+  if (!groupDoc.exists()) return;
+
+  const groupData = groupDoc.data();
+  const memberUids = groupData.members.map((m: GroupMember) => m.uid).filter((uid: string) => uid !== senderUid);
+
+  // Create notifications in parallel
+  const notificationPromises = memberUids.map((toUid: string) => 
+    addDoc(collection(db, 'notifications'), {
+      type: 'groupMessage',
+      fromUid: senderUid,
+      toUid,
+      fromUsername: senderUsername,
+      fromPhotoURL: senderPhotoURL || '',
+      message: text.length > 100 ? text.substring(0, 100) + '...' : text,
+      groupId,
+      groupName: groupData.name,
+      createdAt: serverTimestamp(),
+    })
+  );
+
+  await Promise.all(notificationPromises);
 }
 
 export async function toggleGroupMessageReaction(
