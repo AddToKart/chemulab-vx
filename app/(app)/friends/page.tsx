@@ -205,7 +205,7 @@ export default function FriendsPage() {
             friendEmail={friendEmail}
             setFriendEmail={setFriendEmail}
             onAddFriend={() => friendsHook.handleAddFriend(friendEmail, setFriendEmail)}
-            onOpenChat={openChat}
+            onOpenChat={(friend) => { openChat(friend); setActiveGroupChat(null); }}
             statusMsg={statusMsg}
           />
         )}

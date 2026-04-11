@@ -1,6 +1,6 @@
 'use client';
 
-import { Users, Settings, Smile, SmilePlus, Pin } from 'lucide-react';
+import { Users, Settings, Smile, SmilePlus, Pin, Info } from 'lucide-react';
 import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react';
 import { cn } from '@/lib/utils';
 import { GroupChat, GroupMessage, GroupRole } from '@/lib/firebase/group-chats';
@@ -101,9 +101,9 @@ export function GroupChatView({
               type="button"
               onClick={onOpenSettings}
               className="flex items-center justify-center w-8 h-8 rounded-full bg-[rgba(16,185,129,0.1)] border border-[rgba(16,185,129,0.2)] text-[var(--accent-color)] hover:bg-[rgba(16,185,129,0.2)] transition-colors cursor-pointer"
-              title="Group Settings"
+              title="Group Info"
             >
-              <Settings size={16} />
+              <Info size={16} />
             </button>
           )}
         </div>
