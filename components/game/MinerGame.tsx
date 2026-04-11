@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Magnet } from 'lucide-react';
 import styles from './MinerGame.module.css';
 import { ShareGameScore } from '@/components/game/ShareGameScore';
@@ -111,6 +112,7 @@ export default function MinerGame({ userId }: { userId?: string }) {
   const [ropeAngle, setRopeAngle] = useState<number>(0);
   const [ropePhase, setRopePhase] = useState<'idle' | 'extending' | 'attached' | 'retracting'>('idle');
   const [showClank, setShowClank] = useState(false);
+  const [popoyPulling, setPopoyPulling] = useState(false);
 
   const [gameOver, setGameOver] = useState(false);
   const [finalStats, setFinalStats] = useState<{accuracy: number, achievements: string[], correctCount: number} | null>(null);
@@ -292,6 +294,8 @@ export default function MinerGame({ userId }: { userId?: string }) {
       setPullingItemId(itemId);
       setShakeScreen(true);
       setRopePhase('extending');
+      setPopoyPulling(true);
+      setTimeout(() => setPopoyPulling(false), 600);
       
       const canvas = boardRef.current;
       const width = canvas?.clientWidth || 1000;
@@ -303,7 +307,7 @@ export default function MinerGame({ userId }: { userId?: string }) {
       const targetX = (itemX_pct / 100) * width;
       const targetY = (itemY_pct / 100) * height;
       const centerX = width / 2;
-      const centerY = 0;
+      const centerY = 50; // Starting from the center of the minecart instead of top edge
 
       const dx = targetX - centerX;
       const dy = targetY - centerY;
@@ -447,6 +451,12 @@ export default function MinerGame({ userId }: { userId?: string }) {
               <div className={styles.uiBox}>Question: {questionIndex + 1} / 10</div>
             </div>
 
+            {/* Rails - Moved to top level to span 100% of game container */}
+            <div className={styles.minecartRails}>
+              <div className={styles.rail}></div>
+              <div className={styles.rail}></div>
+            </div>
+
             <div 
               ref={boardRef}
               className={`${styles.canvas} ${shakeScreen ? styles.shakeScreen : ''}`}
@@ -495,7 +505,20 @@ export default function MinerGame({ userId }: { userId?: string }) {
                     </div>
                   )}
                 </div>
-              </div>
+
+                  {/* Minecart - only during gameplay */}
+                  <div className={`${styles.minerPopoyContainer} ${popoyPulling ? styles.minerPopoyPulling : styles.minerPopoyIdle}`}>
+                    <div className={styles.minecart}>
+                      <div className={styles.minecartBody}>
+                        <div className={styles.minecartRim}></div>
+                      </div>
+                      <div className={styles.minecartWheels}>
+                        <div className={styles.wheel}></div>
+                        <div className={styles.wheel}></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
               {session.questions[questionIndex].items.map((item) => {
                 const c = itemCoords[item.id];

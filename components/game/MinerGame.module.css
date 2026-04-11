@@ -39,7 +39,18 @@
 .canvas {
   flex: 1;
   position: relative;
-  background: radial-gradient(circle at bottom center, rgba(16, 185, 129, 0.05) 0%, transparent 60%);
+  /* Stylized 2D Cave Background */
+  background-color: #0d1117;
+  background-image: 
+    /* Spotlight overlay */
+    radial-gradient(circle at 50% 60px, transparent 0%, rgba(13, 17, 23, 0.4) 60%, rgba(13, 17, 23, 0.9) 100%),
+    /* Glowing mineral veins */
+    repeating-linear-gradient(135deg, transparent, transparent 100px, rgba(16, 185, 129, 0.05) 100px, rgba(16, 185, 129, 0.05) 101px),
+    /* Stylized rock texture (Geometric) */
+    linear-gradient(45deg, rgba(30, 41, 59, 0.5) 25%, transparent 25%, transparent 75%, rgba(30, 41, 59, 0.5) 75%),
+    linear-gradient(45deg, rgba(30, 41, 59, 0.5) 25%, transparent 25%, transparent 75%, rgba(30, 41, 59, 0.5) 75%);
+  background-size: 100% 100%, 200px 200px, 40px 40px, 40px 40px;
+  background-position: center, 0 0, 0 0, 20px 20px;
   overflow: hidden;
 }
 
@@ -277,7 +288,7 @@
 
 .rope {
   position: absolute;
-  top: 0;
+  top: 50px; /* Aligned with the center of the minecart */
   width: 8px;
   background: repeating-linear-gradient(
     45deg,
@@ -482,6 +493,152 @@
   20%, 80% { transform: translate3d(4px, 0, 0); }
   30%, 50%, 70% { transform: translate3d(-6px, 0, 0); }
   40%, 60% { transform: translate3d(6px, 0, 0); }
+}
+
+/* Popoy in Minecraft-style minecart */
+.minerPopoyContainer {
+  position: absolute;
+  top: 25px; /* Adjusted since Popoy is gone */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 22;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 80px;
+}
+
+.minecart {
+  position: relative;
+  width: clamp(50px, 10vw, 70px);
+  height: clamp(35px, 7vw, 50px);
+}
+
+.minecartBody {
+  width: 100%;
+  height: 70%;
+  background: linear-gradient(135deg, #4b5563 0%, #1f2937 100%); /* Solid dark steel */
+  border: 3px solid #111827;
+  border-radius: 4px;
+  position: relative;
+  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.1);
+}
+
+.minecartBody::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  right: 4px;
+  bottom: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  pointer-events: none;
+  /* Rivets in the corners */
+  background-image: 
+    radial-gradient(circle, #374151 1.5px, transparent 1.5px),
+    radial-gradient(circle, #374151 1.5px, transparent 1.5px),
+    radial-gradient(circle, #374151 1.5px, transparent 1.5px),
+    radial-gradient(circle, #374151 1.5px, transparent 1.5px);
+  background-repeat: no-repeat;
+  background-position: top left, top right, bottom left, bottom right;
+}
+
+.minecartRim {
+  position: absolute;
+  top: -4px;
+  left: -3px;
+  right: -3px;
+  height: 6px;
+  background: #6a6a6a;
+  border: 2px solid #3a3a3a;
+  border-radius: 1px;
+}
+
+.minecartWheels {
+  display: flex;
+  justify-content: space-between;
+  padding: 0 4px;
+  margin-top: -2px;
+}
+
+.wheel {
+  width: clamp(10px, 2vw, 14px);
+  height: clamp(10px, 2vw, 14px);
+  background: #3a3a3a;
+  border: 2px solid #2a2a2a;
+  position: relative;
+}
+
+.wheel::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 4px;
+  height: 4px;
+  background: #5a5a5a;
+  border: 1px solid #3a3a3a;
+}
+
+.minecartRails {
+  position: absolute;
+  top: 72px; /* Fixed vertical position on board */
+  left: 0;
+  right: 0;
+  height: 18px;
+  pointer-events: none;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+
+.rail {
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(180deg, #cbd5e1 0%, #64748b 50%, #334155 100%);
+  position: relative;
+  box-shadow: 0 0 15px rgba(148, 163, 184, 0.3);
+}
+
+.rail::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(93, 58, 26, 0.8),
+    rgba(93, 58, 26, 0.8) 12px,
+    transparent 12px,
+    transparent 120px
+  );
+  z-index: -1;
+  height: 14px;
+  top: -5px;
+}
+
+.minerPopoyPulling .minecart {
+  animation: cartPull 0.6s ease-in-out;
+}
+
+.minerPopoyIdle .minecart {
+  animation: cartBob 2s ease-in-out infinite;
+}
+
+@keyframes cartPull {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(6px); }
+}
+
+@keyframes cartBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
 }
 
 /* Gold Particle Trail */
