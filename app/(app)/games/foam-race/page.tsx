@@ -188,6 +188,9 @@ export default function FoamRacePage() {
   // Leave confirmation
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
+  // Education screen
+  const [showEducation, setShowEducation] = useState(false);
+
   const gameIdRef = useRef<string>(undefined);
   const unsubRef = useRef<(() => void)>(undefined);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
@@ -309,6 +312,18 @@ export default function FoamRacePage() {
       setScreen('victory');
     }
   }, [gameData]);
+
+  /* Education screen on victory */
+  useEffect(() => {
+    if (gameData?.status === 'completed' && screen === 'victory' && !showEducation) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setShowEducation(true);
+      setTimeout(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setShowEducation(false);
+      }, 8000);
+    }
+  }, [gameData?.status, screen, showEducation]);
 
   /* ─── Cleanup on unmount ─── */
 
@@ -1088,7 +1103,27 @@ export default function FoamRacePage() {
         </div>
       )}
 
-      {/* ======================== Victory Screen ======================== */}
+      {/* Education Screen */}
+      {showEducation && (
+        <div className="fixed inset-0 z-[105] flex items-center justify-center bg-black/70 backdrop-blur-md p-6">
+          <div className="glass-panel p-8 rounded-[40px] max-w-lg w-full animate-in zoom-in-95 duration-500">
+            <div className="text-5xl mb-4 text-center">🧪</div>
+            <h2 className="text-3xl font-black mb-4 tracking-tight uppercase text-center text-[var(--text-main)]">
+              Elephant Toothpaste
+            </h2>
+            <div className="text-base text-[var(--text-light)] leading-relaxed space-y-3">
+              <p>
+                This experiment happens because of the rapid decomposition of hydrogen peroxide into water and oxygen gas.
+              </p>
+              <p>
+                A catalyst, such as yeast, speeds up this reaction through the process of Catalysis. The oxygen gas released gets trapped by soap, forming large amounts of foam that expand quickly, resembling toothpaste being squeezed out.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Victory Screen */}
       {screen === 'victory' && winnerInfo && (
         <div className="flex flex-col items-center justify-center h-full animate-in fade-in zoom-in-95">
           <div className="text-8xl mb-8 animate-bounce">🏆</div>

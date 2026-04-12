@@ -150,6 +150,7 @@ export default function VolcanoPage() {
   const [shaking, setShaking] = useState(false);
   const [erupting, setErupting] = useState(false);
   const [showGameOver, setShowGameOver] = useState(false);
+  const [showEducation, setShowEducation] = useState(false);
 
   // UI states
   const [errorMessage, setErrorMessage] = useState('');
@@ -961,7 +962,7 @@ export default function VolcanoPage() {
     currentRoomCodeRef.current = undefined;
   }, [currentGame, user]);
 
-  // --------------- Eruption effect ---------------
+  // --------------- Eruption effect with education ---------------
 
   useEffect(() => {
     if (currentGame?.status === 'completed' && !hasTriggeredEruption.current) {
@@ -973,8 +974,13 @@ export default function VolcanoPage() {
 
       eruptionTimeoutRef.current = setTimeout(() => {
         setShaking(false);
-        setShowGameOver(true);
+        setShowEducation(true);
       }, 4000);
+
+      eruptionTimeoutRef.current = setTimeout(() => {
+        setShowEducation(false);
+        setShowGameOver(true);
+      }, 12000);
     }
   }, [currentGame?.status]);
 
@@ -1269,38 +1275,62 @@ export default function VolcanoPage() {
                 onDrop={handleDrop}
               >
                  {dropZoneActive && (
-                   <div className="absolute top-0 left-1/2 -translate-x-1/2 font-black text-red-500 text-xl animate-bounce z-20">
+                   <div className="absolute top-0 left-1/2 -translate-x-1/2 font-black text-red-500 text-xl animate-bounce z-40">
                      DROP HERE!
                    </div>
                  )}
 
-                {/* Lava particles */}
-                <div className={cn("absolute top-[-100px] left-1/2 -translate-x-1/2 w-[200px] h-[200px] pointer-events-none transition-opacity z-20", erupting ? "opacity-100" : "opacity-0")}>
-                  {[0, 1, 2, 3, 4].map((i) => (
-                    <div
-                      key={i}
-                      className={cn("absolute w-3 h-3 bg-[#ff5722] rounded-full shadow-[0_0_10px_#ffeb3b]", erupting && "animate-[particleAnim_1.5s_ease-out_infinite]")}
-                      style={{ 
-                        left: `${20 + i * 15}%`,
-                        animationDelay: `${i * 0.15}s`
-                      }}
-                    />
-                  ))}
+                {/* Lava particles - Nested for stable centering */}
+                <div className={cn("absolute top-[-100px] left-1/2 -translate-x-1/2 w-[40%] h-[200px] pointer-events-none transition-opacity z-10", erupting ? "opacity-100" : "opacity-0")}>
+                  <div className="relative w-full h-full">
+                    {[0, 1, 2, 3, 4].map((i) => (
+                      <div
+                        key={i}
+                        className={cn("absolute w-3 h-3 bg-[#ff5722] rounded-full shadow-[0_0_10px_#ffeb3b]", erupting && "animate-[particleAnim_1.5s_ease-out_infinite]")}
+                        style={{ 
+                          left: `${15 + i * 17.5}%`,
+                          animationDelay: `${i * 0.15}s`
+                        }}
+                      />
+                    ))}
+                  </div>
                 </div>
 
-                {/* Lava */}
-                <div className={cn(
-                  "absolute top-[20px] left-1/2 -translate-x-1/2 w-[80px] h-0 bg-gradient-to-b from-[#ff4500] to-transparent rounded-[40px] opacity-0 transition-all duration-1000 z-10",
-                  erupting && "h-[600px] top-[-500px] w-[200px] opacity-100 bg-[radial-gradient(circle,#ffeb3b,#ff9800,#f44336)] blur-[5px] shadow-[0_0_50px_#ff5722] animate-[flow_2s_infinite_ease-in-out]"
-                )} />
+                {/* Lava - Nested to isolate animation from positioning */}
+                <div className="absolute top-[20px] left-1/2 -translate-x-1/2 w-[40%] h-0 z-0 pointer-events-none">
+                  <div className={cn(
+                    "absolute bottom-0 left-0 right-0 mx-auto w-[35%] h-0 bg-gradient-to-b from-[#ff4500] to-transparent rounded-[40px] opacity-0 transition-all duration-1000 origin-bottom",
+                    erupting && "h-[600px] w-full opacity-100 bg-[radial-gradient(circle,#ffeb3b,#ff9800,#f44336)] blur-[5px] shadow-[0_0_50px_#ff5722] animate-[flow_2s_infinite_ease-in-out]"
+                  )} />
+                </div>
 
-                {/* Volcano Shape */}
-                <div className="w-full h-full bg-gradient-to-b from-[#4b2c20] to-[#2d1b10] [clip-path:polygon(25%_0%,75%_0%,100%_100%,0%_100%)] relative z-0 shadow-2xl transition-transform duration-300">
+                {/* Volcano Shape - Standardized absolute positioning */}
+                <div className="absolute bottom-0 left-0 right-0 h-full bg-gradient-to-b from-[#4b2c20] to-[#2d1b10] [clip-path:polygon(25%_0%,75%_0%,100%_100%,0%_100%)] z-30 shadow-2xl transition-transform duration-300">
                    <div className="absolute top-0 left-0 right-0 h-[20%] bg-[#1a0f0a] [clip-path:polygon(0%_0%,100%_0%,100%_100%,80%_80%,60%_100%,40%_80%,20%_100%,0%_80%)]" />
                 </div>
               </div>
             </div>
           </div>
+
+          {/* Educational content panel */}
+          {showEducation && (
+            <div className="fixed inset-0 z-[105] flex items-center justify-center bg-black/70 backdrop-blur-md p-6">
+              <div className="glass-panel p-8 rounded-[40px] max-w-lg w-full animate-in zoom-in-95 duration-500">
+                <div className="text-5xl mb-4 text-center">🌋</div>
+                <h2 className="text-3xl font-black mb-4 tracking-tight uppercase text-center text-[var(--text-main)]">
+                  Volcano Experiment
+                </h2>
+                <div className="text-base text-[var(--text-light)] leading-relaxed space-y-3">
+                  <p>
+                    The volcano experiment occurs due to an Acid–base reaction between baking soda (sodium bicarbonate) and vinegar (acetic acid).
+                  </p>
+                  <p>
+                    When these substances react, they produce carbon dioxide gas (CO₂), water, and a salt. The rapid formation of CO₂ gas creates pressure, forcing the liquid mixture out of the container, which simulates a volcanic eruption.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Game over panel */}
           {showGameOver && (
@@ -1361,8 +1391,8 @@ export default function VolcanoPage() {
 
       <style jsx global>{`
         @keyframes flow {
-          0%, 100% { transform: translateX(-50%) scaleX(1); }
-          50% { transform: translateX(-50%) scaleX(1.1); }
+          0%, 100% { transform: scaleX(1); }
+          50% { transform: scaleX(1.1); }
         }
         @keyframes particleAnim {
           0% { transform: translateY(0); opacity: 1; }

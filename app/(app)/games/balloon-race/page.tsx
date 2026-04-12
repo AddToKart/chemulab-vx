@@ -172,6 +172,9 @@ export default function BalloonRacePage() {
 
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
+  // Education screen
+  const [showEducation, setShowEducation] = useState(false);
+
   const gameIdRef = useRef<string>(undefined);
   const unsubRef = useRef<(() => void) | undefined>(undefined);
   const lastActivityRef = useRef<number>(0);
@@ -325,6 +328,18 @@ export default function BalloonRacePage() {
       if (afkCountdownIntervalRef.current) clearInterval(afkCountdownIntervalRef.current);
     };
   }, []);
+
+  /* Education screen on victory */
+  useEffect(() => {
+    if (gameData?.status === 'completed' && screen === 'victory' && !showEducation) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setShowEducation(true);
+      setTimeout(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setShowEducation(false);
+      }, 8000);
+    }
+  }, [gameData?.status, screen, showEducation]);
 
   /* ---------- Create Game ---------- */
   const handleCreate = async () => {
@@ -1061,7 +1076,27 @@ export default function BalloonRacePage() {
         </div>
       )}
 
-      {/* ======================== Victory Screen ======================== */}
+      {/* Education Screen */}
+      {showEducation && (
+        <div className="fixed inset-0 z-[105] flex items-center justify-center bg-black/70 backdrop-blur-md p-6">
+          <div className="glass-panel p-8 rounded-[40px] max-w-lg w-full animate-in zoom-in-95 duration-500">
+            <div className="text-5xl mb-4 text-center">🎈</div>
+            <h2 className="text-3xl font-black mb-4 tracking-tight uppercase text-center text-[var(--text-main)]">
+              Inflating Balloons with CO₂
+            </h2>
+            <div className="text-base text-[var(--text-light)] leading-relaxed space-y-3">
+              <p>
+                The balloon inflates because of the production of carbon dioxide gas from a chemical reaction between an acid and a base.
+              </p>
+              <p>
+                This demonstrates the principle of Gas pressure, where gases expand to fill available space. As CO₂ is produced, it fills the balloon, causing it to inflate.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Victory Screen */}
       {screen === 'victory' && gameData && (
         <div className="flex flex-col items-center justify-center h-full animate-in fade-in zoom-in-95">
           <div className="text-8xl mb-6 animate-bounce">

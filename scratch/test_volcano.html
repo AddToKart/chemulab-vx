@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { background: #0f172a; margin: 0; padding: 50px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+  
+  .game-container {
+    width: 600px;
+    height: 400px;
+    background: rgba(0,0,0,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 20px;
+    position: relative;
+  }
+
+  /* Volcano Panel Logic */
+  .volcano-panel {
+    position: relative;
+    width: 100%;
+    max-width: 420px;
+    aspect-ratio: 420/340;
+    display: flex;
+    items-align: flex-end; /* Note: changed from items-end to items-align for standard CSS */
+    justify-content: center;
+    overflow: visible;
+  }
+
+  .volcano-shape {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #4b2c20 0%, #2d1b10 100%);
+    clip-path: polygon(25% 0%, 75% 0%, 100% 100%, 0% 100%);
+    position: relative;
+    z-index: 0;
+  }
+
+  .volcano-cap {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 20%;
+    background: #1a0f0a;
+    clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 80% 80%, 60% 100%, 40% 80%, 20% 100%, 0% 80%);
+  }
+
+  /* Eruption Logic */
+  @keyframes flow {
+    0%, 100% { transform: translateX(-50%) scaleX(1); }
+    50% { transform: translateX(-50%) scaleX(1.1); }
+  }
+
+  .lava-beam {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 45%;
+    height: 600px;
+    top: -500px;
+    background: radial-gradient(circle, #ffeb3b, #ff9800, #f44336);
+    border-radius: 40px;
+    filter: blur(5px);
+    box-shadow: 0 0 50px #ff5722;
+    z-index: 10;
+    animation: flow 2s infinite ease-in-out;
+    opacity: 0.8;
+  }
+
+  /* Center check line */
+  .divider {
+    position: absolute;
+    left: 50%;
+    top: -100px;
+    bottom: -100px;
+    width: 1px;
+    background: cyan;
+    z-index: 100;
+  }
+</style>
+</head>
+<body>
+  <div class="game-container">
+    <div class="volcano-panel">
+      <div class="lava-beam"></div>
+      <div class="volcano-shape">
+        <div class="volcano-cap"></div>
+      </div>
+      <div class="divider"></div>
+    </div>
+  </div>
+</body>
+</html>
