@@ -171,7 +171,7 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
       <header
         className={cn(
           'fixed left-3 right-3 top-3 z-[1300] min-h-16 sm:left-4 sm:right-4 sm:top-4',
-          'flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-3 py-3 sm:px-4 lg:px-6',
+          'flex flex-nowrap items-center justify-between gap-x-2 gap-y-2 px-3 py-3 sm:px-4 lg:px-6',
           'bg-background/95 text-foreground shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/60',
           'border border-border rounded-2xl',
           'transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]',
@@ -183,7 +183,7 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
             data-sidebar-toggle
             onClick={onToggleSidebar}
             aria-label="Toggle sidebar"
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-sm transition-all duration-200 hover:scale-105 hover:bg-accent hover:text-accent-foreground cursor-pointer"
+            className="flex h-9 w-9 shrink-0 sm:h-10 sm:w-10 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-sm transition-all duration-200 hover:scale-105 hover:bg-accent hover:text-accent-foreground cursor-pointer"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" />
@@ -219,11 +219,11 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
           </div>
         </div>
 
-        <div className="ml-auto flex items-center gap-2 sm:gap-3">
+        <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-3">
         <button
           onClick={toggleTheme}
           aria-label="Toggle Dark Mode"
-          className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:rotate-[15deg] hover:border-primary hover:shadow-md cursor-pointer"
+          className="relative flex h-9 w-9 shrink-0 sm:h-10 sm:w-10 items-center justify-center overflow-hidden rounded-full border border-border bg-card shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:rotate-[15deg] hover:border-primary hover:shadow-md cursor-pointer"
         >
           <span className={cn('absolute text-lg transition-all duration-500', theme === 'light' ? 'rotate-0 scale-100 opacity-100' : 'rotate-180 scale-50 opacity-0')}>
             ☀️
@@ -240,7 +240,7 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
               localStorage.setItem('chemulab_main_bgm', String(newMuted));
             }}
           aria-label={mainBgmMuted ? 'Unmute Music' : 'Mute Music'}
-          className="relative flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card shadow-sm transition-all duration-200 hover:scale-105 hover:border-primary hover:shadow-md cursor-pointer"
+          className="relative flex h-9 w-9 shrink-0 sm:h-10 sm:w-10 items-center justify-center rounded-full border border-border bg-card shadow-sm transition-all duration-200 hover:scale-105 hover:border-primary hover:shadow-md cursor-pointer"
         >
           {mainBgmMuted ? (
             <svg className="h-5 w-5 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -257,7 +257,7 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
         <button
           onClick={() => setIsDailyMissionsOpen(true)}
           aria-label="Daily Missions"
-          className="relative flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card shadow-sm transition-all duration-200 hover:scale-105 hover:border-primary hover:shadow-md cursor-pointer"
+          className="relative flex h-9 w-9 shrink-0 sm:h-10 sm:w-10 items-center justify-center rounded-full border border-border bg-card shadow-sm transition-all duration-200 hover:scale-105 hover:border-primary hover:shadow-md cursor-pointer"
         >
           {completedCount === totalCount && totalCount > 0 ? (
             <Trophy className="h-5 w-5 text-yellow-500" />
@@ -273,7 +273,7 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
                 data-notifications-trigger
                 onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
                 className={cn(
-                  'relative flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-200 cursor-pointer',
+                  'relative flex h-9 w-9 shrink-0 sm:h-10 sm:w-10 items-center justify-center rounded-xl transition-all duration-200 cursor-pointer',
                   isNotificationsOpen
                     ? 'scale-105 bg-primary text-white shadow-lg'
                     : 'text-muted-foreground hover:scale-110 hover:bg-muted hover:text-primary'
@@ -411,7 +411,7 @@ export default function TopBar({ onToggleSidebar }: TopBarProps) {
             </div>
             <Link
               href="/profile"
-              className="hidden h-9 w-9 overflow-hidden rounded-full border-2 border-border shadow-sm transition-all duration-200 hover:scale-105 hover:border-primary md:block"
+              className="hidden h-9 w-9 shrink-0 sm:h-10 sm:w-10 overflow-hidden rounded-full border-2 border-border shadow-sm transition-all duration-200 hover:scale-105 hover:border-primary md:block"
             >
               <img src={profile.photoURL || '/img/default-avatar.png'} alt="Profile" className="h-full w-full object-cover" />
             </Link>
