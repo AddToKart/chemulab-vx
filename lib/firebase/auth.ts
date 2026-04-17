@@ -11,12 +11,6 @@ import {
   doc,
   getDoc,
   setDoc,
-  collection,
-  query,
-  where,
-  limit,
-  getDocs,
-  runTransaction,
   serverTimestamp,
 } from 'firebase/firestore';
 import { auth, db } from './config';
@@ -30,11 +24,6 @@ const VERIFICATION_ENFORCEMENT_DATE = new Date('2026-02-03T00:00:00Z');
 
 export function validateEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-}
-
-export async function checkUsernameExists(username: string): Promise<boolean> {
-  // Username uniqueness is no longer enforced
-  return false;
 }
 
 // ─── Username utilities ───
@@ -79,18 +68,16 @@ export async function register(
     throw new Error('Invalid email format');
   }
 
-  // Username uniqueness is no longer checked here
-
   // Suppress auth-listener side-effects (redirect, profile fetch) during registration
   const { setRegistering } = useAuthStore.getState();
   setRegistering(true);
 
   try {
     // Create auth user
-    let uid: string;
+    let createdUser: User;
     try {
       const userCred = await createUserWithEmailAndPassword(auth, email, password);
-      uid = userCred.user.uid;
+      createdUser = userCred.user;
     } catch (err) {
       if (err && typeof err === 'object' && 'code' in err) {
         const firebaseErr = err as { code: string };
@@ -105,27 +92,36 @@ export async function register(
       throw err;
     }
 
-    // Write user profile (no more usernames collection reservation)
-    await setDoc(
-      doc(db, 'users', uid),
-      {
-        username,
-        email,
-        createdAt: serverTimestamp(),
-        registrationDate: serverTimestamp(),
-      },
-      { merge: true },
-    );
-
-    // Send verification email
-    let emailSent = false;
-    if (auth.currentUser) {
+    // Write user profile — if this fails, roll back the auth account to avoid orphaned emails
+    try {
+      await setDoc(
+        doc(db, 'users', createdUser.uid),
+        {
+          username,
+          email,
+          createdAt: serverTimestamp(),
+          registrationDate: serverTimestamp(),
+        },
+        { merge: true },
+      );
+    } catch (profileErr) {
+      // Rollback: delete the orphaned auth account so the email isn't permanently claimed
       try {
-        await sendEmailVerification(auth.currentUser);
-        emailSent = true;
-      } catch (verifyErr) {
-        console.warn('Failed to send verification email:', verifyErr);
+        await createdUser.delete();
+      } catch {
+        // Best-effort cleanup — the account may need manual admin removal
+        console.error('[auth] Failed to rollback orphaned auth account:', createdUser.uid);
       }
+      throw new Error('Registration failed — please try again.');
+    }
+
+    // Send verification email (use createdUser directly to avoid auth.currentUser race condition)
+    let emailSent = false;
+    try {
+      await sendEmailVerification(createdUser);
+      emailSent = true;
+    } catch (verifyErr) {
+      console.warn('Failed to send verification email:', verifyErr);
     }
 
     // Force logout so they verify first
@@ -149,12 +145,32 @@ export async function login(identifier: string, password: string): Promise<User>
   // Login now only supports email (username-to-email resolution removed as usernames are no longer unique)
   const email = identifier;
 
-  const userCred = await signInWithEmailAndPassword(auth, email, password);
+  let userCred;
+  try {
+    userCred = await signInWithEmailAndPassword(auth, email, password);
+  } catch (err) {
+    if (err && typeof err === 'object' && 'code' in err) {
+      const code = (err as { code: string }).code;
+      if (
+        code === 'auth/user-not-found' ||
+        code === 'auth/wrong-password' ||
+        code === 'auth/invalid-credential'
+      ) {
+        throw new Error('Invalid email or password.');
+      }
+    }
+    throw new Error('Login failed. Please try again.');
+  }
+
   const user = userCred.user;
 
   // Check email verification for accounts created after enforcement date
   if (!user.emailVerified) {
-    const creationTime = new Date(user.metadata.creationTime ?? 0);
+    // If creationTime is unknown, assume the account is new and enforce verification
+    const creationTime = user.metadata.creationTime
+      ? new Date(user.metadata.creationTime)
+      : new Date();
+
     if (creationTime > VERIFICATION_ENFORCEMENT_DATE) {
       await signOut(auth);
       throw new Error('Please verify your email address to log in.');
@@ -162,6 +178,43 @@ export async function login(identifier: string, password: string): Promise<User>
   }
 
   return user;
+}
+
+// ─── Resend verification email ───
+
+export async function resendVerificationEmail(
+  email: string,
+  password: string,
+): Promise<string> {
+  let userCred;
+  try {
+    userCred = await signInWithEmailAndPassword(auth, email, password);
+  } catch {
+    throw new Error('Could not sign in to resend verification. Please check your credentials.');
+  }
+
+  const user = userCred.user;
+
+  if (user.emailVerified) {
+    await signOut(auth);
+    return 'Your email is already verified. You can sign in now.';
+  }
+
+  try {
+    await sendEmailVerification(user);
+  } catch (err) {
+    await signOut(auth);
+    if (err && typeof err === 'object' && 'code' in err) {
+      const code = (err as { code: string }).code;
+      if (code === 'auth/too-many-requests') {
+        throw new Error('Too many requests. Please wait a few minutes before trying again.');
+      }
+    }
+    throw new Error('Failed to send verification email. Please try again later.');
+  }
+
+  await signOut(auth);
+  return 'Verification email sent! Please check your inbox and spam folder.';
 }
 
 // ─── Logout ───

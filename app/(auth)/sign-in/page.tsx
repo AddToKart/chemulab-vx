@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { login, register, forgotPassword } from '@/lib/firebase/auth';
+import { login, register, forgotPassword, resendVerificationEmail } from '@/lib/firebase/auth';
 import { useAuthStore } from '@/store/auth-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,54 +33,14 @@ export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showRegPassword, setShowRegPassword] = useState(false);
   const [showRegConfirm, setShowRegConfirm] = useState(false);
+  const [showResendOption, setShowResendOption] = useState(false);
+  const [resending, setResending] = useState(false);
   const [showVerificationOverlay, setShowVerificationOverlay] = useState(false);
   const [overlayMessage, setOverlayMessage] = useState('');
   const [overlayCountdown, setOverlayCountdown] = useState(5);
   const overlayTimerRef = useRef<number | null>(null);
 
-  // BGM state
-  const [bgmMuted, setBgmMuted] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('authBgmMuted');
-      return saved === 'true';
-    }
-    return false;
-  });
-  const bgmRef = useRef<HTMLAudioElement | null>(null);
-
   const registering = useAuthStore((s) => s.registering);
-
-  // BGM effect
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    bgmRef.current = new Audio('/music/auth_bgm.mp3');
-    bgmRef.current.loop = true;
-    bgmRef.current.volume = 0.5;
-
-    if (!bgmMuted) {
-      bgmRef.current.play().catch(() => {});
-    }
-
-    return () => {
-      if (bgmRef.current) {
-        bgmRef.current.pause();
-        bgmRef.current = null;
-      }
-    };
-  }, []);
-
-  // Handle mute toggle
-  useEffect(() => {
-    if (bgmRef.current) {
-      if (bgmMuted) {
-        bgmRef.current.pause();
-      } else {
-        bgmRef.current.play().catch(() => {});
-      }
-      localStorage.setItem('authBgmMuted', String(bgmMuted));
-    }
-  }, [bgmMuted]);
 
   useEffect(() => {
     if (!loading && user && !registering) router.replace('/');
@@ -127,12 +87,12 @@ export default function SignInPage() {
       clearInterval(overlayTimerRef.current);
       overlayTimerRef.current = null;
     }
-    if (typeof window !== 'undefined') {
-      window.location.assign('/sign-in');
-    }
+    setShowVerificationOverlay(false);
+    setMode('login');
+    setSuccess('You can now sign in after verifying your email.');
   };
 
-  const clearMessages = useCallback(() => { setError(''); setSuccess(''); }, []);
+  const clearMessages = useCallback(() => { setError(''); setSuccess(''); setShowResendOption(false); }, []);
   const switchMode = (next: FormMode) => { clearMessages(); setMode(next); };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -145,8 +105,30 @@ export default function SignInPage() {
       setSuccess('Login successful! Redirecting...');
       setTimeout(() => router.replace('/'), 500);
     } catch (err: unknown) {
-      setError(getErrorMessage(err, 'Login failed. Please try again.'));
+      const msg = getErrorMessage(err, 'Login failed. Please try again.');
+      setError(msg);
+      // Show resend option when login fails due to unverified email
+      if (msg.toLowerCase().includes('verify your email')) {
+        setShowResendOption(true);
+      }
     } finally { setSubmitting(false); }
+  };
+
+  const handleResendVerification = async () => {
+    if (!loginEmail || !loginPassword) {
+      setError('Please enter your email and password above, then click resend.');
+      return;
+    }
+    setResending(true);
+    setError('');
+    setSuccess('');
+    try {
+      const msg = await resendVerificationEmail(loginEmail, loginPassword);
+      setSuccess(msg);
+      setShowResendOption(false);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to resend verification email.'));
+    } finally { setResending(false); }
   };
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -190,25 +172,6 @@ export default function SignInPage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden font-[var(--font-heading)] text-white">
-      {/* BGM Mute Toggle */}
-      <button
-        type="button"
-        onClick={() => setBgmMuted(!bgmMuted)}
-        className="fixed top-4 right-4 z-[100] flex h-10 w-10 items-center justify-center rounded-full bg-white/10 backdrop-blur-md transition-all hover:bg-white/20 active:scale-95"
-        aria-label={bgmMuted ? 'Unmute music' : 'Mute music'}
-      >
-        {bgmMuted ? (
-          <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
-          </svg>
-        ) : (
-          <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-          </svg>
-        )}
-      </button>
-
       {/* Animated background blobs */}
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none" style={{ background: 'var(--bg-main)' }}>
         <div className="absolute -top-[10%] -left-[10%] w-[50vw] h-[50vw] rounded-full bg-[#8e2de2] opacity-60 blur-[50px] animate-[authFloat_20s_infinite_alternate] [animation-delay:-5s]" />
@@ -244,6 +207,16 @@ export default function SignInPage() {
           {error && (
             <div className="mb-4 px-4 py-3 rounded-[10px] text-center font-medium text-[#ffcccc] bg-red-600/40 border border-red-200/20 backdrop-blur-sm">
               {error}
+              {showResendOption && mode === 'login' && (
+                <button
+                  type="button"
+                  disabled={resending}
+                  onClick={handleResendVerification}
+                  className="mt-2 block w-full text-sm font-semibold text-cyan-300 hover:text-cyan-200 underline underline-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-transparent border-none cursor-pointer"
+                >
+                  {resending ? 'Sending…' : 'Resend Verification Email'}
+                </button>
+              )}
             </div>
           )}
           {success && !showVerificationOverlay && (
