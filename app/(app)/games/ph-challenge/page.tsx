@@ -196,7 +196,7 @@ export default function PHChallengePage() {
         setShowEducation(false);
       }, 8000);
     }
-  }, [gameData?.status, screen, showEducation]);
+  }, [gameData?.status, screen]);
 
   /* ---- determine player number ---- */
   const getPlayerNumber = useCallback(
@@ -1085,7 +1085,13 @@ export default function PHChallengePage() {
       {/* Education Screen */}
       {showEducation && (
         <div className="fixed inset-0 z-[105] flex items-center justify-center bg-black/70 backdrop-blur-md p-6">
-          <div className="glass-panel p-8 rounded-[40px] max-w-lg w-full animate-in zoom-in-95 duration-500">
+          <div className="glass-panel relative p-8 rounded-[40px] max-w-lg w-full animate-in zoom-in-95 duration-500">
+            <button
+              onClick={() => setShowEducation(false)}
+              className="absolute top-4 right-4 w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+            >
+              ✕
+            </button>
             <div className="text-5xl mb-4 text-center">🌈</div>
             <h2 className="text-3xl font-black mb-4 tracking-tight uppercase text-center text-[var(--text-main)]">
               Color-Changing Reactions (pH)

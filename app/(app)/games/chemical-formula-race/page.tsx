@@ -39,7 +39,7 @@ import { MultiplayerContainer } from '@/components/game/Multiplayer/MultiplayerC
 const WINNING_ROUNDS = 3;
 const ROUND_TIME = 30;
 const HINT_DELAY = 10;
-const ROUND_RESULT_DELAY = 15;
+const ROUND_RESULT_DELAY = 0;
 const TOUCH_DRAG_HOLD_DELAY = 300;
 const DISTRACTOR_COUNT = 3;
 const MAX_PLAYABLE_REACTANTS = 5;
@@ -306,7 +306,8 @@ export default function ChemicalFormulaRacePage() {
   const [checkFeedback, setCheckFeedback] = useState<CheckFeedback | null>(null);
   const [checkBusy, setCheckBusy] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [roundResultCountdown, setRoundResultCountdown] = useState(ROUND_RESULT_DELAY);
+  
+  
   const [touchDrag, setTouchDrag] = useState<TouchDragState>(createEmptyTouchDragState);
   const [isChamberHovered, setIsChamberHovered] = useState(false);
 
@@ -703,8 +704,7 @@ export default function ChemicalFormulaRacePage() {
         : 0;
     roundElapsedBaseMsRef.current = initialElapsedMs;
     roundTickStartedAtRef.current = performance.now();
-    setTimeLeft(getRemainingSeconds(ROUND_TIME_MS, initialElapsedMs));
-    setRoundResultCountdown(ROUND_RESULT_DELAY);
+setTimeLeft(getRemainingSeconds(ROUND_TIME_MS, initialElapsedMs));
     if (dragTimerRef.current) {
       clearTimeout(dragTimerRef.current);
       dragTimerRef.current = null;
@@ -1374,6 +1374,20 @@ export default function ChemicalFormulaRacePage() {
     }
   }, [gameData]);
 
+  useEffect(() => {
+    if (
+      !gameData ||
+      screen !== 'game' ||
+      !gameData.roundEnded ||
+      gameData.winner != null ||
+      gameData.currentRound < 5
+    ) {
+      return;
+    }
+
+    void handleMatchComplete();
+  }, [gameData, screen, handleMatchComplete]);
+
   const handleManualAdvance = useCallback(async () => {
     if (!gameData || myPlayerNum !== 1) {
       return;
@@ -1399,62 +1413,10 @@ export default function ChemicalFormulaRacePage() {
 
   useEffect(() => {
     if (
-      screen !== 'game' ||
-      !gameData ||
-      gameData.status !== 'playing' ||
-      !gameData.roundEnded ||
-      gameData.winner != null
-    ) {
-      if (roundResultTimerRef.current) {
-        clearInterval(roundResultTimerRef.current);
-        roundResultTimerRef.current = undefined;
-      }
-      return;
-    }
-
-    if (activeResultKeyRef.current === roundKey) {
-      return;
-    }
-
-    const resolvedAtMs = getSharedTimerMs(gameData.roundResolvedAt);
-    if (!resolvedAtMs) {
-      return;
-    }
-
-    activeResultKeyRef.current = roundKey;
-    const initialElapsedMs = getElapsedFromSharedTimer(
-      gameData.roundResolvedAt,
-      ROUND_RESULT_DELAY_MS,
-    );
-    resultElapsedBaseMsRef.current = initialElapsedMs;
-    resultTickStartedAtRef.current = performance.now();
-    setRoundResultCountdown(getRemainingSeconds(ROUND_RESULT_DELAY_MS, initialElapsedMs));
-
-    const syncResultTimer = () => {
-      const elapsedMs =
-        resultElapsedBaseMsRef.current +
-        (performance.now() - resultTickStartedAtRef.current);
-      setRoundResultCountdown(getRemainingSeconds(ROUND_RESULT_DELAY_MS, elapsedMs));
-    };
-
-    syncResultTimer();
-    roundResultTimerRef.current = setInterval(syncResultTimer, 250);
-
-    return () => {
-      if (roundResultTimerRef.current) {
-        clearInterval(roundResultTimerRef.current);
-        roundResultTimerRef.current = undefined;
-      }
-    };
-  }, [gameData, gameData?.roundEnded, gameData?.status, roundKey, screen]);
-
-  useEffect(() => {
-    if (
       myPlayerNum !== 1 ||
       !gameData ||
       !gameData.roundEnded ||
-      gameData.winner != null ||
-      roundResultCountdown > 0
+      gameData.winner != null
     ) {
       return;
     }
@@ -1469,7 +1431,7 @@ export default function ChemicalFormulaRacePage() {
     } else {
       void handleManualAdvance();
     }
-  }, [gameData, handleManualAdvance, handleMatchComplete, myPlayerNum, roundKey, roundResultCountdown]);
+  }, [gameData, handleManualAdvance, handleMatchComplete, myPlayerNum, roundKey]);
 
   useEffect(() => {
     if (gameData) {
@@ -1619,10 +1581,9 @@ export default function ChemicalFormulaRacePage() {
                   />
                </div>
                <span className="text-[10px] font-bold text-sky-500 uppercase tracking-[0.2em] mb-2 sm:mb-4 px-2 text-center">Build Target</span>
-               <h2 className="text-2xl sm:text-4xl font-black mb-1 sm:mb-2 tracking-tighter text-center px-4">
-                 {currentRecipe?.product.name}
-               </h2>
-               <p className="text-lg sm:text-xl font-bold text-slate-400 mb-4 sm:mb-6">{currentRecipe?.product.symbol}</p>
+<h2 className="text-2xl sm:text-4xl font-black mb-1 sm:mb-2 tracking-tighter text-center px-4">
+                  {currentRecipe?.product.name}
+                </h2>
                
                {/* Hint Section */}
                <div className="flex items-center gap-3">
@@ -1739,58 +1700,7 @@ export default function ChemicalFormulaRacePage() {
         </div>
       )}
 
-      {/* ======================== Round Over Modal ======================== */}
-      {gameData && gameData.roundEnded && !gameData.winner && screen === 'game' && (
-        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
-           <div className="glass-panel max-w-lg w-full mx-4 rounded-[40px] p-10 text-center shadow-2xl animate-in zoom-in-95 duration-500">
-              <span className="text-8xl mb-6 block animate-bounce">
-                {gameData.roundWinner === 0 ? '🏁' : '✨'}
-              </span>
-              <h3 className="text-4xl font-black mb-4 tracking-tighter uppercase">
-                {roundSummary?.title}
-              </h3>
-              <p className="text-xl text-slate-500 mb-8 font-medium leading-relaxed">
-                {roundSummary?.message}
-              </p>
-              
-              <div className="bg-slate-100 dark:bg-slate-800/50 p-6 rounded-3xl mb-8">
-                 <p className="text-xs font-bold text-slate-500 uppercase tracking-[0.2em] mb-4">Round Result</p>
-                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="flex flex-col p-3 sm:p-4 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 text-center sm:text-left">
-                       <span className="text-[10px] font-bold text-slate-400 uppercase truncate px-2">{gameData.p1Name}</span>
-                       <span className={cn("text-2xl sm:text-3xl font-black", gameData.roundWinner === 1 ? "text-sky-500" : "text-slate-700 dark:text-slate-300")}>
-                         {gameData.p1Score}
-                       </span>
-                    </div>
-                    <div className="flex flex-col p-3 sm:p-4 bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 text-center sm:text-left">
-                       <span className="text-[10px] font-bold text-slate-400 uppercase truncate px-2">{gameData.p2Name}</span>
-                       <span className={cn("text-2xl sm:text-3xl font-black", gameData.roundWinner === 2 ? "text-sky-500" : "text-slate-700 dark:text-slate-300")}>
-                         {gameData.p2Score}
-                       </span>
-                    </div>
-                 </div>
-              </div>
 
-              <div className="flex flex-col items-center gap-2">
-                 <div className="w-16 h-1 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mb-2">
-                    <div 
-                      className="h-full bg-sky-500 transition-all duration-100 ease-linear"
-                      style={{ width: `${(roundResultCountdown / ROUND_RESULT_DELAY) * 100}%` }}
-                    />
-                 </div>
-                 <p className="text-slate-400 font-bold text-sm uppercase">Next round in {roundResultCountdown}s...</p>
-                 {myPlayerNum === 1 && (
-                   <button 
-                     onClick={handleManualAdvance}
-                     className="mt-6 text-sky-500 font-bold hover:underline"
-                   >
-                     Skip Waiting &rarr;
-                   </button>
-                 )}
-              </div>
-           </div>
-        </div>
-      )}
 
       {/* ======================== Victory Screen ======================== */}
       {screen === 'victory' && gameData && (
